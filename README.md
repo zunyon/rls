@@ -211,8 +211,3 @@ gcc のバージョンによって、必要であれば `{` の位置などを�
 - chg `main()` の initColor() のタイミング変更
 - chg `colorUsage()` の処理修正
 - fix `printAggregate()` の displaycount が 0 の時の処理修正
-<br><br>
-
-
-## ライセンス
-全てのファイルが　[MIT License](./README_license.md)　です。
