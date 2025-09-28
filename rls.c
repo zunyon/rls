@@ -24,20 +24,21 @@
 
 // ================================================================================
 // version.h
-#define VERSION "0.3.0"
+#define VERSION "0.4.0"
 // 2024, 09/01 Ver. 0.1.0
 // 2025, 01/13 Ver. 0.2.0
+// 2025, 08/23 Ver. 0.3.0
 
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "08/23"
-#define BTIME "15:34:00"
+#define BDATE "09/27"
+#define BTIME "07:02:05"
 
-#define RELTYPE "[RELEASE]"
+#define RELTYPE "[CURRENT]"
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 08/23 15:11"
+// my-last-update-time "2025, 09/23 10:30"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -234,22 +235,19 @@ addDuplist(struct DLIST *p, char *word, int len, int number)
 			ret = (len < p->length) ? 1 : -1;
 		}
 
-		if (ret < 0) {
-			p = p->left;
-		} else {
-			p = p->right;
-		}
+		p = (ret < 0) ? p->left : p->right;
 	}
 
 	// 無かった方に新規登録
 	struct DLIST *new_node = mallocDuplist(word, len);
 	new_node->fnamelistNumber = number;
 
-	if (ret < 0) {
-		prev->left = new_node;
-	} else {
-		prev->right = new_node;
-	}
+	*(ret < 0 ? &prev->left : &prev->right) = new_node;
+// 	if (ret < 0) {
+// 		prev->left = new_node;
+// 	} else {
+// 		prev->right = new_node;
+// 	}
 }
 
 
@@ -259,6 +257,7 @@ searchDuplist(struct DLIST *p, char *word, int len, int number)
 {
 	while (p) {
 		char ret;
+
 		if (p->length == len) {
 			ret = strncmp(word, p->dupword, len);
 
@@ -285,11 +284,7 @@ searchDuplist(struct DLIST *p, char *word, int len, int number)
 			ret = (len < p->length) ? 1 : -1;
 		}
 
-		if (ret < 0) {
-			p = p->left;
-		} else {
-			p = p->right;
-		}
+		p = (ret < 0) ? p->left : p->right;
 	}
 
 	return 0;
@@ -344,8 +339,8 @@ void
 printStr(CLIST color, const char *str)
 {
 	// 色付け後にリセット、、、背景 or 文字色だけの設定が引き継がれないように
-	printEscapeColor(color);
 	int len = strlen(str);
+	printEscapeColor(color);
 	if (str[len - 1] == '\n') {
 		printf("%.*s", len - 1, str);
 		printEscapeColor(reset);
@@ -572,7 +567,7 @@ struct FNAME {
 	int linknamel;
 	int errnostrl;
 
-	int date_f;						// makedate() の difftime() が未来
+	int date_f;						// makeDate() の difftime() が未来
 	char *lowername;				// 比較用
 	int uniquebegin;				// unique の開始
 	int uniqueend;					// unique の終了、paint_string で該当した場合 1 を代入、aggregate でカウント
@@ -591,14 +586,13 @@ makeMode(struct FNAME *p)
 	char c;
 	int st_mode = p->sb.st_mode;
 
-	// kind: 'c', 'b', default は追加表示する文字なし
 	switch (st_mode & S_IFMT) {
 		case S_IFDIR:  c = 'd'; p->color = dir;    p->kind[0] = '/'; break;	// dir
 		case S_IFBLK:  c = 'b'; p->color = device;                   break;	// block device      /dev/
 		case S_IFCHR:  c = 'c'; p->color = device;                   break;	// character device  /dev/
 		case S_IFIFO:  c = '|'; p->color = fifo;   p->kind[0] = '|'; break;	// FIFO/pipe         /tmp/fish.ryoma/
 		case S_IFSOCK: c = 's'; p->color = socket; p->kind[0] = '='; break;	// socket            /tmp/tmux-100/
-		case S_IFLNK: {										// symlink
+		case S_IFLNK: {														// symlink
 			struct stat sb;
 
 			c = 'l'; p->kind[0] = '@';
@@ -626,7 +620,7 @@ makeMode(struct FNAME *p)
 		}
 		break;
 
-		default: c = '-'; break;		// ls は '-'
+		default: c = '-'; break;
 	}
 
 	// --------------------------------------------------------------------------------
@@ -660,26 +654,28 @@ makeMode(struct FNAME *p)
 
 // --------------------------------------------------------------------------------
 void
-makeDate(struct FNAME *p, time_t lt)
+makeDate(struct FNAME *p, time_t lt, int readable_week)
 {
 	struct tm *t = localtime(&(p->sb.st_mtime));
+	double dtime = difftime(lt, p->sb.st_mtime);
 
 	// 未来
-	if (difftime(lt, p->sb.st_mtime) < 0) {
+	if (dtime < 0) {
 		p->date_f = 1;
 	}
 
-	// 現時刻から半年前かチェック (秒でチェック、60 * 60 * 24 * 365 / 2 = 15768000)
-	if (difftime(lt, p->sb.st_mtime) < 15768000) {
-		strftime(p->date, DATALEN, "%b %e %H:%M", t);
+	// 現時刻から半年前かチェック (秒でチェック、60 * 60 * 24 * 365 / 2 = 15768000)、前なら年表示
+	if (readable_week) {
+		// 省略表示しない %B, %A
+		strftime(p->date, DATALEN, (dtime < 15768000) ? "%B %e %H:%M" : "%B %e  %Y", t);
+		strftime(p->week, DATALEN, "%A", t);
 	} else {
-		strftime(p->date, DATALEN, "%b %e  %Y", t);
+		// 3 文字の省略表示 %b, %a
+		strftime(p->date, DATALEN, (dtime < 15768000) ? "%b %e %H:%M" : "%b %e  %Y", t);
+		strftime(p->week, DATALEN, "%a", t);
 	}
 
-	// 日時
 	strftime(p->time, DATALEN, "%Y, %m/%d %H:%M:%S", t);
-	// 曜日
-	strftime(p->week, DATALEN, "%a", t);
 }
 
 
@@ -1734,13 +1730,16 @@ printShort(struct FNAME *data, int n, struct ENCLOSING enc, unsigned short int t
 int
 haveAfterdata(struct FNAME *p, const char orderlist[], int i)
 {
+	debug printStr(label, "haveAfterdata:\n");
+	debug printf("p->info:%s, orderlist:[%s], i:%d\n", p->info[i+1], orderlist, i);
+
 	if (orderlist[i + 1] == '\0') {
 		return 0;
 	}
 
 	for (int j=i + 1; orderlist[j] != '\0'; j++) {
 		if (p->info[j] == NULL) {
-			continue;
+			return 0;
 		}
 		if (p->info[j][0] == '\0') {
 			continue;
@@ -1782,6 +1781,22 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 #endif
 
 		// --------------------------------------------------------------------------------
+		// formatListString[k] 番目と、&fnamelist[j].xxx でデータが続くか確認して、haveAfterdataStr[k] に 0, 1 を入れる
+		char haveAfterdataStr[ListCountd + 1] = "";
+
+		int len = strlen(orderlist);
+		for (int j=0; j<len; j++) {
+			haveAfterdataStr[j] = haveAfterdata(&data[i], orderlist, j);
+
+			// 一度 0 だった場合、以降はずっと 0
+			if (haveAfterdataStr[j] == 0) {
+				for (; orderlist[j] != '\0'; j++) {
+					haveAfterdataStr[j] = 0;
+				}
+			}
+		}
+
+		// --------------------------------------------------------------------------------
 		for (int j=0; orderlist[j] != '\0'; j++) {
 			int count = 0;
 			int len = 0;
@@ -1800,7 +1815,7 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 
 				debug printf("%c:", orderlist[j]);
 				printMatchedString(data[i], data[i].info[j], enc);
-				if (haveAfterdata(&data[i], orderlist, j) == 0) {
+				if (haveAfterdataStr[j] == 0) {
 					continue;
 				}
 				if (digits[(unsigned char) orderlist[j]]) {
@@ -1821,7 +1836,7 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				}
 				debug printf("%c:", orderlist[j]);
 				printMatchedString(data[i], data[i].info[j], enc);
-				if (haveAfterdata(&data[i], orderlist, j)) {
+				if (haveAfterdataStr[j]) {
 					printf(" ");
 				}
 				break;
@@ -1834,7 +1849,7 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				}
 				debug printf("%c:", orderlist[j]);
 				printMatchedString(data[i], data[i].info[j], enc);
-				if (haveAfterdata(&data[i], orderlist, j)) {
+				if (haveAfterdataStr[j]) {
 					printf(" ");
 				}
 				break;
@@ -1852,7 +1867,7 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				} else {
 					printMatchedString(data[i], data[i].info[j], enc);
 				}
-				if (haveAfterdata(&data[i], orderlist, j)) {
+				if (haveAfterdataStr[j]) {
 					printf(" ");
 				}
 				break;
@@ -1865,7 +1880,7 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				}
 				debug printf("%c:", orderlist[j]);
 				printMatchedString(data[i], data[i].info[j], enc);				// size
-				if (haveAfterdata(&data[i], orderlist, j)) {
+				if (haveAfterdataStr[j]) {
 					printf(" ");
 				}
 				break;
@@ -1885,7 +1900,7 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 					debug printf("s:");
 					printMatchedString(data[i], data[i].info[j], enc);			// size
 				}
-				if (haveAfterdata(&data[i], orderlist, j)) {
+				if (haveAfterdataStr[j]) {
 					printf(" ");
 				}
 				break;
@@ -1893,8 +1908,10 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				// --------------------------------------------------------------------------------
 			  case '[':
 			  case ']':
+			  case '|':
+			  case ',':
 				printf("%s", data[i].info[j]);
-				if (haveAfterdata(&data[i], orderlist, j)) {
+				if (haveAfterdataStr[j]) {
 					printf(" ");
 				}
 				break;
@@ -1907,15 +1924,14 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				len = data[i].pathl + count * enc.tlen;
 				debug printf("%c:", orderlist[j]);
 				printMatchedString(data[i], data[i].info[j], enc);
-				if (haveAfterdata(&data[i], orderlist, j) == 0) {
-					break;
-				}
-				if (digits[(unsigned char) orderlist[j]]) {
-					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
-				}
-				// 特殊対応
-				if (!(orderlist[j] == 'P' && (orderlist[j + 1] == 'n' || orderlist[j + 1] == 'N'))) {
-					printf(" ");
+				if (haveAfterdataStr[j]) {
+					if (digits[(unsigned char) orderlist[j]]) {
+						printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
+					}
+					// 特殊対応
+					if (!(orderlist[j] == 'P' && (orderlist[j + 1] == 'n' || orderlist[j + 1] == 'N'))) {
+						printf(" ");
+					}
 				}
 				break;
 
@@ -1923,21 +1939,20 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				len = data[i].print_length + count * enc.tlen;
 				debug printf("%c:", orderlist[j]);
 				printName(data[i], data[i].info[j], enc);					// name (printUnique(), printMatchedString() の切替)
-				if (haveAfterdata(&data[i], orderlist, j) == 0) {
-					break;
-				}
-				if (digits[(unsigned char) orderlist[j]]) {
-					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
-				}
-				// 特殊対応
-				if (orderlist[j + 1] != 'k' && orderlist[j + 1] != 'K') {
-					printf(" ");
+				if (haveAfterdataStr[j]) {
+					if (digits[(unsigned char) orderlist[j]]) {
+						printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
+					}
+					// 特殊対応
+					if (orderlist[j + 1] != 'k' && orderlist[j + 1] != 'K') {
+						printf(" ");
+					}
 				}
 				break;
 
 			  case 'k': case 'K':
 				int ret = printKind(data[i], data[i].info[j], enc);
-				if (haveAfterdata(&data[i], orderlist, j)) {
+				if (haveAfterdataStr[j]) {
 					if (ret == 0) {
 						printf(" ");
 					}
@@ -1953,16 +1968,15 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 					printf(" ");
 					debug printf("%c:", orderlist[j]);
 					printMatchedString(data[i], data[i].info[j], enc);
-				} else {
+				}
+				if (haveAfterdataStr[j]) {
 					// -> の分を表示する
 					if (orderlist[j] == 'l') {
 						printf("    ");
 					}
-				}
-				if (digits[(unsigned char) orderlist[j]]) {
-					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
-				}
-				if (haveAfterdata(&data[i], orderlist, j)) {
+					if (digits[(unsigned char) orderlist[j]]) {
+						printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
+					}
 					printf(" ");
 				}
 				break;
@@ -1975,16 +1989,15 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 					printStr(data[i].color, "[");
 					printMatchedString(data[i], data[i].info[j], enc);
 					printStr(data[i].color, "]");
-				} else {
+				}
+				if (haveAfterdataStr[j]) {
 					// [] の分を表示する
 					if (orderlist[j] == 'e') {
 						printf("  ");			// "[]" の分
 					}
-				}
-				if (digits[(unsigned char) orderlist[j]]) {
-					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
-				}
-				if (haveAfterdata(&data[i], orderlist, j)) {
+					if (digits[(unsigned char) orderlist[j]]) {
+						printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
+					}
 					printf(" ");
 				}
 				break;
@@ -2008,8 +2021,9 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 
 // ================================================================================
 // どの程度の文字列の長さで unique になっているか表示
+// -R や、-p の結果も paint で表示する
 void
-printAggregate(struct FNAME *fnamelist, int nth)
+printAggregate(struct FNAME *fnamelist, int nth, int aggregatel)
 {
 	debug printStr(label, "printAggregate:\n");
 
@@ -2050,13 +2064,16 @@ printAggregate(struct FNAME *fnamelist, int nth)
 
 	// -P の時、表示数が変化するから
 	if (displaycount != nth) {
-		printf(" display:%d/%d(%.1f%%)", hitcount, displaycount, round(hitcount * 100.0 / displaycount));
+		printf(" display:%d/%d(%.1f%%)", hitcount, displaycount, displaycount ? round(hitcount * 100.0 / displaycount): 0);
 	}
 	// 全体のデータ表示
 	printf(" all:%d/%d(%.1f%%) lines ", hitcount, nth, percent);
 	for (int i=1; i<UNIQUE_LENGTH; i++) {
 		if (count_chklen[i] != 0) {
-			printf("[%d:%d(%.1f%%)] ", i, count_chklen[i], round(count_chklen[i] * 100.0 / nth));
+			if (i == aggregatel) { printEscapeColor(paint); }			// -R, -p 指定時に色付け
+			printf("[%d:%d(%.1f%%)]", i, count_chklen[i], round(count_chklen[i] * 100.0 / nth));
+			if (i == aggregatel) { printEscapeColor(reset); }
+			printf(" ");
 		}
 	}
 	printf("\n");
@@ -2225,11 +2242,11 @@ showUsage(char **argv)
 
 	printf("\n");
 	printf(" If multiple options are specified:\n");
-	printf("  The last option is overwritten: -c, -p, -P, -f, -TB, -TE.\n");
+	printf("  The last option is overwritten: -c, -p, -P, -f, -TB, -TE, -R.\n");
 	printf("  All options are merged:         -m, -z, -N.\n");
 
 	printf("\n");
-	printf(" Options have priority. (Last line of each "); printStr(label, "options:\n");
+	printf(" Options have priority. (Last line of each "); printStr(label, "options:"); printf(")\n");
 	printf("  If a higher priority option is set, lower priority options are ignored.\n");
 
 	printf("\n");
@@ -2239,8 +2256,9 @@ showUsage(char **argv)
 	printf(" "); printStr(normal, "-f"); printf(": with -l, change Format orders. (default: -fmogcdPNkLE)\n");
 	printf("      m:mode, o:owner, g:group, c:count, d:date, p:path, n:name, k:kind, l:linkname, e:errno,\n");
 	printf("      i:inode, h:hardlinks, s:size, t:time, w:week.\n");
+	printf("      [, ], |, ',':specified character is displayed.\n");
 	printf("      ---\n");
-	printf("      [, ]:specified character is displayed, \n");
+	printf("      d:\"%%b %%e %%H:%%M\" or \"%%b %%e  %%Y\" format,\n");
 	printf("      p:with -l, argv is \"PATH/FILE\" format,\n");
 	printf("      s:size of DIRECTORY and FILE,\n");
 	printf("      c:if FILE, the size of FILE. Otherwise, number of directory entries. (without \".\" and \"..\")\n");
@@ -2259,8 +2277,9 @@ showUsage(char **argv)
 	printStr(label, "Output data options:\n");
 	printf(" -a: show All dot files.\n");
 	printf(" -o: with -a, show Only directories. (-s > -o > [FILE])\n");
-	printf(" "); printStr(normal, "-P"); printf(": like -p, Pickup only the string matched. (-Pstring, CASE SENSITIVE)\n");
-	printf("     -P = -o > -a\n");
+	printf(" -O: show Only files.\n");
+	printf(" "); printStr(normal, "-P"); printf(": like -p, Pickup only the string matched. (-Pstring, case sensitive)\n");
+	printf("     -P = -O > -o > -a\n");
 
 	printf("\n");
 	printStr(label, "Color options:\n");
@@ -2288,15 +2307,17 @@ showUsage(char **argv)
 	printf(" -m: Mtime sort. (alphabet sort -> mtime sort, -mm: reverse mtime sort)\n");
 	printf(" -z: siZe sort. (alphabet sort -> size sort, -zz: reverse size sort, -fc is calculated as -fs)\n");
 	printf(" -N: reverse alphabet (Name) sort. (alphabet sort -> reverse alphabet sort, -NN: alphabet sort)\n");
-	printf(" -O: no sort Order.\n");
-	printf("     -O > -N(N) > -z(z) > -m(m)\n");
+	printf(" -S: no Sort order.\n");
+	printf("     -S > -N(N) > -z(z) > -m(m)\n");
 
 	printf("\n");
 	printStr(label, "Additional options:\n");
 	printf(" -t: with -l, human-readable daTe. (-f with date)\n");
-	printf(" -i: with -l, human-readable sIze. (-f: count, size, hardlinks (whithout inode))\n");
+	printf(" -i: with -l, human-readable sIze. (-f with count, size, hardlinks)\n");
+	printf(" -w: with -l, day of the week, month Without abbreviation. (-f with week, date (month))\n");
 	printf(" "); printStr(label, "-r"); printf(": show aggregate Results.\n");
-	printf("     -t = -i != -r\n");
+	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggreagete Results with the \"paint\" color. (-Rnumber)\n");
+	printf("     -r = -R = -i = -t > -w\n");
 
 	printf("\n");
 	printStr(label, "Other options:\n");
@@ -2385,6 +2406,7 @@ typedef enum {
 	do_uniquecheck,
 	show_dotfile,
 	only_directory,
+	only_file,
 	only_paint_string,
 
 	no_color,
@@ -2398,7 +2420,9 @@ typedef enum {
 
 	readable_date,
 	readable_size,
+	readable_week,
 	aggregate_results,
+	aggregate_length,
 
 	show_help,
 	show_version,
@@ -2429,6 +2453,7 @@ debug_showArgvswitch(int alist[])
 		toStr(do_uniquecheck),
 		toStr(show_dotfile),
 		toStr(only_directory),
+		toStr(only_file),
 		toStr(only_paint_string),
 
 		toStr(no_color),
@@ -2442,7 +2467,9 @@ debug_showArgvswitch(int alist[])
 
 		toStr(readable_date),
 		toStr(readable_size),
+		toStr(readable_week),
 		toStr(aggregate_results),
+		toStr(aggregate_length),
 
 		toStr(show_help),
 		toStr(show_version),
@@ -2519,14 +2546,15 @@ fnameLength(struct FNAME *p)
 	p->sizel  = strlen(p->size);
 	p->countl = strlen(p->count);
 	p->datel  = strlen(p->date);
-	p->kindl  = strlen(p->kind);	// 固定長
 	p->timel  = strlen(p->time);	// 固定長
 	p->weekl  = strlen(p->week);	// 固定長
 
-	// 無い場合あり
-	if (p->path[0]     == '\0') { p->pathl     = 0; } else { p->pathl     = strlen(p->path);     }
-	if (p->linkname[0] == '\0') { p->linknamel = 0; } else { p->linknamel = strlen(p->linkname); }
-	if (p->errnostr[0] == '\0') { p->errnostrl = 0; } else { p->errnostrl = strlen(p->errnostr); }
+	// lstat() が失敗しても、"-" にならない
+	// !! 下記はここでの strlen() で無くても、代入時に strlen() すれば良い、、、一か所に纏めるかどちらか
+	p->kindl  = strlen(p->kind);	// 固定長
+	p->pathl  = strlen(p->path);
+	p->linknamel = strlen(p->linkname);
+	p->errnostrl = strlen(p->errnostr);
 }
 
 
@@ -2552,6 +2580,16 @@ main(int argc, char *argv[])
 
 	// 引数のファイル指定の数を数える (ある/無しのフラグ)
 	int count_is_file = 0;
+
+	// aggregate の文字列長さ
+	int aggregatel = 0;
+
+#ifdef DEBUG
+	printf("argument vector:\n");
+	for (int i=0; i<argc; i++) {
+		printf("%2d:[%s]\n", i, argv[i]);
+	}
+#endif
 
 	// ================================================================================
 	// 毎回 fullpath を作成するのではなく cd する
@@ -2708,6 +2746,7 @@ main(int argc, char *argv[])
 			alist[argv_color]++;
 			// 後の指定が優先 (上書き) される
 			strcpy(color_txt, argv[i] + 2);
+			debug printf("argv color:[%s]\n", color_txt);
 			continue;
 		}
 
@@ -2725,6 +2764,9 @@ main(int argc, char *argv[])
 			}
 			paintString[tmplen] = '\0';
 			paintStringLen = tmplen;
+			// aggregate の該当長さに paint 色付け
+			aggregatel = paintStringLen;
+			debug printf("paintString:[%s]\n", paintString);
 			continue;
 		}
 
@@ -2738,6 +2780,17 @@ main(int argc, char *argv[])
 			}
 			strncpy(onlyPaintStr, argv[i] + 2, len - 2);
 			onlyPaintStr[len - 2] = '\0';
+			continue;
+		}
+
+		// aggregate の該当長さに paint 色付け
+		if (strncmp(argv[i], "-R", 2) == 0) {
+			if (len == 2) { argverr[i] = error; continue; }
+
+			alist[aggregate_length]++;
+			aggregatel = atoi(argv[i] + 2);
+			if (aggregatel <= 0) { argverr[i] = error; continue; }
+			debug printf("aggregate length:%d\n", aggregatel);
 			continue;
 		}
 
@@ -2759,6 +2812,7 @@ main(int argc, char *argv[])
 
 					case 'a': alist[show_dotfile]++;      break;	// '.' から始まるファイルを表示
 					case 'o': alist[only_directory]++;    break;	// ディレクトリのみ表示
+					case 'O': alist[only_file]++;         break;	// ファイルのみ表示
 
 					case 'n': alist[no_color]++;          break;	// no color 表示
 					case 'd': alist[default_color]++;     break;	// default color 表示
@@ -2766,10 +2820,11 @@ main(int argc, char *argv[])
 					case 'm': alist[mtime_sort]++;        break;	// mtime でソート
 					case 'z': alist[size_sort]++;         break;	// size でソート
 					case 'N': alist[name_sort]++;         break;	// name でソート
-					case 'O': alist[no_sort]++;           break;	// ソート無し
+					case 'S': alist[no_sort]++;           break;	// ソート無し
 
 					case 't': alist[readable_date]++;     break;	// human readable time
 					case 'i': alist[readable_size]++;     break;	// human readable size
+					case 'w': alist[readable_week]++;     break;	// human readable 省略しない曜日/月表示
 					case 'r': alist[aggregate_results]++; break;	// 集計結果表示
 
 					case 'h': alist[show_help]++;         break;	// help 表示
@@ -2789,58 +2844,6 @@ main(int argc, char *argv[])
 		}
 	}
 
-	// --------------------------------------------------------------------------------
-	// 色をつけない
-	if (alist[no_color]) {
-		// 色の初期化
-		for (int i=0; i<ListCount; i++) {
-			colorlist[i][0] = '\0';
-		}
-	}
-
-	// 色について共通の処理
-	if (alist[no_color] || alist[default_color]) {
-	} else {
-		if (alist[argv_color]) {
-			initColor(alist[default_color], color_txt);
-		} else {
-			initColor(0, "");
-		}
-	}
-
-	// --------------------------------------------------------------------------------
-	// 引数にエラーがあった
-	for (int i=0; i<argc; i++) {
-		if (argverr[i] == error) {
-			showUsage(argv);
-
-			// 引数表示
-			printf("\n");
-			printf("Include Unknown or Missing Option.\n");
-			for (int j=0; j<argc; j++) {
-				printf(" ");
-				printStr(argverr[j], argv[j]);
-			}
-			printf("\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	if (alist[show_help]) {
-		showUsage(argv);
-		exit(EXIT_SUCCESS);
-	}
-
-	if (alist[show_version]) {
-		showVersion(argv);
-		exit(EXIT_SUCCESS);
-	}
-
-	// 色を採用した後に表示
-	if (alist[show_escape]) {
-		showEscapeList();
-		exit(EXIT_SUCCESS);
-	}
 	// ================================================================================
 	// 出力先ターミナルサイズの取得
 	if (alist[show_long] == 0) {
@@ -2888,6 +2891,7 @@ main(int argc, char *argv[])
 		alist[show_long] = 0;
 		alist[readable_date] = 0;
 		alist[readable_size] = 0;
+		alist[readable_week] = 0;
 		alist[format_list] = 0;
 	}
 
@@ -2897,12 +2901,20 @@ main(int argc, char *argv[])
 		alist[show_long]++;
 	}
 
-	// human readable date/size は long 表示
+	// human readable date/size/week は long 表示
 	if (alist[readable_date]) {
 		alist[show_long]++;
 	}
 	if (alist[readable_size]) {
 		alist[show_long]++;
+	}
+	if (alist[readable_week]) {
+		alist[show_long]++;
+	}
+
+	// only_file の時は、ディレクトリ表示を行わない
+	if (alist[only_file]) {
+		alist[only_directory] = 0;
 	}
 
 	// only_directory の時は、'.' から始まるディレクトリも表示する
@@ -2966,6 +2978,7 @@ main(int argc, char *argv[])
 		enc.lend = enc.lbegin;
 		enc.tlen = enc.lbegin + enc.lend;
 	}
+
 #ifdef DEBUG
 	if (enc.lbegin == 0 && enc.lend == 0) {
 		strcpy(enc.textbegin, "[");
@@ -2976,54 +2989,81 @@ main(int argc, char *argv[])
 	}
 #endif
 
-	// --------------------------------------------------------------------------------
+	// ================================================================================
 	// argv[i] は順不同なので、-n > -c > -d > env color > default color の優先順位を実装
-	do {
-		// 色をつけない
-		if (alist[no_color]) {
-			alist[argv_color] = 0;
-			alist[default_color]++;		// 環境変数を見ない
-
-			color_txt[0] = '\0';		// 引数の色指定も無し
-
-			// -TB, -TE と併用で無ければ、色をつけないから uniqueCheck(), uniqueCheckFirstWord() を飛ばす
-			// -TB, -TE が指定されていたら、uniqueCheck() は行う
-			if (enc.lbegin == 0) {
-				alist[do_uniquecheck] = 0;
-				alist[do_emacs] = 0;
-			}
-
-			// 色の初期化
-			for (int i=0; i<ListCount; i++) {
-				colorlist[i][0] = '\0';
-			}
-			break;
-		}
-
-		// 引数の色指定
-		if (alist[argv_color]) {
-			alist[default_color] = 0;
-			break;
-		}
-
-		// 環境変数を見ない、引数の色は見ない
-		if (alist[default_color]) {
-			break;
-		}
-
-		// env color
-		// 環境変数の色を設定、引数の色は見ない
+	// 色をつけない
+	if (alist[no_color]) {
+		alist[argv_color] = 0;
 		alist[default_color] = 0;
-		color_txt[0] = '\0';
-	} while (0);
+
+		// -TB, -TE と併用で無ければ、色をつけないから uniqueCheck(), uniqueCheckFirstWord() を飛ばす
+		// -TB, -TE が指定されていたら、uniqueCheck() は行う
+		if (enc.lbegin == 0) {
+			alist[do_uniquecheck] = 0;
+			alist[do_emacs] = 0;
+		}
+
+		// 色の初期化
+		for (int i=0; i<ListCount; i++) {
+			colorlist[i][0] = '\0';
+		}
+	}
+
+	// 引数の色指定
+	if (alist[argv_color]) {
+		alist[default_color] = 0;		// 環境変数を見ない
+	}
 
 #ifdef DEBUG
 	debug_showArgvswitch(alist);
 #endif
 
-	// ================================================================================
+	// --------------------------------------------------------------------------------
 	// 引数か、環境変数から色を指定する
-	initColor(alist[default_color], color_txt);
+	// 色について共通の処理
+	if (alist[no_color] || alist[default_color]) {
+	} else {
+		if (alist[argv_color]) {
+			initColor(alist[default_color], color_txt);
+		} else {
+			initColor(0, "");
+		}
+	}
+
+	// ================================================================================
+	// 引数にエラーがあった
+	for (int i=0; i<argc; i++) {
+		if (argverr[i] == error) {
+			showUsage(argv);
+
+			// 引数表示
+			printf("\n");
+			printf("Include Unknown or Missing Option.\n");
+			for (int j=0; j<argc; j++) {
+				printf(" ");
+				printStr(argverr[j], argv[j]);
+			}
+			printf("\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if (alist[show_help]) {
+		showUsage(argv);
+		exit(EXIT_SUCCESS);
+	}
+
+	if (alist[show_version]) {
+		showVersion(argv);
+		exit(EXIT_SUCCESS);
+	}
+
+	// 色を採用した後に表示
+	if (alist[show_escape]) {
+		showEscapeList();
+		exit(EXIT_SUCCESS);
+	}
+
 
 	// ================================================================================
 	// 引数のディレクトリ分の準備、初期化
@@ -3195,7 +3235,6 @@ main(int argc, char *argv[])
 					strcpy(fnamelist[j].date,  "-");
 					strcpy(fnamelist[j].time,  "-");
 					strcpy(fnamelist[j].week,  "-");
-					strcpy(fnamelist[j].kind,  "");
 
 					fnamelist[j].showlist = SHOW_LONG;
 				}
@@ -3374,6 +3413,16 @@ main(int argc, char *argv[])
 			}
 		}
 
+		// ファイルのみ表示する
+		if (alist[only_file]) {
+			for (int j=0; j<p->nth; j++) {
+				if (IS_DIRECTORY(fnamelist[j])) {
+					fnamelist[j].showlist = SHOW_NONE;
+// 					fnamelist[j].sourcelist = -1;		// 検索候補から除外
+				}
+			}
+		}
+
 		// --------------------------------------------------------------------------------
 		// printLong() でのみ使用する
 		if (alist[show_long]) {
@@ -3445,7 +3494,7 @@ main(int argc, char *argv[])
 				}
 				strcpy(fnamelist[j].group, gr->gr_name);
 
-				makeDate(&fnamelist[j], lt);
+				makeDate(&fnamelist[j], lt, alist[readable_week]);
 
 				// 時間を読みやすくする
 				if (alist[readable_date]) {
@@ -3533,6 +3582,23 @@ main(int argc, char *argv[])
 			}
 
 			refrectDuplist(p->duplist, fnamelist);
+		}
+
+		// --------------------------------------------------------------------------------
+		// 集計結果の該当長さの文字列を paint 色で表示
+		if (alist[aggregate_length]) {
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				if (fnamelist[j].uniquebegin != -1) {
+					int len = fnamelist[j].uniqueend - fnamelist[j].uniquebegin + 1;
+					if (len == aggregatel) {
+						fnamelist[j].color = paint;
+					}
+				}
+			}
 		}
 
 #ifdef DEBUG
@@ -3666,6 +3732,8 @@ main(int argc, char *argv[])
 				// --------------------------------------------------------------------------------
 				info_pointers['['] = "[";
 				info_pointers[']'] = "]";
+				info_pointers['|'] = "|";
+				info_pointers[','] = ",";
 
 				for (int k=0; formatListString[k] != '\0'; k++) {
 					fnamelist[j].info[k] = info_pointers[(unsigned char) formatListString[k]];
@@ -3797,6 +3865,7 @@ main(int argc, char *argv[])
 			printf("\n");
 		}
 	}
+
 	// --------------------------------------------------------------------------------
 	// データの表示 (パス指定対応)
 	for (int i=0; i<dirarg; i++) {
@@ -3846,7 +3915,7 @@ main(int argc, char *argv[])
 		// ================================================================================
 		// 集計表示
 		if (alist[aggregate_results]) {
-			printAggregate(fnamelist, p->nth);
+			printAggregate(fnamelist, p->nth, aggregatel);
 		}
 
 		// --------------------------------------------------------------------------------
