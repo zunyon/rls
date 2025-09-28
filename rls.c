@@ -32,13 +32,13 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "09/27"
-#define BTIME "07:02:05"
+#define BDATE "09/28"
+#define BTIME "16:10:49"
 
 #define RELTYPE "[CURRENT]"
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 09/23 10:30"
+// my-last-update-time "2025, 09/28 16:01"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -788,6 +788,7 @@ countEntry(char *dname, char *path)
 	for (int i=0; i<file_count; i++) {
 		free(namelist[i]);
 	}
+	free(namelist);
 
 // 	debug printf(" %d, %s\n", file_count, tmppath);
 
@@ -1469,13 +1470,17 @@ int
 wcStrlen(struct FNAME p)
 {
 	// ワイド文字列に変換
-	wchar_t wstr[p.length + 1];
-	mbstowcs(wstr, p.name, p.length + 1);
+    wchar_t wstr[FNAME_LENGTH + 1];
+    size_t wlen = mbstowcs(wstr, p.name, sizeof(wstr)/sizeof(wchar_t) - 1);
+    if (wlen == (size_t)-1) {
+        // 変換失敗時はバイト長を返す
+        return strlen(p.name);
+    }
+    wstr[wlen] = L'\0';
 
 	// 各文字の表示幅を計算
-	long unsigned int len = wcslen(wstr);
 	int total = 0;
-	for (size_t i=0; i<len; i++) {
+	for (size_t i=0; i<wlen; i++) {
 		int width = wcwidth(wstr[i]);
 		if (width > 0) {
 			total += width;
@@ -2657,7 +2662,7 @@ main(int argc, char *argv[])
 
 	// ================================================================================
 	memset(dirarglist, '\0', sizeof(dirarglist));
-	memset(argverr, base, sizeof(argverr));
+	memset(argverr, 0, sizeof(argverr));
 	paintString[0] = '\0';
 	paintStringLen = 0;
 	onlyPaintStr[0] = '\0';
