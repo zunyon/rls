@@ -1,27 +1,14 @@
 ﻿# rls
+
+rls is a file listing command-line tool with a different design philosophy from ls.<br>
+It displays the unique parts of directory and file names in color to enhance fish shell filename completion.
+
+---
+
 `rls`はファイルやディレクトリ名の `ユニークな部分文字列に色付け` した一覧を表示するプログラムです。<br>
 `rls`の実行結果と、`fish` のファイル名補完機能を併用すると、キーボード入力を減らすことができます。
 
-例えば、あるディレクトリの `rls` の実行結果が下記で、`emacs` で `countfunction.c` を編集することを想定します。
-<table>
- <td bgcolor=#111122>
-   <span style="color:white;"> <span style="color:#729fcf;">2</span>0250806_rls_v0.2.0.c　 </span><BR>
-   <span style="color:white;"> countfunctio<span style="color:#729fcf;">n.c </span></span><BR>
- </td>
- <td bgcolor=#111122>
-   <span style="color:white;"> countfunction<span style="color:#729fcf;">.h　 </span></span><BR>
-   <span style="color:white;"> <span style="color:#729fcf;">M</span>akefile </span><BR>
- </td>
- <td bgcolor=#111122>
-   <span style="color:white;"> rls<span style="color:#729fcf;"></span> </span><BR>
-   <span style="color:white;"> rl<span style="color:#729fcf;">s.c　 </span></span><BR>
- </td>
- <td bgcolor=#111122>
-   <span style="color:white;"> rls<span style="color:#729fcf;">.f</span>ish　 </span><BR>
-   <span style="color:white;"> rls<span style="color:#729fcf;">.o </span></span><BR>
- </td>
-</table>
-
+例えば、あるディレクトリの `rls` の実行結果から、`emacs` で `countfunction.c` を編集することを想定します。<br>
 `fish` のコマンドラインで `emacs` の後に `n.c` と入力して`TAB` を押すと、`countfunction.c` と補完されます。
 
 ![rls_ファイル名補完](demo_rls.gif)<br>
