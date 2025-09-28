@@ -42,6 +42,18 @@ gcc のバージョンによって、必要であれば `{` の位置などを�
   make| 4.4.1|     4.3|    4.3
   fish| 4.0.2|   3.3.1|  3.1.2
 
+### `rls.c` 以外のファイルについて
+開発に使用できるおまけファイルです。<br>
+おまけファイルの countfunction.c, countfunction.h は、`make debug` や `make count` などで使用されます。
+
+- countfuncion.c, countfunction.h
+  - 標準的な関数への wrapper 関数を記載<br>
+    warapper 関数はほぼ count しているだけなので、profile 時や、アルゴリズムの実装を試すときなどの指標になります。<br>
+    また、opendir/readdir/closedir による scandir() の代替実装があるので、他の OS や開発環境などで参考になるかもしれません。
+- rls.fish
+  - fish 用の .fish ファイル<br>
+    ~/.config/fish/completions/ に格納します。主要なオプションは記載済みです。
+
 ### 補完例の terminal 環境
 上記の terminal 環境は下記です。
 - `Windows Terminal` の配色を `Tango Dark` で使用
@@ -184,5 +196,9 @@ gcc のバージョンによって、必要であれば `{` の位置などを�
 <br><br>
 
 
-# ライセンス
+## ヘルプ
+- [Version 0.3.0](./README_rls_v0.3.0.md)　のヘルプ
+<br><br>
+
+## ライセンス
 全てのファイルが　[MIT License](./README_license.md)　です。
