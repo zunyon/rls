@@ -26,24 +26,6 @@ $(BIN): $(objects) $(headers)
 
 
 # --------------------------------------------------------------------------------
-CHECK:
-	@echo "need all files:"
-	@for i in $(ALL_FILES); do \
-		if test -e $$i; then \
-			echo " $$i: OK."; \
-		else \
-			echo " $$i: NG."; \
-		fi; \
-	done
-
-	@echo ""
-	@for i in $(ALL_FILES); do \
-		if !(test -e $$i); then \
-			echo " NOT EXIST: $$i"; \
-		fi; \
-	done
-
-
 debug: $(sources) $(headers)
 	gcc $(DEBUG_OPT) $^ -o $(BIN)
 

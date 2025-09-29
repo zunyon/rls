@@ -1,29 +1,28 @@
 /*
-	The MIT License (MIT)
-
-	Copyright(c) 2025 zunyon
-
-	Permission is hereby granted, free of charge, to any person obtaining a copy of
-	this software and associated documentation files (the “Software”), to deal in
-	the Software without restriction, including without limitation the rights to use,
-	copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
-	Software, and to permit persons to whom the Software is furnished to do so,
-	subject to the following conditions:
-
+	MIT License
+	
+	Copyright (c) 2025 zunyon
+	
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+	
 	The above copyright notice and this permission notice shall be included in all
 	copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-	FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-	IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-	DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-	ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-	DEALINGS IN THE SOFTWARE.
+	
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 
 // ================================================================================
-// version.h
 #define VERSION "0.4.0"
 // 2024, 09/01 Ver. 0.1.0
 // 2025, 01/13 Ver. 0.2.0
@@ -32,13 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "09/28"
-#define BTIME "16:10:49"
+#define BDATE "09/29"
+#define BTIME "23:38:36"
 
 #define RELTYPE "[CURRENT]"
+
+
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 09/28 16:01"
+// my-last-update-time "2025, 09/29 22:40"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1470,13 +1471,13 @@ int
 wcStrlen(struct FNAME p)
 {
 	// ワイド文字列に変換
-    wchar_t wstr[FNAME_LENGTH + 1];
-    size_t wlen = mbstowcs(wstr, p.name, sizeof(wstr)/sizeof(wchar_t) - 1);
-    if (wlen == (size_t)-1) {
-        // 変換失敗時はバイト長を返す
-        return strlen(p.name);
-    }
-    wstr[wlen] = L'\0';
+	wchar_t wstr[FNAME_LENGTH + 1];
+	size_t wlen = mbstowcs(wstr, p.name, sizeof(wstr)/sizeof(wchar_t) - 1);
+	if (wlen == (size_t) -1) {
+		// 変換失敗時はバイト長を返す
+		return strlen(p.name);
+	}
+	wstr[wlen] = L'\0';
 
 	// 各文字の表示幅を計算
 	int total = 0;
@@ -1735,8 +1736,8 @@ printShort(struct FNAME *data, int n, struct ENCLOSING enc, unsigned short int t
 int
 haveAfterdata(struct FNAME *p, const char orderlist[], int i)
 {
-	debug printStr(label, "haveAfterdata:\n");
-	debug printf("p->info:%s, orderlist:[%s], i:%d\n", p->info[i+1], orderlist, i);
+// 	debug printStr(label, "haveAfterdata:\n");
+// 	debug printf("p->info:%s, orderlist:[%s], i:%d\n", p->info[i+1], orderlist, i);
 
 	if (orderlist[i + 1] == '\0') {
 		return 0;
@@ -2560,6 +2561,30 @@ fnameLength(struct FNAME *p)
 	p->pathl  = strlen(p->path);
 	p->linknamel = strlen(p->linkname);
 	p->errnostrl = strlen(p->errnostr);
+}
+
+
+// 確保した DENT 構造体のデータを開放する
+void
+freeDENT(struct DENT *dent, int dirarg)
+{
+	for (int i=0; i<dirarg; i++) {
+		for (int j=0; j<dent[i].nth; j++) {
+			free(dent[i].fnamelist[j].lowername);
+		}
+		if (dent[i].nth) {
+			free(dent[i].fnamelist);
+		}
+
+		// --------------------------------------------------------------------------------
+		// デバッグ情報の表示
+#ifdef DEBUG
+		printf("path: %s\n", dent[i].path);
+// 		debug_displayDuplist(dent[i].duplist);
+#endif
+
+		freeDuplist(dent[i].duplist);
+	}
 }
 
 
@@ -3932,23 +3957,7 @@ main(int argc, char *argv[])
 	// ================================================================================
 	// 表示終了後 に free
 	debug printf("----------\n");
-	for (int i=0; i<dirarg; i++) {
-		for (int j=0; j<dent[i].nth; j++) {
-			free(dent[i].fnamelist[j].lowername);
-		}
-		if (dent[i].nth) {
-			free(dent[i].fnamelist);
-		}
-
-		// --------------------------------------------------------------------------------
-		// デバッグ情報の表示
-#ifdef DEBUG
-		printf("path: %s\n", dent[i].path);
-// 		debug_displayDuplist(dent[i].duplist);
-#endif
-
-		freeDuplist(dent[i].duplist);
-	}
+	freeDENT(dent, dirarg);
 
 	// --------------------------------------------------------------------------------
 	// 標準関数のカウント数の表示
