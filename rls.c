@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "09/29"
-#define BTIME "23:38:36"
+#define BDATE "09/30"
+#define BTIME "23:04:58"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 09/29 22:40"
+// my-last-update-time "2025, 09/30 22:57"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -538,7 +538,9 @@ struct FNAME {
 		char owner[DATALEN];				// owner
 		char group[DATALEN];				// group
 		char size[DATALEN];					// size の文字列
+		char sizec[DATALEN];				// size の文字列、カンマ
 		char count[DATALEN];				// ディレクトリに含まれているファイル数と、size の混合
+		char countc[DATALEN];				// ディレクトリに含まれているファイル数と、size の混合、カンマ
 		char date[DATALEN];					// mtime 日付
 		char time[DATALEN];					// 日時
 		char week[DATALEN];					// 曜日
@@ -555,7 +557,9 @@ struct FNAME {
 	int ownerl;
 	int groupl;
 	int sizel;
+	int sizecl;
 	int countl;
+	int countcl;
 	int datel;
 	int timel;
 	int weekl;
@@ -988,7 +992,9 @@ void
 addFNamelist(struct FNAME *p, char *name)
 {
 // 	p->size[0] = '\0';
+// 	p->sizec[0] = '\0';
 // 	p->count[0] = '\0';
+// 	p->countc[0] = '\0';
 	p->path[0] = '\0';
 	p->name = name;		// namelist[i] をそのまま使用
 	p->kind[0] = '\0'; p->kind[1] = '\0';
@@ -1499,19 +1505,21 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 {
 	for (int i=0; orderlist[i] != '\0'; i++) {
 		switch (orderlist[i]) {
-		  case 'i': case 'I': if (func(p.inode, string)) { return 1; } break;
-		  case 'h': case 'H': if (func(p.nlink, string)) { return 1; } break;
-		  case 'm': case 'M': if (func(p.mode,  string)) { return 1; } break;
-		  case 'o': case 'O': if (func(p.owner, string)) { return 1; } break;
-		  case 'g': case 'G': if (func(p.group, string)) { return 1; } break;
-		  case 's': case 'S': if (func(p.size,  string)) { return 1; } break;
-		  case 'c': case 'C': if (func(p.count, string)) { return 1; } break;
-		  case 'd': case 'D': if (func(p.date,  string)) { return 1; } break;
-		  case 't': case 'T': if (func(p.time,  string)) { return 1; } break;
-		  case 'w': case 'W': if (func(p.week,  string)) { return 1; } break;
-		  case 'p': case 'P': if (func(p.path,  string)) { return 1; } break;
-		  case 'n': case 'N': if (func(p.name,  string)) { return 1; } break;
-		  case 'k': case 'K': if (func(p.kind,  string)) { return 1; } break;
+		  case 'i': case 'I': if (func(p.inode,  string)) { return 1; } break;
+		  case 'h': case 'H': if (func(p.nlink,  string)) { return 1; } break;
+		  case 'm': case 'M': if (func(p.mode,   string)) { return 1; } break;
+		  case 'o': case 'O': if (func(p.owner,  string)) { return 1; } break;
+		  case 'g': case 'G': if (func(p.group,  string)) { return 1; } break;
+		  case 'S':           if (func(p.size,   string)) { return 1; } break;
+		  case 's':           if (func(p.sizec,  string)) { return 1; } break;
+		  case 'C':           if (func(p.count,  string)) { return 1; } break;
+		  case 'c':           if (func(p.countc, string)) { return 1; } break;
+		  case 'd': case 'D': if (func(p.date,   string)) { return 1; } break;
+		  case 't': case 'T': if (func(p.time,   string)) { return 1; } break;
+		  case 'w': case 'W': if (func(p.week,   string)) { return 1; } break;
+		  case 'p': case 'P': if (func(p.path,   string)) { return 1; } break;
+		  case 'n': case 'N': if (func(p.name,   string)) { return 1; } break;
+		  case 'k': case 'K': if (func(p.kind,   string)) { return 1; } break;
 		  case 'l': case 'L': if (strcasestr(p.linkname, string)) { return 1; } break;
 		  case 'e': case 'E': if (strcasestr(p.errnostr, string)) { return 1; } break;
 		}
@@ -1878,7 +1886,20 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				}
 				break;
 
-			  case 's': case 'S':
+			  case 's':
+				len = data[i].sizecl + count * enc.tlen;
+				// 数値なので右寄せ表示
+				if (digits[(unsigned char) orderlist[j]]) {
+					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
+				}
+				debug printf("%c:", orderlist[j]);
+				printMatchedString(data[i], data[i].info[j], enc);				// size
+				if (haveAfterdataStr[j]) {
+					printf(" ");
+				}
+				break;
+
+			  case 'S':
 				len = data[i].sizel + count * enc.tlen;
 				// 数値なので右寄せ表示
 				if (digits[(unsigned char) orderlist[j]]) {
@@ -1891,7 +1912,27 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				}
 				break;
 
-			  case 'c': case 'C':
+			  case 'c':
+				len = data[i].countcl + count * enc.tlen;
+				// 数値なので右寄せ表示
+				if (digits[(unsigned char) orderlist[j]]) {
+					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
+				}
+				// エントリー数は dir 色で表示するが、-n の時は表見できない
+				if (data[i].color == dir && paintStringLen == 0) {
+					// -n の時は表現できない
+					debug printf("%c:", orderlist[j]);
+					printStr(dir, data[i].info[j]);
+				} else {
+					debug printf("s:");
+					printMatchedString(data[i], data[i].info[j], enc);			// size
+				}
+				if (haveAfterdataStr[j]) {
+					printf(" ");
+				}
+				break;
+
+			  case 'C':
 				len = data[i].countl + count * enc.tlen;
 				// 数値なので右寄せ表示
 				if (digits[(unsigned char) orderlist[j]]) {
@@ -2268,6 +2309,7 @@ showUsage(char **argv)
 	printf("      p:with -l, argv is \"PATH/FILE\" format,\n");
 	printf("      s:size of DIRECTORY and FILE,\n");
 	printf("      c:if FILE, the size of FILE. Otherwise, number of directory entries. (without \".\" and \"..\")\n");
+	printf("      S, C:no comma output.\n");
 	printf("      Upper case is padding off. (Same length: no change in appearance)\n");
 	printf("     -s > -l = -f > default short listing (include file status)\n");
 
@@ -2383,7 +2425,9 @@ struct DENT {
 	int owner_digits;
 	int group_digits;
 	int size_digits;
+	int sizec_digits;
 	int count_digits;					// ファイル数とファイルサイズの混合
+	int countc_digits;					// ファイル数とファイルサイズの混合、カンマ
 	int date_digits;
 	int time_digits;
 	int week_digits;
@@ -2544,16 +2588,18 @@ fnameLength(struct FNAME *p)
 // 	p->length = strlen(p->name);
 
 	// 固定長の項目も含め、lstat() が失敗した時は "-" になる
-	p->inodel = strlen(p->inode);
-	p->nlinkl = strlen(p->nlink);
-	p->model  = strlen(p->mode);	// 固定長
-	p->ownerl = strlen(p->owner);
-	p->groupl = strlen(p->group);
-	p->sizel  = strlen(p->size);
-	p->countl = strlen(p->count);
-	p->datel  = strlen(p->date);
-	p->timel  = strlen(p->time);	// 固定長
-	p->weekl  = strlen(p->week);	// 固定長
+	p->inodel  = strlen(p->inode);
+	p->nlinkl  = strlen(p->nlink);
+	p->model   = strlen(p->mode);	// 固定長
+	p->ownerl  = strlen(p->owner);
+	p->groupl  = strlen(p->group);
+	p->sizel   = strlen(p->size);
+	p->sizecl  = strlen(p->sizec);
+	p->countl  = strlen(p->count);
+	p->countcl = strlen(p->countc);
+	p->datel   = strlen(p->date);
+	p->timel   = strlen(p->time);	// 固定長
+	p->weekl   = strlen(p->week);	// 固定長
 
 	// lstat() が失敗しても、"-" にならない
 	// !! 下記はここでの strlen() で無くても、代入時に strlen() すれば良い、、、一か所に纏めるかどちらか
@@ -3110,17 +3156,19 @@ main(int argc, char *argv[])
 
 		dent[i].inode_digits  = 0;
 		dent[i].nlink_digits  = 0;
-		dent[i].mode_digits  = 0;
-		dent[i].owner_digits = 0;
-		dent[i].group_digits = 0;
-		dent[i].size_digits  = 0;
-		dent[i].count_digits = 0;
-		dent[i].date_digits  = 0;
-		dent[i].time_digits  = 0;
-		dent[i].week_digits  = 0;
-		dent[i].path_digits  = 0;
-		dent[i].name_digits  = 0;
-		dent[i].kind_digits  = 0;
+		dent[i].mode_digits   = 0;
+		dent[i].owner_digits  = 0;
+		dent[i].group_digits  = 0;
+		dent[i].size_digits   = 0;
+		dent[i].sizec_digits  = 0;
+		dent[i].count_digits  = 0;
+		dent[i].countc_digits = 0;
+		dent[i].date_digits   = 0;
+		dent[i].time_digits   = 0;
+		dent[i].week_digits   = 0;
+		dent[i].path_digits   = 0;
+		dent[i].name_digits   = 0;
+		dent[i].kind_digits   = 0;
 		dent[i].linkname_digits = 0;
 		dent[i].errnostr_digits = 0;
 
@@ -3255,16 +3303,18 @@ main(int argc, char *argv[])
 
 				// 必ず、SHOW_LONG, SHOW_SHORT に属させる事
 				if (alist[show_long]) {
-					strcpy(fnamelist[j].inode, "-");
-					strcpy(fnamelist[j].nlink, "-");
-					strcpy(fnamelist[j].mode,  "-");
-					strcpy(fnamelist[j].owner, "-");
-					strcpy(fnamelist[j].group, "-");
-					strcpy(fnamelist[j].size,  "-");
-					strcpy(fnamelist[j].count, "-");
-					strcpy(fnamelist[j].date,  "-");
-					strcpy(fnamelist[j].time,  "-");
-					strcpy(fnamelist[j].week,  "-");
+					strcpy(fnamelist[j].inode,  "-");
+					strcpy(fnamelist[j].nlink,  "-");
+					strcpy(fnamelist[j].mode,   "-");
+					strcpy(fnamelist[j].owner,  "-");
+					strcpy(fnamelist[j].group,  "-");
+					strcpy(fnamelist[j].size,   "-");
+					strcpy(fnamelist[j].sizec,  "-");
+					strcpy(fnamelist[j].count,  "-");
+					strcpy(fnamelist[j].countc, "-");
+					strcpy(fnamelist[j].date,   "-");
+					strcpy(fnamelist[j].time,   "-");
+					strcpy(fnamelist[j].week,   "-");
 
 					fnamelist[j].showlist = SHOW_LONG;
 				}
@@ -3474,7 +3524,8 @@ main(int argc, char *argv[])
 				sb = fnamelist[j].sb;
 
 				// filesize data
-				makeSize(fnamelist[j].size, sb.st_size);
+				sprintf(fnamelist[j].size, "%ld", sb.st_size);
+				makeSize(fnamelist[j].sizec, sb.st_size);
 
 				// countsize data
 				if (IS_DIRECTORY(fnamelist[j])) {
@@ -3482,14 +3533,17 @@ main(int argc, char *argv[])
 					int ret = countEntry(fnamelist[j].name, dirarglist[i]);
 
 					if (ret != -1) {
-						makeSize(fnamelist[j].count, ret);
+						sprintf(fnamelist[j].count, "%d", ret);
+						makeSize(fnamelist[j].countc, ret);
 					} else {
 						// ディレクトリだけど、読めない
 						strcpy(fnamelist[j].count, "-");
+						strcpy(fnamelist[j].countc, "-");
 					}
 				} else {
 					// ファイルの時は、.size の値をコピー
 					strcpy(fnamelist[j].count, fnamelist[j].size);
+					strcpy(fnamelist[j].countc, fnamelist[j].sizec);
 				}
 
 				makeSize(fnamelist[j].inode, sb.st_ino);
@@ -3497,12 +3551,10 @@ main(int argc, char *argv[])
 
 				// サイズを読みやすくする
 				if (alist[readable_size]) {
-					makeReadableSize(fnamelist[j].size);
-					makeReadableSize(fnamelist[j].count);
+					makeReadableSize(fnamelist[j].sizec);
+					makeReadableSize(fnamelist[j].countc);
 
 					makeReadableSize(fnamelist[j].nlink);
-					// 単位じゃないから省略しない
-// 					makeReadableSize(fnamelist[j].inode);
 				}
 
 				struct passwd *pw;
@@ -3700,20 +3752,22 @@ main(int argc, char *argv[])
 				continue;
 			}
 
-			p->inode_digits = MAX(p->inode_digits, countMatchedString(fnamelist[j].inode) * enc.tlen + fnamelist[j].inodel);
-			p->nlink_digits = MAX(p->nlink_digits, countMatchedString(fnamelist[j].nlink) * enc.tlen + fnamelist[j].nlinkl);
-			p->mode_digits =  MAX(p->mode_digits,  countMatchedString(fnamelist[j].mode)  * enc.tlen + fnamelist[j].model);
-			p->owner_digits = MAX(p->owner_digits, countMatchedString(fnamelist[j].owner) * enc.tlen + fnamelist[j].ownerl);
-			p->group_digits = MAX(p->group_digits, countMatchedString(fnamelist[j].group) * enc.tlen + fnamelist[j].groupl);
-			p->size_digits =  MAX(p->size_digits,  countMatchedString(fnamelist[j].size)  * enc.tlen + fnamelist[j].sizel);
-			p->count_digits = MAX(p->count_digits, countMatchedString(fnamelist[j].count) * enc.tlen + fnamelist[j].countl);
-			p->date_digits =  MAX(p->date_digits,  countMatchedString(fnamelist[j].date)  * enc.tlen + fnamelist[j].datel);
-			p->time_digits =  MAX(p->time_digits,  countMatchedString(fnamelist[j].time)  * enc.tlen + fnamelist[j].timel);
-			p->week_digits =  MAX(p->week_digits,  countMatchedString(fnamelist[j].week)  * enc.tlen + fnamelist[j].weekl);
-			p->kind_digits =  MAX(p->kind_digits,  countMatchedString(fnamelist[j].kind)  * enc.tlen + fnamelist[j].kindl);
-			p->path_digits =  MAX(p->path_digits,  countMatchedString(fnamelist[j].path)  * enc.tlen + fnamelist[j].pathl);
-			p->linkname_digits =  MAX(p->linkname_digits, countMatchedString(fnamelist[j].linkname) * enc.tlen + fnamelist[j].linknamel);
-			p->errnostr_digits =  MAX(p->errnostr_digits, countMatchedString(fnamelist[j].errnostr) * enc.tlen + fnamelist[j].errnostrl);
+			p->inode_digits  = MAX(p->inode_digits,  countMatchedString(fnamelist[j].inode)  * enc.tlen + fnamelist[j].inodel);
+			p->nlink_digits  = MAX(p->nlink_digits,  countMatchedString(fnamelist[j].nlink)  * enc.tlen + fnamelist[j].nlinkl);
+			p->mode_digits   = MAX(p->mode_digits,   countMatchedString(fnamelist[j].mode)   * enc.tlen + fnamelist[j].model);
+			p->owner_digits  = MAX(p->owner_digits,  countMatchedString(fnamelist[j].owner)  * enc.tlen + fnamelist[j].ownerl);
+			p->group_digits  = MAX(p->group_digits,  countMatchedString(fnamelist[j].group)  * enc.tlen + fnamelist[j].groupl);
+			p->size_digits   = MAX(p->size_digits,   countMatchedString(fnamelist[j].size)   * enc.tlen + fnamelist[j].sizel);
+			p->sizec_digits  = MAX(p->sizec_digits,  countMatchedString(fnamelist[j].sizec)  * enc.tlen + fnamelist[j].sizecl);
+			p->count_digits  = MAX(p->count_digits,  countMatchedString(fnamelist[j].count)  * enc.tlen + fnamelist[j].countl);
+			p->countc_digits = MAX(p->countc_digits, countMatchedString(fnamelist[j].countc) * enc.tlen + fnamelist[j].countcl);
+			p->date_digits   = MAX(p->date_digits,   countMatchedString(fnamelist[j].date)   * enc.tlen + fnamelist[j].datel);
+			p->time_digits   = MAX(p->time_digits,   countMatchedString(fnamelist[j].time)   * enc.tlen + fnamelist[j].timel);
+			p->week_digits   = MAX(p->week_digits,   countMatchedString(fnamelist[j].week)   * enc.tlen + fnamelist[j].weekl);
+			p->kind_digits   = MAX(p->kind_digits,   countMatchedString(fnamelist[j].kind)   * enc.tlen + fnamelist[j].kindl);
+			p->path_digits   = MAX(p->path_digits,   countMatchedString(fnamelist[j].path)   * enc.tlen + fnamelist[j].pathl);
+			p->linkname_digits = MAX(p->linkname_digits, countMatchedString(fnamelist[j].linkname) * enc.tlen + fnamelist[j].linknamel);
+			p->errnostr_digits = MAX(p->errnostr_digits, countMatchedString(fnamelist[j].errnostr) * enc.tlen + fnamelist[j].errnostrl);
 		}
 
 #ifdef DEBUG
@@ -3749,8 +3803,10 @@ main(int argc, char *argv[])
 				info_pointers['m'] = info_pointers['M'] = fnamelist[j].mode;
 				info_pointers['o'] = info_pointers['O'] = fnamelist[j].owner;
 				info_pointers['g'] = info_pointers['G'] = fnamelist[j].group;
-				info_pointers['s'] = info_pointers['S'] = fnamelist[j].size;
-				info_pointers['c'] = info_pointers['C'] = fnamelist[j].count;
+				info_pointers['S']                      = fnamelist[j].size;
+				info_pointers['s']                      = fnamelist[j].sizec;
+				info_pointers['C']                      = fnamelist[j].count;
+				info_pointers['c']                      = fnamelist[j].countc;
 				info_pointers['d'] = info_pointers['D'] = fnamelist[j].date;
 				info_pointers['t'] = info_pointers['T'] = fnamelist[j].time;
 				info_pointers['w'] = info_pointers['W'] = fnamelist[j].week;
@@ -3796,19 +3852,21 @@ main(int argc, char *argv[])
 				}
 
 				// --------------------------------------------------------------------------------
-				digits['i'] = MAX(p->inode_digits, digits['I']);		// inode
-				digits['h'] = MAX(p->nlink_digits, digits['H']);		// hard link
-				digits['m'] = MAX(p->mode_digits,  digits['m']);		// mode
-				digits['o'] = MAX(p->owner_digits, digits['o']);		// owner
-				digits['g'] = MAX(p->group_digits, digits['g']);		// group
-				digits['w'] = MAX(p->week_digits,  digits['w']);		// 曜日
-				digits['t'] = MAX(p->time_digits,  digits['T']);		// 日付
-				digits['s'] = MAX(p->size_digits,  digits['s']);		// 最大ファイルサイズ
-				digits['c'] = MAX(p->count_digits, digits['c']);		// 最大エントリー数の桁数
-				digits['d'] = MAX(p->date_digits,  digits['d']);		// 日付の桁数
-				digits['p'] = MAX(p->path_digits,  digits['p']);		// path
-				digits['n'] = MAX(p->name_digits,  digits['n']);		// 名前の桁数
-				digits['k'] = MAX(p->kind_digits,  digits['k']);		// 種類の桁数
+				digits['i'] = MAX(p->inode_digits,  digits['I']);		// inode
+				digits['h'] = MAX(p->nlink_digits,  digits['H']);		// hard link
+				digits['m'] = MAX(p->mode_digits,   digits['m']);		// mode
+				digits['o'] = MAX(p->owner_digits,  digits['o']);		// owner
+				digits['g'] = MAX(p->group_digits,  digits['g']);		// group
+				digits['w'] = MAX(p->week_digits,   digits['w']);		// 曜日
+				digits['t'] = MAX(p->time_digits,   digits['T']);		// 日付
+				digits['S'] = MAX(p->size_digits,   digits['S']);		// 最大ファイルサイズ
+				digits['s'] = MAX(p->sizec_digits,  digits['s']);		// 最大ファイルサイズ、カンマ
+				digits['C'] = MAX(p->count_digits,  digits['C']);		// 最大エントリー数の桁数
+				digits['c'] = MAX(p->countc_digits, digits['c']);		// 最大エントリー数の桁数、カンマ
+				digits['d'] = MAX(p->date_digits,   digits['d']);		// 日付の桁数
+				digits['p'] = MAX(p->path_digits,   digits['p']);		// path
+				digits['n'] = MAX(p->name_digits,   digits['n']);		// 名前の桁数
+				digits['k'] = MAX(p->kind_digits,   digits['k']);		// 種類の桁数
 				digits['l'] = MAX(p->linkname_digits, digits['l']);		// linkname
 				digits['e'] = MAX(p->errnostr_digits, digits['e']);		// errnostr
 			}
@@ -3918,8 +3976,10 @@ main(int argc, char *argv[])
 			digits['m'] = p->mode_digits;
 			digits['o'] = p->owner_digits;
 			digits['g'] = p->group_digits;
-			digits['s'] = p->size_digits;
-			digits['c'] = p->count_digits;
+			digits['S'] = p->size_digits;
+			digits['s'] = p->sizec_digits;
+			digits['C'] = p->count_digits;
+			digits['c'] = p->countc_digits;
 			digits['d'] = p->date_digits;
 			digits['t'] = p->time_digits;
 			digits['w'] = p->week_digits;

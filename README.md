@@ -8,13 +8,38 @@ It displays the unique parts of directory and file names in color to enhance fis
 `rls`はファイルやディレクトリ名の `ユニークな部分文字列に色付け` した一覧を表示するプログラムです。<br>
 `rls`の実行結果と，`fish` のファイル名補完機能を併用すると，キーボード入力を減らすことができます。
 
+## `rls` の機能
+
+### ユニーク文字列への色付け
 例えば，あるディレクトリの `rls` の実行結果から，`emacs` で `countfunction.c` を編集することを想定します。<br>
 `fish` のコマンドラインで `emacs` の後に `n.c` と入力して`TAB` を押すと，`countfunction.c` と補完されます。
 
 ![rls_ファイル名補完](demo_rls.gif)<br>
 他のファイルも，色付けされている部分を入力すればそのファイルが補完対象になります。<br>
 `rls.fish` の場合は，`.f` だけ入力すれば補完対象です。
-<br><br>
+
+### 列の定義
+`rls` では，`-l` で表示される各列の内容・順番を指定できます。<br>
+表示できる項目については，マニュアルの `-f` の項目を確認してください。
+
+`rls -fmogcdwPN /init` と実行すると，mode owner group count date week PATH NAME の順番で表示します。
+```shell
+-rwxrwxrwx root root 2,735,264 Aug  7 04:54 Thu /init
+```
+<br>
+
+`rls -fNtom /init` と実行すると，NAME time owner mode の順番で表示します。
+```shell
+init 2025, 08/07 04:54:55 root -rwxrwxrwx
+```
+<br>
+
+また，`rls -fm,o,g,C,d,w,PN /init` と実行すると，csv 表記になります。<br>
+1 番最初の例と比べて、`,` で区切られていること，`C` を指定していることが異なります。
+```shell
+-rwxrwxrwx , root , root , 2735264 , Aug  7 04:54 , Thu , /init
+```
+<br>
 
 
 ## 開発環境・動作環境
@@ -191,7 +216,7 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 
 ## v0.3.0 からの変更内容
 - add `-R` の追加，指定数字の文字列長さを paint 色で表示
-- add `-f` の項目追加（`|`, `,`）
+- add `-f` の項目追加（`|`, `,`, `S`, `C`）
 - add `-w` の追加，英語表期の場合，月，曜日などを省略せずに表示
 - chg `-O` から `-S` へ変更，ソートを行わない
 - add `-O` の追加，ディレクトリを非表示
