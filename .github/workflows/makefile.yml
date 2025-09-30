@@ -14,5 +14,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Run debug
+      run: make debug
+
+    - name: Run count
+      run: make count
+
+    - name: Run wrapper
+      run: make wrapper
+
     - name: Run make
       run: make
