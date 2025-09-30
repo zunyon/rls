@@ -16,6 +16,3 @@ jobs:
 
     - name: Run make
       run: make
-
-    - name: Run profile
-      run: make profile
