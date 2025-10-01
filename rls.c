@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "09/30"
-#define BTIME "23:04:58"
+#define BDATE "10/01"
+#define BTIME "17:22:13"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 09/30 22:57"
+// my-last-update-time "2025, 10/01 17:22"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -538,9 +538,9 @@ struct FNAME {
 		char owner[DATALEN];				// owner
 		char group[DATALEN];				// group
 		char size[DATALEN];					// size の文字列
-		char sizec[DATALEN];				// size の文字列、カンマ
+		char sizec[DATALEN];				// size の文字列、comma 表記
 		char count[DATALEN];				// ディレクトリに含まれているファイル数と、size の混合
-		char countc[DATALEN];				// ディレクトリに含まれているファイル数と、size の混合、カンマ
+		char countc[DATALEN];				// ディレクトリに含まれているファイル数と、size の混合、comma 表記
 		char date[DATALEN];					// mtime 日付
 		char time[DATALEN];					// 日時
 		char week[DATALEN];					// 曜日
@@ -1886,8 +1886,8 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				}
 				break;
 
-			  case 's':
-				len = data[i].sizecl + count * enc.tlen;
+			  case 's': case 'S':
+				len = ((orderlist[j] == 's') ? data[i].sizecl : data[i].sizel) + count * enc.tlen;
 				// 数値なので右寄せ表示
 				if (digits[(unsigned char) orderlist[j]]) {
 					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
@@ -1899,41 +1899,8 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				}
 				break;
 
-			  case 'S':
-				len = data[i].sizel + count * enc.tlen;
-				// 数値なので右寄せ表示
-				if (digits[(unsigned char) orderlist[j]]) {
-					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
-				}
-				debug printf("%c:", orderlist[j]);
-				printMatchedString(data[i], data[i].info[j], enc);				// size
-				if (haveAfterdataStr[j]) {
-					printf(" ");
-				}
-				break;
-
-			  case 'c':
-				len = data[i].countcl + count * enc.tlen;
-				// 数値なので右寄せ表示
-				if (digits[(unsigned char) orderlist[j]]) {
-					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
-				}
-				// エントリー数は dir 色で表示するが、-n の時は表見できない
-				if (data[i].color == dir && paintStringLen == 0) {
-					// -n の時は表現できない
-					debug printf("%c:", orderlist[j]);
-					printStr(dir, data[i].info[j]);
-				} else {
-					debug printf("s:");
-					printMatchedString(data[i], data[i].info[j], enc);			// size
-				}
-				if (haveAfterdataStr[j]) {
-					printf(" ");
-				}
-				break;
-
-			  case 'C':
-				len = data[i].countl + count * enc.tlen;
+			  case 'c': case 'C':
+				len = ((orderlist[j] == 'c') ? data[i].countcl : data[i].countl) + count * enc.tlen;
 				// 数値なので右寄せ表示
 				if (digits[(unsigned char) orderlist[j]]) {
 					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
@@ -2426,8 +2393,8 @@ struct DENT {
 	int group_digits;
 	int size_digits;
 	int sizec_digits;
-	int count_digits;					// ファイル数とファイルサイズの混合
-	int countc_digits;					// ファイル数とファイルサイズの混合、カンマ
+	int count_digits;
+	int countc_digits;
 	int date_digits;
 	int time_digits;
 	int week_digits;
@@ -2602,7 +2569,6 @@ fnameLength(struct FNAME *p)
 	p->weekl   = strlen(p->week);	// 固定長
 
 	// lstat() が失敗しても、"-" にならない
-	// !! 下記はここでの strlen() で無くても、代入時に strlen() すれば良い、、、一か所に纏めるかどちらか
 	p->kindl  = strlen(p->kind);	// 固定長
 	p->pathl  = strlen(p->path);
 	p->linknamel = strlen(p->linkname);
@@ -3860,9 +3826,9 @@ main(int argc, char *argv[])
 				digits['w'] = MAX(p->week_digits,   digits['w']);		// 曜日
 				digits['t'] = MAX(p->time_digits,   digits['T']);		// 日付
 				digits['S'] = MAX(p->size_digits,   digits['S']);		// 最大ファイルサイズ
-				digits['s'] = MAX(p->sizec_digits,  digits['s']);		// 最大ファイルサイズ、カンマ
+				digits['s'] = MAX(p->sizec_digits,  digits['s']);		// 最大ファイルサイズ、comma 表記
 				digits['C'] = MAX(p->count_digits,  digits['C']);		// 最大エントリー数の桁数
-				digits['c'] = MAX(p->countc_digits, digits['c']);		// 最大エントリー数の桁数、カンマ
+				digits['c'] = MAX(p->countc_digits, digits['c']);		// 最大エントリー数の桁数、comma 表記
 				digits['d'] = MAX(p->date_digits,   digits['d']);		// 日付の桁数
 				digits['p'] = MAX(p->path_digits,   digits['p']);		// path
 				digits['n'] = MAX(p->name_digits,   digits['n']);		// 名前の桁数
