@@ -17,4 +17,6 @@ jobs:
     - name: Run debug
       run: |
         make wrapper count debug
-        make clean make
+        make clean
+        make
+        rls
