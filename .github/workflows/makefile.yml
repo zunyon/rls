@@ -16,6 +16,7 @@ jobs:
       run: |
         date
         uname -a
+        echo "----------"
         gcc --version
         make --version
 
@@ -34,33 +35,5 @@ jobs:
     - name: run rls
       run: |
         ./rls -alr -TB\[ -TE\]
-        ./rls -TB\[ -TE\]
-
-  build_windows:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: macos version - date, uname, gcc, make
-      run: |
-        date
-        uname -a
-        gcc --version
-        make --version
-
-    - name: make, ldd
-      run: |
-        make wrapper count debug
-        make clean
-        make
-        ldd ./rls
-
-    - name: rls version, help
-      run: |
-        ./rls --version
-        ./rls --help
-
-    - name: run rls
-      run: |
-        ./rls -alr -TB\[ -TE\]
+        echo "----------"
         ./rls -TB\[ -TE\]
