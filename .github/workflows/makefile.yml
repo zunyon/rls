@@ -7,18 +7,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build: # ubuntu で build
+  build_ubuntu:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Run build
-      run: |
-        make wrapper count debug
-        make clean
-        make
-        
-  build2: # mac で build
-    runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
     - name: Run build
