@@ -28,5 +28,5 @@ jobs:
         ./rls --help
     - name: run rls
       run: |
-        ./rls -alr
-        ./rls
+        ./rls -alr -TB\[ -TE\]
+        ./rls -TB\[ -TE\]
