@@ -24,7 +24,7 @@ jobs:
     - name: Install dependencies
       run: |
         brew install gcc
-        brew install make
+        brew install gmake
     - name: Run build
       run: |
         make debug
