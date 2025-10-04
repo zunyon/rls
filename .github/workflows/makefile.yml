@@ -12,13 +12,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: ubuntu version - date, uname, gcc, make
+    - name: ubuntu version - date, uname, gcc, make, terminal
       run: |
         date
         uname -a
         echo "----------"
         gcc --version
         make --version
+        echo $TERM
 
     - name: make, ldd
       run: |
