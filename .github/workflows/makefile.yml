@@ -13,6 +13,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: version
       run: |
+        uname -a
         gcc --version
         make --version
     - name: Run build
@@ -25,4 +26,4 @@ jobs:
       run: |
         ./rls --version
         ./rls --help
-        ./rls
+        ./rls -alr
