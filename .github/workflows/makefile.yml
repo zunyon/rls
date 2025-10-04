@@ -14,7 +14,6 @@ jobs:
     - name: ubuntu version - uname, gcc, make
       run: |
         uname -a
-        echo
         gcc --version
         make --version
     - name: make, ldd
@@ -22,7 +21,6 @@ jobs:
         make wrapper count debug
         make clean
         make
-        echo
         ldd ./rls
     - name: rls version
       run: |
