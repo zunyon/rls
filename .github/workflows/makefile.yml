@@ -11,21 +11,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
     - name: ubuntu version - uname, gcc, make
       run: |
+        date
         uname -a
         gcc --version
         make --version
+
     - name: make, ldd
       run: |
         make wrapper count debug
         make clean
         make
         ldd ./rls
+
     - name: rls version
       run: |
         ./rls --version
         ./rls --help
+
     - name: run rls
       run: |
         ./rls -alr -TB\[ -TE\]
