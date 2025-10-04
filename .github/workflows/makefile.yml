@@ -41,18 +41,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: macos version - date, uname, gcc, make
+    - name: install gmake
+      run: brew install gmake
+    - name: macos version - date, uname, gcc, gmake
       run: |
         date
         uname -a
         gcc --version
-        make --version
+        gmake --version
 
-    - name: make, ldd
+    - name: gmake, ldd
       run: |
-        make wrapper count debug
-        make clean
-        make
+        gmake wrapper count debug
+        gmake clean
+        gmake
         ldd ./rls
 
     - name: rls version, help
