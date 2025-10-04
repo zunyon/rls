@@ -21,6 +21,10 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        brew install gcc
+        brew install make
     - name: Run build
       run: |
         make wrapper count debug
