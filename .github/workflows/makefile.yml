@@ -16,4 +16,5 @@ jobs:
         make wrapper count debug
         make clean
         make
-        ./rls
+    - name: run rls
+      run: ./rls
