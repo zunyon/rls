@@ -36,25 +36,23 @@ jobs:
         ./rls -alr -TB\[ -TE\]
         ./rls -TB\[ -TE\]
 
-  build_macos:
-    runs-on: macos-latest
+  build_windows:
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
 
-    - name: install gmake
-      run: sudo port install gmake
-    - name: macos version - date, uname, gcc, gmake
+    - name: macos version - date, uname, gcc, make
       run: |
         date
         uname -a
         gcc --version
-        gmake --version
+        make --version
 
-    - name: gmake, ldd
+    - name: make, ldd
       run: |
-        gmake wrapper count debug
-        gmake clean
-        gmake
+        make wrapper count debug
+        make clean
+        make
         ldd ./rls
 
     - name: rls version, help
