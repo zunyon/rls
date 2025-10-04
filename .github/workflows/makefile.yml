@@ -42,7 +42,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: install gmake
-      run: brew install gmake
+      run: sudo port install gmake
     - name: macos version - date, uname, gcc, gmake
       run: |
         date
