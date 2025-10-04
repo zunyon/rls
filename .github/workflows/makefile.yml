@@ -25,11 +25,13 @@ jobs:
         make wrapper count debug
         make clean
         make
+        echo ldd ./rls
         ldd ./rls
 
     - name: rls version, help
       run: |
         ./rls --version
+        echo "----------"
         ./rls --help
 
     - name: run rls
