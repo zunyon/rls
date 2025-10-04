@@ -23,7 +23,7 @@ jobs:
     - name: make, ldd
       run: |
         make wrapper count debug
-        ./rls --verion
+        ./rls --version
         ./rls -alr -TB\[ -TE\]
         echo "----------"
         make clean
