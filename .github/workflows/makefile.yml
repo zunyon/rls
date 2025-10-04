@@ -19,6 +19,7 @@ jobs:
         echo "----------"
         gcc --version
         make --version
+        echo `$TERM:`
         echo $TERM
 
     - name: make, ldd
