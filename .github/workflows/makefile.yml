@@ -20,11 +20,14 @@ jobs:
         gcc --version
         make --version
 
+    - name: run rls debug
+      run: |
+        make clean debug
+        ./rls -always
+
     - name: make, ldd
       run: |
-        make wrapper count debug
-        ./rls --version
-        ./rls -alr -TB\[ -TE\]
+        make clean wrapper count debug
         echo "----------"
         make clean
         make
@@ -40,5 +43,6 @@ jobs:
     - name: run rls
       run: |
         ./rls -alr -TB\[ -TE\]
+        ./rls -alr -always
         echo "----------"
         ./rls -TB\[ -TE\]
