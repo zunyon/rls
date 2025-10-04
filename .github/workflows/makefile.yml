@@ -12,19 +12,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: ubuntu version - date, uname, gcc, make, terminal
+    - name: ubuntu version - date, uname, gcc, make
       run: |
         date
         uname -a
         echo "----------"
         gcc --version
         make --version
-        echo `$TERM:`
-        echo $TERM
 
     - name: make, ldd
       run: |
         make wrapper count debug
+        ./rls --verion
+        ./rls -alr -TB\[ -TE\]
+        echo "----------"
         make clean
         make
         echo ldd ./rls
