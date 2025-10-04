@@ -17,4 +17,7 @@ jobs:
         make clean
         make
     - name: run rls
-      run: ./rls
+      run: |
+      ./rls --verion
+      ./rls --help
+      ./rls
