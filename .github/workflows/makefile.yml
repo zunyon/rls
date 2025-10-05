@@ -51,6 +51,7 @@ jobs:
         ./rls -always
 
 
+  ## make がダメそう、ldd 無さそうなので一旦コンパイルだけ
   build_macos:
     runs-on: macos-latest
     steps:
@@ -69,17 +70,11 @@ jobs:
         gcc --version
         make --version
 
-    - name: install ldd
-      run: brew install ldd
-
     - name: build rls
       run: |
+        rm ./rls
         gcc -O3 -pipe rls.c -o rls
         ./rls alr -always
-
-    - name: ldd
-      run: |
-        ldd ./rls
 
     - name: rls version, help
       run: |
