@@ -72,7 +72,7 @@ jobs:
 
     - name: build rls
       run: |
-        rm ./rls
+        rm -f ./rls
         gcc -O3 -pipe rls.c -o rls
         ./rls alr -always
 
