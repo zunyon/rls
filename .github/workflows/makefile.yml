@@ -55,8 +55,10 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
+    - name: install deendencies
+      run: brew install gcc
 
-    - name: ubuntu version - date, uname, gcc, make
+    - name: macos version - date, uname, gcc, make
       run: |
         date
         uname -a
@@ -64,7 +66,7 @@ jobs:
         gcc --version
         make --version
 
-    - name: run rls debug
+    - name: build rls
       run: |
         gcc -O3 -pipe rls.c
         ./rls -always
