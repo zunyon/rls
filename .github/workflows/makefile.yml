@@ -74,7 +74,7 @@ jobs:
       run: |
         rm -f ./rls
         gcc -O3 -pipe rls.c -o rls
-        ./rls alr -always
+        ./rls -alr -always
 
     - name: rls version, help
       run: |
