@@ -71,7 +71,8 @@ jobs:
 
     - name: build rls
       run: |
-        gcc -O3 -pipe rls.c
+        ls -al
+        gcc -O3 -pipe rls.c -o rls
         ./rls -always
 
     - name: ldd
