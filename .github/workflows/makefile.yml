@@ -49,3 +49,42 @@ jobs:
         ./rls -TB\[ -TE\]
         echo "----------"
         ./rls -always
+
+
+  build_macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: ubuntu version - date, uname, gcc, make
+      run: |
+        date
+        uname -a
+        echo "----------"
+        gcc --version
+        make --version
+
+    - name: run rls debug
+      run: |
+        gcc -O3 -pipe rls.c
+        ./rls -always
+
+    - name: ldd
+      run: |
+        ldd ./rls
+
+    - name: rls version, help
+      run: |
+        ./rls --version
+        echo "----------"
+        ./rls --help
+
+    - name: run rls
+      run: |
+        ./rls -alr -TB\[ -TE\]
+        echo "----------"
+        ./rls -alr -always
+        echo "----------"
+        ./rls -TB\[ -TE\]
+        echo "----------"
+        ./rls -always
