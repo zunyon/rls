@@ -69,11 +69,13 @@ jobs:
         gcc --version
         make --version
 
+    - name: install ldd
+      run: brew install ldd
+
     - name: build rls
       run: |
-        ls -al
         gcc -O3 -pipe rls.c -o rls
-        ./rls -always
+        ./rls alr -always
 
     - name: ldd
       run: |
