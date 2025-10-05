@@ -55,8 +55,11 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
-    - name: install deendencies
-      run: brew install gcc
+
+    - name: install gcc
+      uses: Dup4/actions-setup-gcc@v1
+      with:
+        version: latest
 
     - name: macos version - date, uname, gcc, make
       run: |
