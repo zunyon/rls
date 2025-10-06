@@ -6,8 +6,6 @@ sources       = rls.c
 count_sources = countfunction.c
 objects       = $(subst .c,.o,$(sources))
 
-ALL_FILES     = $(sources) $(count_sources) $(subst .c,.h,$(count_sources)) $(BIN).fish
-
 
 # --------------------------------------------------------------------------------
 OPT       = -O3 -pipe -Wall -Wextra
