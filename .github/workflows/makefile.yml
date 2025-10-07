@@ -15,6 +15,7 @@ jobs:
     - name: ubuntu version - date, uname, gcc, make
       run: |
         date
+        neofetch
         uname -a
         echo "----------"
         gcc --version
