@@ -12,12 +12,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install neofetch
-      run: sudo apt install -y neofetch
+#    - name: Install neofetch
+#      run: sudo apt install -y neofetch
 
-    - name: ubuntu version - neofetch, date, uname, gcc, make
+    - name: ubuntu version - date, uname, gcc, make
       run: |
-        neofetch
         echo "----------"
         date
         uname -a
