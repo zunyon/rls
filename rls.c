@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "10/01"
-#define BTIME "17:22:13"
+#define BDATE "10/07"
+#define BTIME "21:32:14"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 10/01 17:22"
+// my-last-update-time "2025, 10/07 21:32"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -208,12 +208,8 @@ mallocDuplist(char *word, int len)
 		exit(EXIT_FAILURE);
 	}
 
+	*new = (struct DLIST) {"", NULL, NULL, -1, len };
 	strncpy(new->dupword, word, len);
-	new->dupword[len] = '\0';
-	new->length = len;
-
-	new->left = NULL;
-	new->right = NULL;
 
 	return new;
 }
