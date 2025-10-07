@@ -70,6 +70,12 @@ jobs:
         gcc --version
         make --version
 
+    - name: run rls debug
+      run: |
+        rm -f ./rls
+        gcc -DDEBUG -g3 -O0 -Wall -Wextra rls.c -o rls
+        ./rls -alr -always
+
     - name: build rls
       run: |
         rm -f ./rls
