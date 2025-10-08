@@ -17,6 +17,8 @@ jobs:
 
     - name: ubuntu version - date, uname, gcc, make
       run: |
+        which gcc
+        where gcc
         echo "----------"
         date
         uname -a
