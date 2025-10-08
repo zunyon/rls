@@ -85,15 +85,16 @@ jobs:
     - name: run rls debug
       run: |
         gmake clean debug
-        rm -f ./rls
-        $CC --version
-        $CC -DDEBUG -g3 -O0 -Wall -Wextra rls.c -o rls
-        ./rls -alr -always
+        ./rls -always
 
-    - name: build rls
+    - name: make, ldd
       run: |
-        rm -f ./rls
-        $CC -O3 -pipe rls.c -o rls
+        gmake clean wrapper count debug
+        echo "----------"
+        gmake clean
+        gmake
+        echo ldd ./rls
+        ldd ./rls
 
     - name: rls version, help
       run: |
