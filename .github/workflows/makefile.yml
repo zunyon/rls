@@ -61,12 +61,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-#    - name: install gcc
-#      uses: Dup4/actions-setup-gcc@v1
+    ## インストールしないと gcc ではない別の c コンパイラが使用される
+    - name: install gcc
+      uses: Dup4/actions-setup-gcc@v1
 #      with:
 #        version: latest
-    - name: Install GCC via Homebrew
-      run:  brew install gcc
 
     - name: macos version - date, uname, gcc, make
       run: |
