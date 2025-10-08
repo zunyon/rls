@@ -62,8 +62,8 @@ jobs:
     - uses: actions/checkout@v4
 
     ## インストールしないと gcc ではない別の c コンパイラが使用される
-    - name: install gcc
-      uses: Dup4/actions-setup-gcc@v1
+#    - name: install gcc
+#      uses: Dup4/actions-setup-gcc@v1
 #      with:
 #        version: latest
 
