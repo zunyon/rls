@@ -61,11 +61,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    ## インストールしないと gcc ではない別の c コンパイラが使用される
-#    - name: install gcc
-#      uses: Dup4/actions-setup-gcc@v1
+    ## インストールしないと clang が使用される
+    - name: install gcc
+      uses: Dup4/actions-setup-gcc@v1
 #      with:
 #        version: latest
+
+    - name: Install gmake
+      run: |
+        brew install gmake
+        which gmake
 
     - name: macos version - date, uname, gcc, make
       run: |
