@@ -65,6 +65,8 @@ jobs:
 #      uses: Dup4/actions-setup-gcc@v1
 #      with:
 #        version: latest
+    - name: Install GCC via Homebrew
+      run:  brew install gcc
 
     - name: macos version - date, uname, gcc, make
       run: |
