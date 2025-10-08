@@ -94,7 +94,7 @@ jobs:
         gmake clean
         gmake
         echo ldd ./rls
-        ldd ./rls
+        otool -L ./rls
 
     - name: rls version, help
       run: |
