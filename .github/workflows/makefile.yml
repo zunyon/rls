@@ -80,6 +80,7 @@ jobs:
     - name: run rls debug
       run: |
         rm -f ./rls
+        $CC --version
         $CC -DDEBUG -g3 -O0 -Wall -Wextra rls.c -o rls
         ./rls -alr -always
 
