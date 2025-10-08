@@ -17,8 +17,6 @@ jobs:
 
     - name: ubuntu version - date, uname, gcc, make
       run: |
-        which gcc
-        where gcc
         echo "----------"
         date
         uname -a
@@ -71,6 +69,7 @@ jobs:
 
     - name: macos version - date, uname, gcc, make
       run: |
+        which gcc
         date
         uname -a
         echo "----------"
