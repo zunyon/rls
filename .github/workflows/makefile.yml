@@ -93,7 +93,7 @@ jobs:
         echo "----------"
         gmake clean
         gmake
-        echo ldd ./rls
+        echo otool ./rls
         otool -L ./rls
 
     - name: rls version, help
