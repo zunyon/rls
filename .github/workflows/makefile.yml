@@ -70,6 +70,7 @@ jobs:
     - name: macos version - date, uname, gcc, make
       run: |
         which gcc
+        echo "CC=/usr/local/bin/gcc" >> $GITHUB_ENV
         date
         uname -a
         echo "----------"
@@ -79,13 +80,13 @@ jobs:
     - name: run rls debug
       run: |
         rm -f ./rls
-        gcc -DDEBUG -g3 -O0 -Wall -Wextra rls.c -o rls
+        $CC -DDEBUG -g3 -O0 -Wall -Wextra rls.c -o rls
         ./rls -alr -always
 
     - name: build rls
       run: |
         rm -f ./rls
-        gcc -O3 -pipe rls.c -o rls
+        $CC -O3 -pipe rls.c -o rls
 
     - name: rls version, help
       run: |
