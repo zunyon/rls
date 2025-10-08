@@ -69,7 +69,7 @@ jobs:
 
     - name: Install gmake
       run: |
-        brew install gmake
+        brew install make
         which gmake
 
     - name: macos version - date, uname, gcc, make
