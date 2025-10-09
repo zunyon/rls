@@ -20,9 +20,9 @@ jobs:
 #    - name: Install neofetch
 #      run: sudo apt install -y neofetch
 
-    - name: ubuntu version - date, uname, gcc, make
+    # ここから共通 ----------
+    - name: version - date, uname, gcc, make
       run: |
-        echo "----------"
         date
         uname -a
         echo "----------"
@@ -79,12 +79,11 @@ jobs:
     - name: Install gmake
       run: |
         brew install make
-        which gmake
+#        which gmake
 
-    - name: macos version - date, uname, gcc, make
+    # ここから共通 ----------
+    - name: version - date, uname, gcc, make
       run: |
-        which gcc
-        echo "CC=/usr/local/bin/gcc" >> $GITHUB_ENV
         date
         uname -a
         echo "----------"
