@@ -88,22 +88,22 @@ jobs:
         date
         uname -a
         echo "----------"
-        gcc --version
-        make --version
+        $CC --version
+        $MAKE --version
 
     - name: run rls debug
       run: |
-        gmake clean debug
+        $MAKE clean debug
         ./rls -always
 
     - name: make, ldd
       run: |
-        gmake clean wrapper count debug
+        $MAKE clean wrapper count debug
         echo "----------"
-        gmake clean
-        gmake
-        echo otool ./rls
-        otool -L ./rls
+        $MAKE clean
+        $MAKE
+        echo $LDD ./rls
+        $LDD ./rls
 
     - name: rls version, help
       run: |
