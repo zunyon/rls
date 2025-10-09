@@ -2,10 +2,6 @@ name: Makefile CI
 
 on:
   push:
-    branches: [ "main" ]name: Makefile CI
-
-on:
-  push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
@@ -106,115 +102,6 @@ jobs:
         $(MAKE)
         echo $(LDD) ./rls
         $(LDD) ./rls
-
-    - name: rls version, help
-      run: |
-        ./rls --version
-        echo "----------"
-        ./rls --help
-
-    - name: run rls
-      run: |
-        ./rls -alr -TB\[ -TE\]
-        echo "----------"
-        ./rls -alr -always
-        echo "----------"
-        ./rls -TB\[ -TE\]
-        echo "----------"
-        ./rls -always
-
-  pull_request:
-    branches: [ "main" ]
-
-jobs:
-  build_ubuntu:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-#    - name: Install neofetch
-#      run: sudo apt install -y neofetch
-
-    - name: ubuntu version - date, uname, gcc, make
-      run: |
-        echo "----------"
-        date
-        uname -a
-        echo "----------"
-        gcc --version
-        make --version
-
-    - name: run rls debug
-      run: |
-        make clean debug
-        ./rls -always
-
-    - name: make, ldd
-      run: |
-        make clean wrapper count debug
-        echo "----------"
-        make clean
-        make
-        echo ldd ./rls
-        ldd ./rls
-
-    - name: rls version, help
-      run: |
-        ./rls --version
-        echo "----------"
-        ./rls --help
-
-    - name: run rls
-      run: |
-        ./rls -alr -TB\[ -TE\]
-        echo "----------"
-        ./rls -alr -always
-        echo "----------"
-        ./rls -TB\[ -TE\]
-        echo "----------"
-        ./rls -always
-
-
-  ## make がダメそう、ldd 無さそうなので一旦コンパイルだけ
-  build_macos:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    ## インストールしないと clang が使用される
-    - name: install gcc
-      uses: Dup4/actions-setup-gcc@v1
-#      with:
-#        version: latest
-
-    - name: Install gmake
-      run: |
-        brew install make
-        which gmake
-
-    - name: macos version - date, uname, gcc, make
-      run: |
-        which gcc
-        echo "CC=/usr/local/bin/gcc" >> $GITHUB_ENV
-        date
-        uname -a
-        echo "----------"
-        gcc --version
-        make --version
-
-    - name: run rls debug
-      run: |
-        gmake clean debug
-        ./rls -always
-
-    - name: make, ldd
-      run: |
-        gmake clean wrapper count debug
-        echo "----------"
-        gmake clean
-        gmake
-        echo otool ./rls
-        otool -L ./rls
 
     - name: rls version, help
       run: |
