@@ -41,7 +41,7 @@ jobs:
         $MAKE clean
         $MAKE
         echo $LDD ./rls
-        $MAKE ./rls
+        $LDD ./rls
 
     - name: rls version, help
       run: |
@@ -63,6 +63,10 @@ jobs:
   ## make がダメそう、ldd 無さそうなので一旦コンパイルだけ
   build_macos:
     runs-on: macos-latest
+    env:
+      CC: /usr/local/bin/gcc
+      MAKE: gmake
+      LDD: otool -L
     steps:
     - uses: actions/checkout@v4
 
