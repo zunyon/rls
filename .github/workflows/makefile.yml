@@ -17,30 +17,26 @@ jobs:
 
     - name: ubuntu version - date, uname, gcc, make
       run: |
-        echo "CC=gcc" >> $GITHUB_ENV
-        echo "MAKE=make" >> $GITHUB_ENV
-        echo "LDD=ldd" >> $GITHUB_ENV
         echo "----------"
         date
         uname -a
         echo "----------"
-        $(CC) --version
-        $(MAKE) --version
+        gcc --version
+        make --version
 
-    ## 共通 ----------------------------------------
     - name: run rls debug
       run: |
-        $(MAKE) clean debug
+        make clean debug
         ./rls -always
 
     - name: make, ldd
       run: |
-        $(MAKE) clean wrapper count debug
+        make clean wrapper count debug
         echo "----------"
-        $(MAKE) clean
-        $(MAKE)
-        echo $(LDD) ./rls
-        $(LDD) ./rls
+        make clean
+        make
+        echo ldd ./rls
+        ldd ./rls
 
     - name: rls version, help
       run: |
@@ -80,28 +76,25 @@ jobs:
       run: |
         which gcc
         echo "CC=/usr/local/bin/gcc" >> $GITHUB_ENV
-        echo "MAKE=gmake" >> $GITHUB_ENV
-        echo "LDD=otool -L" >> $GITHUB_ENV
         date
         uname -a
         echo "----------"
-        $(CC) --version
-        $(MAKE) --version
+        gcc --version
+        make --version
 
-    ## 共通 ----------------------------------------
     - name: run rls debug
       run: |
-        $(MAKE) clean debug
+        gmake clean debug
         ./rls -always
 
     - name: make, ldd
       run: |
-        $(MAKE) clean wrapper count debug
+        gmake clean wrapper count debug
         echo "----------"
-        $(MAKE) clean
-        $(MAKE)
-        echo $(LDD) ./rls
-        $(LDD) ./rls
+        gmake clean
+        gmake
+        echo otool ./rls
+        otool -L ./rls
 
     - name: rls version, help
       run: |
