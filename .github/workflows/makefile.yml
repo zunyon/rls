@@ -9,6 +9,11 @@ on:
 jobs:
   build_ubuntu:
     runs-on: ubuntu-latest
+    env:
+      CC: gcc
+      MAKE: make
+      LDD: ldd
+
     steps:
     - uses: actions/checkout@v4
 
@@ -23,6 +28,7 @@ jobs:
         echo "----------"
         gcc --version
         make --version
+        $CC --version
 
     - name: run rls debug
       run: |
