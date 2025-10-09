@@ -26,23 +26,22 @@ jobs:
         date
         uname -a
         echo "----------"
-        gcc --version
-        make --version
         $CC --version
+        $MAKE --version
 
     - name: run rls debug
       run: |
-        make clean debug
+        $MAKE clean debug
         ./rls -always
 
     - name: make, ldd
       run: |
-        make clean wrapper count debug
+        $MAKE clean wrapper count debug
         echo "----------"
-        make clean
-        make
-        echo ldd ./rls
-        ldd ./rls
+        $MAKE clean
+        $MAKE
+        echo $LDD ./rls
+        $MAKE ./rls
 
     - name: rls version, help
       run: |
