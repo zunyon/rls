@@ -10,9 +10,9 @@ jobs:
   build_ubuntu:
     runs-on: ubuntu-latest
     env:
-      CC: gcc
+      CC:   gcc
       MAKE: make
-      LDD: ldd
+      LDD:  ldd
 
     steps:
     - uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
 #      run: sudo apt install -y neofetch
 
     # ここから共通 ----------
-    - name: version - date, uname, gcc, make
+    - name: version - date, uname, $CC, $MAKE
       run: |
         date
         uname -a
@@ -34,7 +34,7 @@ jobs:
         $MAKE clean debug
         ./rls -always
 
-    - name: make, ldd
+    - name: $MAKE, $LDD
       run: |
         $MAKE clean wrapper count debug
         echo "----------"
@@ -64,9 +64,9 @@ jobs:
   build_macos:
     runs-on: macos-latest
     env:
-      CC: /usr/local/bin/gcc
+      CC:   /usr/local/bin/gcc
       MAKE: gmake
-      LDD: otool -L
+      LDD:  otool -L
     steps:
     - uses: actions/checkout@v4
 
@@ -82,7 +82,7 @@ jobs:
 #        which gmake
 
     # ここから共通 ----------
-    - name: version - date, uname, gcc, make
+    - name: version - date, uname, $CC, $MAKE
       run: |
         date
         uname -a
@@ -95,7 +95,7 @@ jobs:
         $MAKE clean debug
         ./rls -always
 
-    - name: make, ldd
+    - name: $MAKE, $LDD
       run: |
         $MAKE clean wrapper count debug
         echo "----------"
