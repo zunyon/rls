@@ -34,9 +34,14 @@ jobs:
         $MAKE clean debug
         ./rls -always
 
+    - name: run rls md5
+      run: |
+        $MAKE clean md5
+        ./rls -always -fmogcdw5NkPle -alr
+
     - name: $MAKE, $LDD
       run: |
-        $MAKE clean wrapper count debug
+        $MAKE clean wrapper count
         echo "----------"
         $MAKE clean
         $MAKE
@@ -95,9 +100,14 @@ jobs:
         $MAKE clean debug
         ./rls -always
 
+    - name: run rls md5
+      run: |
+        $MAKE clean md5
+        ./rls -always -fmogcdw5NkPle -alr
+
     - name: $MAKE, $LDD
       run: |
-        $MAKE clean wrapper count debug
+        $MAKE clean wrapper count
         echo "----------"
         $MAKE clean
         $MAKE
