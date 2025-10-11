@@ -81,10 +81,10 @@ jobs:
 #      with:
 #        version: latest
 
-    - name: Install gmake
+    - name: Install gmake, openssl
       run: |
         brew install make
-#        which gmake
+        brew install openssl
 
     # ここから共通 ----------
     - name: version - date, uname, $CC, $MAKE
