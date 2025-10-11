@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "10/07"
-#define BTIME "21:32:14"
+#define BDATE "10/12"
+#define BTIME "08:06:28"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 10/07 21:32"
+// my-last-update-time "2025, 10/12 07:51"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -67,6 +67,9 @@
 #include <locale.h>
 #include <errno.h>
 
+#ifdef MD5
+#include <openssl/evp.h>
+#endif
 
 // ================================================================================
 #define FNAME_LENGTH 256				// ファイル/ディレクトリ名
@@ -301,6 +304,63 @@ debug_displayDuplist(struct DLIST *node)
 	debug_displayDuplist(node->left);
 	printf("dup: [%s]:%d\n", node->dupword, node->fnamelistNumber);
 	debug_displayDuplist(node->right);
+}
+#endif
+
+
+// ================================================================================
+#ifdef MD5
+int
+makeMD5(char *fname, char *md5)
+{
+	EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+	if (!mdctx) {
+		strcpy(md5, "-");
+		return -1;
+	}
+
+	if (EVP_DigestInit_ex(mdctx, EVP_md5(), NULL) != 1) {
+		EVP_MD_CTX_free(mdctx);
+		strcpy(md5, "-");
+		return -1;
+	}
+
+	FILE *fp;
+	fp = fopen(fname, "rb");
+	if (fp == NULL) {
+		strcpy(md5, "-");
+		return -1;
+	}
+
+	// BUFSIZ より大きい 256k 単位で読み込めば遅くはない
+	unsigned char buf[256000];
+	size_t n;
+	while ((n = fread(buf, sizeof(char), 256000, fp)) > 0) {
+		if (EVP_DigestUpdate(mdctx, buf, n) != 1) {
+			EVP_MD_CTX_free(mdctx);
+			fclose(fp);
+			strcpy(md5, "-");
+			return -1;
+		}
+	}
+	fclose(fp);
+
+	unsigned char md_value[EVP_MAX_MD_SIZE];
+	unsigned int md_len;
+
+	if (EVP_DigestFinal_ex(mdctx, md_value, &md_len) != 1) {
+		EVP_MD_CTX_free(mdctx);
+		strcpy(md5, "-");
+		return -1;
+	}
+	EVP_MD_CTX_free(mdctx);
+
+	for (unsigned int i = 0; i < md_len; i++) {
+		sprintf(&md5[i * 2], "%02x", md_value[i]);
+	}
+	md5[md_len * 2] = '\0';
+
+	return 0;
 }
 #endif
 
@@ -545,6 +605,9 @@ struct FNAME {
 		char kind[2];						// 種類
 		char linkname[FNAME_LENGTH];		// link 名
 		char errnostr[FNAME_LENGTH + 8];	// lstat() のエラー
+#ifdef MD5
+		char md5[33];						// 16 文字 * 2 バイト + '\0'
+#endif
 
 	// 各項目の長さ
 	int inodel;
@@ -567,6 +630,9 @@ struct FNAME {
 	int kindl;
 	int linknamel;
 	int errnostrl;
+#ifdef MD5
+	int md5l;
+#endif
 
 	int date_f;						// makeDate() の difftime() が未来
 	char *lowername;				// 比較用
@@ -1518,6 +1584,9 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 		  case 'k': case 'K': if (func(p.kind,   string)) { return 1; } break;
 		  case 'l': case 'L': if (strcasestr(p.linkname, string)) { return 1; } break;
 		  case 'e': case 'E': if (strcasestr(p.errnostr, string)) { return 1; } break;
+#ifdef MD5
+		  case '5':           if (func(p.md5,  string)) { return 1; } break;
+#endif
 		}
 	}
 
@@ -1814,13 +1883,20 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 			count = countMatchedString(data[i].info[j]);
 
 			// 左寄せ項目
+#ifdef MD5
+			if (strchr("mMoOgGtTwW5", (unsigned char) orderlist[j])) {
+#else
 			if (strchr("mMoOgGtTwW", (unsigned char) orderlist[j])) {
+#endif
 				switch ((unsigned char) orderlist[j]) {
 				  case 'm': case 'M': len = data[i].model  + count * enc.tlen; break;
 				  case 'o': case 'O': len = data[i].ownerl + count * enc.tlen; break;
 				  case 'g': case 'G': len = data[i].groupl + count * enc.tlen; break;
 				  case 't': case 'T': len = data[i].timel  + count * enc.tlen; break;
 				  case 'w': case 'W': len = data[i].weekl  + count * enc.tlen; break;
+#ifdef MD5
+				  case '5':           len = data[i].md5l   + count * enc.tlen; break;
+#endif
 				}
 
 				debug printf("%c:", orderlist[j]);
@@ -2266,6 +2342,9 @@ showUsage(char **argv)
 	printf(" "); printStr(normal, "-f"); printf(": with -l, change Format orders. (default: -fmogcdPNkLE)\n");
 	printf("      m:mode, o:owner, g:group, c:count, d:date, p:path, n:name, k:kind, l:linkname, e:errno,\n");
 	printf("      i:inode, h:hardlinks, s:size, t:time, w:week.\n");
+#ifdef MD5
+	printf("      5:MD5 message digest.\n");
+#endif
 	printf("      [, ], |, ',':specified character is displayed.\n");
 	printf("      ---\n");
 	printf("      d:\"%%b %%e %%H:%%M\" or \"%%b %%e  %%Y\" format,\n");
@@ -2399,6 +2478,9 @@ struct DENT {
 	int kind_digits;
 	int linkname_digits;
 	int errnostr_digits;
+#ifdef MD5
+	int md5_digits;
+#endif
 
 	// 重複リスト
 	struct DLIST *duplist;
@@ -2410,6 +2492,9 @@ typedef enum {
 	show_simple,
 	show_long,
 	format_list,
+#ifdef MD5
+	do_md5,
+#endif
 
 	deep_unique,
 	beginning_word,
@@ -2457,6 +2542,9 @@ debug_showArgvswitch(int alist[])
 		toStr(show_simple),
 		toStr(show_long),
 		toStr(format_list),
+#ifdef MD5
+		toStr(do_md5),
+#endif
 
 		toStr(deep_unique),
 		toStr(beginning_word),
@@ -2563,6 +2651,9 @@ fnameLength(struct FNAME *p)
 	p->datel   = strlen(p->date);
 	p->timel   = strlen(p->time);	// 固定長
 	p->weekl   = strlen(p->week);	// 固定長
+#ifdef MD5
+	p->md5l    = strlen(p->md5);	// 固定長
+#endif
 
 	// lstat() が失敗しても、"-" にならない
 	p->kindl  = strlen(p->kind);	// 固定長
@@ -3003,6 +3094,13 @@ main(int argc, char *argv[])
 		sortfunc = NULL;
 	}
 
+#ifdef MD5
+	// md5 を使用する
+	if (strchr(formatListString, '5')) {
+		alist[do_md5]++;
+	}
+#endif
+
 	// --------------------------------------------------------------------------------
 	// -TB, -TE の設定
 	// 片側の指定だけなら同じ文字列を使用
@@ -3133,6 +3231,9 @@ main(int argc, char *argv[])
 		dent[i].kind_digits   = 0;
 		dent[i].linkname_digits = 0;
 		dent[i].errnostr_digits = 0;
+#ifdef MD5
+		dent[i].md5_digits    = 0;
+#endif
 
 		// non-unique リストの初期化
 		dent[i].duplist = malloc(sizeof(struct DLIST));
@@ -3277,6 +3378,9 @@ main(int argc, char *argv[])
 					strcpy(fnamelist[j].date,   "-");
 					strcpy(fnamelist[j].time,   "-");
 					strcpy(fnamelist[j].week,   "-");
+#ifdef MD5
+					strcpy(fnamelist[j].md5,    "-");
+#endif
 
 					fnamelist[j].showlist = SHOW_LONG;
 				}
@@ -3286,6 +3390,19 @@ main(int argc, char *argv[])
 
 			// only_directory の IS_DIRECTORY() で使用
 			makeMode(&fnamelist[j]);		// mode data
+
+#ifdef MD5
+			if (alist[do_md5]) {
+				if (IS_DIRECTORY(fnamelist[j]) != 1) {
+					if (makeMD5(fnamelist[j].name, fnamelist[j].md5) == -1) {
+						strcpy(fnamelist[j].md5,  "-");
+					}
+				} else {
+					strcpy(fnamelist[j].md5,  "-");
+				}
+				fnamelist[j].md5l = strlen(fnamelist[j].md5);
+			}
+#endif
 		}
 
 		// --------------------------------------------------------------------------------
@@ -3730,6 +3847,9 @@ main(int argc, char *argv[])
 			p->path_digits   = MAX(p->path_digits,   countMatchedString(fnamelist[j].path)   * enc.tlen + fnamelist[j].pathl);
 			p->linkname_digits = MAX(p->linkname_digits, countMatchedString(fnamelist[j].linkname) * enc.tlen + fnamelist[j].linknamel);
 			p->errnostr_digits = MAX(p->errnostr_digits, countMatchedString(fnamelist[j].errnostr) * enc.tlen + fnamelist[j].errnostrl);
+#ifdef MD5
+			p->md5_digits    = MAX(p->md5_digits,    countMatchedString(fnamelist[j].md5)    * enc.tlen + fnamelist[j].md5l);
+#endif
 		}
 
 #ifdef DEBUG
@@ -3777,6 +3897,9 @@ main(int argc, char *argv[])
 				info_pointers['k'] = info_pointers['K'] = fnamelist[j].kind;
 				info_pointers['l'] = info_pointers['L'] = fnamelist[j].linkname;
 				info_pointers['e'] = info_pointers['E'] = fnamelist[j].errnostr;
+#ifdef MD5
+				info_pointers['5'] =                      fnamelist[j].md5;
+#endif
 				// --------------------------------------------------------------------------------
 				info_pointers['['] = "[";
 				info_pointers[']'] = "]";
@@ -3831,6 +3954,9 @@ main(int argc, char *argv[])
 				digits['k'] = MAX(p->kind_digits,   digits['k']);		// 種類の桁数
 				digits['l'] = MAX(p->linkname_digits, digits['l']);		// linkname
 				digits['e'] = MAX(p->errnostr_digits, digits['e']);		// errnostr
+#ifdef MD5
+				digits['5'] = MAX(p->md5_digits,   digits['5']);		// md5
+#endif
 			}
 
 			// is_file のデータは全て表示する
@@ -3950,6 +4076,9 @@ main(int argc, char *argv[])
 			digits['k'] = p->kind_digits;
 			digits['l'] = p->linkname_digits;
 			digits['e'] = p->errnostr_digits;
+#ifdef MD5
+			digits['5'] = p->md5_digits;
+#endif
 		}
 
 		// ================================================================================
