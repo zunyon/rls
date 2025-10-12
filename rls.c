@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "10/12"
-#define BTIME "08:06:28"
+#define BDATE "10/13"
+#define BTIME "07:22:26"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 10/12 07:51"
+// my-last-update-time "2025, 10/13 07:21"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -2288,6 +2288,9 @@ showVersion(char **argv)
 	printf("\n");
 	printf(" Version: %s %s", VERSION, RELTYPE);
 
+	#ifdef MD5
+		printStr(label, " [MD5]");
+	#endif
 	#ifdef DEBUG
 		printStr(label, " [DEBUG]");
 	#endif

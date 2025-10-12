@@ -8,24 +8,27 @@ objects       = $(subst .c,.o,$(sources))
 
 
 # --------------------------------------------------------------------------------
-OPT       = -O3 -pipe -Wall -Wextra
-DEBUG_OPT = -g3 -O0 -Wall -Wextra -DDEBUG
-MD5_OPT   = -DMD5 -lssl -lcrypto
+CFLAGS    = -O3 -pipe -Wall -Wextra
+LDFLAGS   = 
+
+DEBUG_OPT = -DDEBUG -g3 -O0 -Wall -Wextra
 COUNT_FLG = -DCOUNTFUNC
+MD5_OPT   = -DMD5
+MD5_LIBS  = -lssl -lcrypto
 
 
 # ================================================================================
 %.o: %.c $(headers)
-	gcc $(OPT) -c $<
+	gcc $(CFLAGS) -c $< $(LDFLAGS)
 
 
 $(BIN): $(objects) $(headers)
-	gcc $(OPT) $^ -o $@
+	gcc $(CFLAGS) $^ -o $@ $(LDFLAGS)
 	strip $@
 
 
 md5: $(sources) $(headers)
-	gcc $(OPT) $^ -o $(BIN) $(MD5_OPT)
+	gcc $(CFLAGS) $(MD5_OPT) $^ -o $(BIN) $(LDFLAGS) $(MD5_LIBS)
 	strip $(BIN)
 
 
