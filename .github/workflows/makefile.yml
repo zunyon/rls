@@ -64,8 +64,8 @@ jobs:
         echo "----------"
         ./rls -always
 
-
-  ## make がダメそう、ldd 無さそうなので一旦コンパイルだけ
+  ## --------------------------------------------------
+  ## md5 がダメそうなので一旦コンパイルだけ
   build_macos:
     runs-on: macos-latest
     env:
@@ -100,6 +100,7 @@ jobs:
         $MAKE clean debug
         ./rls -always
 
+    # ここがダメ
     - name: run rls md5
       run: |
         export OPENSSL_DIR=$(brew --prefix openssl@3)
