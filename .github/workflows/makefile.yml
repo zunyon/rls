@@ -21,7 +21,7 @@ jobs:
 #      run: sudo apt install -y neofetch
 
     # ここから共通 ----------
-    - name: version - date, uname, $CC, $MAKE
+    - name: version - date, uname, gcc, make
       run: |
         date
         uname -a
@@ -39,7 +39,7 @@ jobs:
         $MAKE clean md5
         ./rls -always -fmogcdw5NkPle -alr
 
-    - name: $MAKE, $LDD
+    - name: make, ldd
       run: |
         $MAKE clean wrapper count
         echo "----------"
@@ -87,7 +87,7 @@ jobs:
         brew install openssl
 
     # ここから共通 ----------
-    - name: version - date, uname, $CC, $MAKE
+    - name: version - date, uname, cc, make
       run: |
         date
         uname -a
@@ -106,7 +106,7 @@ jobs:
         gcc -I$OPENSSL_DIR/include -L$OPENSSL_DIR/lib -DMD5 rls.c -lssl -lcrypto -o rls
         ./rls -always -fmogcdw5NkPle -alr
 
-    - name: $MAKE, $LDD
+    - name: make, ldd
       run: |
         $MAKE clean wrapper count
         echo "----------"
