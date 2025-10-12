@@ -103,6 +103,8 @@ jobs:
     - name: run rls md5
       run: |
         $MAKE clean md5
+        export OPENSSL_DIR=$(brew --prefix openssl@3)
+        gcc -I$OPENSSL_DIR/include -L$OPENSSL_DIR/lib -DMD5 rls.c -lssl -lcrypto -o rls
         ./rls -always -fmogcdw5NkPle -alr
 
     - name: $MAKE, $LDD
