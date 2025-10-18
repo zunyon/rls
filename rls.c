@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "10/13"
-#define BTIME "07:22:26"
+#define BDATE "10/18"
+#define BTIME "09:06:42"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 10/13 07:21"
+// my-last-update-time "2025, 10/18 09:02"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -601,6 +601,7 @@ struct FNAME {
 		char time[DATALEN];					// 日時
 		char week[DATALEN];					// 曜日
 		char path[FNAME_LENGTH];			// 絶対パスで指定されたパス名
+		char unique[FNAME_LENGTH];			// ユニーク文字列
 		char *name;							// 表示用ファイル名
 		char kind[2];						// 種類
 		char linkname[FNAME_LENGTH];		// link 名
@@ -623,6 +624,7 @@ struct FNAME {
 	int timel;
 	int weekl;
 	int pathl;
+	int uniquel;
 
 	int print_length;				// 表示時のファイル名の長さ、全角考慮 wcStrlen()
 	int length;						// ファイル名の長さ strlen()
@@ -1580,6 +1582,7 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 		  case 't': case 'T': if (func(p.time,   string)) { return 1; } break;
 		  case 'w': case 'W': if (func(p.week,   string)) { return 1; } break;
 		  case 'p': case 'P': if (func(p.path,   string)) { return 1; } break;
+		  case 'u': case 'U': if (func(p.unique, string)) { return 1; } break;
 		  case 'n': case 'N': if (func(p.name,   string)) { return 1; } break;
 		  case 'k': case 'K': if (func(p.kind,   string)) { return 1; } break;
 		  case 'l': case 'L': if (strcasestr(p.linkname, string)) { return 1; } break;
@@ -1884,18 +1887,19 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 
 			// 左寄せ項目
 #ifdef MD5
-			if (strchr("mMoOgGtTwW5", (unsigned char) orderlist[j])) {
+			if (strchr("mMoOgGtTwWuU5", (unsigned char) orderlist[j])) {
 #else
-			if (strchr("mMoOgGtTwW", (unsigned char) orderlist[j])) {
+			if (strchr("mMoOgGtTwWuU", (unsigned char) orderlist[j])) {
 #endif
 				switch ((unsigned char) orderlist[j]) {
-				  case 'm': case 'M': len = data[i].model  + count * enc.tlen; break;
-				  case 'o': case 'O': len = data[i].ownerl + count * enc.tlen; break;
-				  case 'g': case 'G': len = data[i].groupl + count * enc.tlen; break;
-				  case 't': case 'T': len = data[i].timel  + count * enc.tlen; break;
-				  case 'w': case 'W': len = data[i].weekl  + count * enc.tlen; break;
+				  case 'm': case 'M': len = data[i].model   + count * enc.tlen; break;
+				  case 'o': case 'O': len = data[i].ownerl  + count * enc.tlen; break;
+				  case 'g': case 'G': len = data[i].groupl  + count * enc.tlen; break;
+				  case 't': case 'T': len = data[i].timel   + count * enc.tlen; break;
+				  case 'w': case 'W': len = data[i].weekl   + count * enc.tlen; break;
+				  case 'u': case 'U': len = data[i].uniquel + count * enc.tlen; break;
 #ifdef MD5
-				  case '5':           len = data[i].md5l   + count * enc.tlen; break;
+				  case '5':           len = data[i].md5l    + count * enc.tlen; break;
 #endif
 				}
 
@@ -2344,7 +2348,7 @@ showUsage(char **argv)
 	printf(" -l: Long listing format.\n");
 	printf(" "); printStr(normal, "-f"); printf(": with -l, change Format orders. (default: -fmogcdPNkLE)\n");
 	printf("      m:mode, o:owner, g:group, c:count, d:date, p:path, n:name, k:kind, l:linkname, e:errno,\n");
-	printf("      i:inode, h:hardlinks, s:size, t:time, w:week.\n");
+	printf("      i:inode, h:hardlinks, s:size, t:time, w:week, u:uniqueword.\n");
 #ifdef MD5
 	printf("      5:MD5 message digest.\n");
 #endif
@@ -2477,6 +2481,7 @@ struct DENT {
 	int time_digits;
 	int week_digits;
 	int path_digits;
+	int unique_digits;
 	int name_digits;
 	int kind_digits;
 	int linkname_digits;
@@ -2661,6 +2666,7 @@ fnameLength(struct FNAME *p)
 	// lstat() が失敗しても、"-" にならない
 	p->kindl  = strlen(p->kind);	// 固定長
 	p->pathl  = strlen(p->path);
+	p->uniquel   = strlen(p->unique);
 	p->linknamel = strlen(p->linkname);
 	p->errnostrl = strlen(p->errnostr);
 }
@@ -3230,6 +3236,7 @@ main(int argc, char *argv[])
 		dent[i].time_digits   = 0;
 		dent[i].week_digits   = 0;
 		dent[i].path_digits   = 0;
+		dent[i].unique_digits = 0;
 		dent[i].name_digits   = 0;
 		dent[i].kind_digits   = 0;
 		dent[i].linkname_digits = 0;
@@ -3403,7 +3410,7 @@ main(int argc, char *argv[])
 				} else {
 					strcpy(fnamelist[j].md5,  "-");
 				}
-				fnamelist[j].md5l = strlen(fnamelist[j].md5);
+// 				fnamelist[j].md5l = strlen(fnamelist[j].md5);
 			}
 #endif
 		}
@@ -3749,6 +3756,21 @@ main(int argc, char *argv[])
 		}
 
 		// --------------------------------------------------------------------------------
+		// ユニーク文字列
+		// !! エスケープ文字列も表示、該当なしと、' ' の差がわからないから
+// 		if (strchr(formatListString, 'u') || strchr(formatListString, 'U') ) {
+		if (alist[do_uniquecheck] || alist[do_emacs]) {
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].uniquebegin == -1) {
+					continue;
+				}
+				int len = fnamelist[j].uniqueend - fnamelist[j].uniquebegin + 1;
+				strncpy(fnamelist[j].unique, fnamelist[j].name + fnamelist[j].uniquebegin, len);
+				fnamelist[j].unique[len] = '\0';
+			}
+		}
+
+		// --------------------------------------------------------------------------------
 		// 集計結果の該当長さの文字列を paint 色で表示
 		if (alist[aggregate_length]) {
 			for (int j=0; j<p->nth; j++) {
@@ -3848,6 +3870,7 @@ main(int argc, char *argv[])
 			p->week_digits   = MAX(p->week_digits,   countMatchedString(fnamelist[j].week)   * enc.tlen + fnamelist[j].weekl);
 			p->kind_digits   = MAX(p->kind_digits,   countMatchedString(fnamelist[j].kind)   * enc.tlen + fnamelist[j].kindl);
 			p->path_digits   = MAX(p->path_digits,   countMatchedString(fnamelist[j].path)   * enc.tlen + fnamelist[j].pathl);
+			p->unique_digits   = MAX(p->unique_digits,   countMatchedString(fnamelist[j].unique)   * enc.tlen + fnamelist[j].uniquel);
 			p->linkname_digits = MAX(p->linkname_digits, countMatchedString(fnamelist[j].linkname) * enc.tlen + fnamelist[j].linknamel);
 			p->errnostr_digits = MAX(p->errnostr_digits, countMatchedString(fnamelist[j].errnostr) * enc.tlen + fnamelist[j].errnostrl);
 #ifdef MD5
@@ -3896,6 +3919,7 @@ main(int argc, char *argv[])
 				info_pointers['t'] = info_pointers['T'] = fnamelist[j].time;
 				info_pointers['w'] = info_pointers['W'] = fnamelist[j].week;
 				info_pointers['p'] = info_pointers['P'] = fnamelist[j].path;
+				info_pointers['u'] = info_pointers['U'] = fnamelist[j].unique;
 				info_pointers['n'] = info_pointers['N'] = fnamelist[j].name;
 				info_pointers['k'] = info_pointers['K'] = fnamelist[j].kind;
 				info_pointers['l'] = info_pointers['L'] = fnamelist[j].linkname;
@@ -3953,6 +3977,7 @@ main(int argc, char *argv[])
 				digits['c'] = MAX(p->countc_digits, digits['c']);		// 最大エントリー数の桁数、comma 表記
 				digits['d'] = MAX(p->date_digits,   digits['d']);		// 日付の桁数
 				digits['p'] = MAX(p->path_digits,   digits['p']);		// path
+				digits['u'] = MAX(p->unique_digits, digits['u']);		// ユニーク文字列
 				digits['n'] = MAX(p->name_digits,   digits['n']);		// 名前の桁数
 				digits['k'] = MAX(p->kind_digits,   digits['k']);		// 種類の桁数
 				digits['l'] = MAX(p->linkname_digits, digits['l']);		// linkname
@@ -4075,6 +4100,7 @@ main(int argc, char *argv[])
 			digits['t'] = p->time_digits;
 			digits['w'] = p->week_digits;
 			digits['p'] = p->path_digits;
+			digits['u'] = p->unique_digits;
 			digits['n'] = p->name_digits;
 			digits['k'] = p->kind_digits;
 			digits['l'] = p->linkname_digits;
