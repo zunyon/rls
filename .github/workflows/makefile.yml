@@ -28,7 +28,6 @@ jobs:
         echo "----------"
         $CC --version
         $MAKE --version
-        fish --version
 
     - name: run rls debug
       run: |
@@ -95,7 +94,6 @@ jobs:
         echo "----------"
         $CC --version
         $MAKE --version
-        fish --version
 
     - name: run rls debug
       run: |
