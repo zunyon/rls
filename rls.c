@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "10/18"
-#define BTIME "09:06:42"
+#define BDATE "10/20"
+#define BTIME "22:05:26"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 10/18 09:02"
+// my-last-update-time "2025, 10/20 22:04"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1060,6 +1060,7 @@ addFNamelist(struct FNAME *p, char *name)
 // 	p->count[0] = '\0';
 // 	p->countc[0] = '\0';
 	p->path[0] = '\0';
+	p->unique[0] = '\0';
 	p->name = name;		// namelist[i] をそのまま使用
 	p->kind[0] = '\0'; p->kind[1] = '\0';
 	p->linkname[0] = '\0';
@@ -1819,9 +1820,10 @@ haveAfterdata(struct FNAME *p, const char orderlist[], int i)
 		return 0;
 	}
 
+	// 最後まで確認する
 	for (int j=i + 1; orderlist[j] != '\0'; j++) {
 		if (p->info[j] == NULL) {
-			return 0;
+			continue;
 		}
 		if (p->info[j][0] == '\0') {
 			continue;
@@ -1866,12 +1868,14 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 		// formatListString[k] 番目と、&fnamelist[j].xxx でデータが続くか確認して、haveAfterdataStr[k] に 0, 1 を入れる
 		char haveAfterdataStr[ListCountd + 1] = "";
 
+// 		printf("%s: ", orderlist);
 		int len = strlen(orderlist);
 		for (int j=0; j<len; j++) {
 			haveAfterdataStr[j] = haveAfterdata(&data[i], orderlist, j);
 
 			// 一度 0 だった場合、以降はずっと 0
 			if (haveAfterdataStr[j] == 0) {
+// 				printf("%2d:(%c) ", j, orderlist[j]);
 				for (; orderlist[j] != '\0'; j++) {
 					haveAfterdataStr[j] = 0;
 				}
@@ -3758,17 +3762,19 @@ main(int argc, char *argv[])
 		// --------------------------------------------------------------------------------
 		// ユニーク文字列
 		// !! エスケープ文字列も表示、該当なしと、' ' の差がわからないから
-// 		if (strchr(formatListString, 'u') || strchr(formatListString, 'U') ) {
-		if (alist[do_uniquecheck] || alist[do_emacs]) {
-			for (int j=0; j<p->nth; j++) {
-				if (fnamelist[j].uniquebegin == -1) {
-					continue;
+		// !! -n の時も、こちらにする
+// 		if (alist[do_uniquecheck] || alist[do_emacs] || enc.lbegin) {
+			if (strchr(formatListString, 'u') || strchr(formatListString, 'u') ) {
+				for (int j=0; j<p->nth; j++) {
+					if (fnamelist[j].uniquebegin == -1) {
+						continue;
+					}
+					int len = fnamelist[j].uniqueend - fnamelist[j].uniquebegin + 1;
+					strncpy(fnamelist[j].unique, fnamelist[j].name + fnamelist[j].uniquebegin, len);
+					fnamelist[j].unique[len] = '\0';
 				}
-				int len = fnamelist[j].uniqueend - fnamelist[j].uniquebegin + 1;
-				strncpy(fnamelist[j].unique, fnamelist[j].name + fnamelist[j].uniquebegin, len);
-				fnamelist[j].unique[len] = '\0';
 			}
-		}
+// 		}
 
 		// --------------------------------------------------------------------------------
 		// 集計結果の該当長さの文字列を paint 色で表示
