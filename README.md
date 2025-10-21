@@ -61,7 +61,6 @@ init 2025, 08/07 04:54:55 root -rwxrwxrwx
   - 色付けされない一覧出力だけなら `rls -sn` が最速です。
 <br><br>
 
-
 ## 開発環境・動作環境
 `rls` のコンパイルに `make` を使用します。コンパイルに必要なファイルは `rls.c` のみです。<br>
 下記は `rls` を `/usr/local/bin/` にコピーする例です。
@@ -73,14 +72,21 @@ make
 cp rls /usr/local/bin/
 ```
 
-下記は `make` と `rls` の動作を確認した開発環境です。
+<details>
+<summary>
+`make` と `rls` の動作を確認した開発環境
+</summary>
+<br>
 
-|     |Ubuntu|     wsl|  Other|
-  ---:|  ---:|    ---:|   ---:
- uname|6.15.0|6.6.87.2|6.12.25
-   gcc|14.3.0|  11.4.0| 10.2.1
-  make| 4.4.1|     4.3|    4.3
-  fish| 4.0.2|   3.3.1|  3.1.2
+|     |Ubuntu|     wsl|  Other|ubuntu-latest| macos-latest|
+  ---:|  ---:|    ---:|   ---:|         ---:|         ---:|
+ uname|6.15.0|6.6.87.2|6.12.25|       6.14.0|Darwin 24.6.0|
+   gcc|14.3.0|  11.4.0| 10.2.1|        13.30|       12.4.0|
+  make| 4.4.1|     4.3|    4.3|          4.3|        4.4.1|
+  fish| 4.0.2|   3.3.1|  3.1.2|            -|            -|
+
+`ubuntu-latest` と `macos-latest` は GitHub の環境です。
+</details>
 
 
 ### `rls.c` 以外のファイルについて
@@ -247,3 +253,4 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - chg `colorUsage()` の処理修正
 - fix `printAggregate()` の displaycount が 0 の時の処理修正
 - add `freeDENT()` の追加
+- fix `haveAfterdata()` のチェックを orderlist の最後までに修正

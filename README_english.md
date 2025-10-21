@@ -161,14 +161,3 @@ Some rls behaviors can be unintuitive at first. Explanations follow.
 ## Help
 - Version 0.3.0 help: ./README_rls_v0.3.0.md  
 - Version 0.4.0 (current) help: ./README_rls_current.md
-
-## Changes since v0.3.0
-- Added `-R`: display a numeric length in paint color.
-- Added fields to `-f` (pipe `|`, comma `,`, `S`, `C`, `u`, `U`).
-- Added `-w`: when using English display, do not abbreviate month/day names.
-- Changed `-O` to `-S` to mean "do not sort".
-- Added `-O` to hide directories.
-- Moved the timing of initColor() invocation in main().
-- Fixed `colorUsage()` processing.
-- Fixed `printAggregate()` when displaycount is 0.
-- Added `freeDENT()`.
