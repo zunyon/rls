@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "10/20"
-#define BTIME "22:05:26"
+#define BDATE "10/23"
+#define BTIME "23:25:40"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 10/20 22:04"
+// my-last-update-time "2025, 10/23 23:24"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -2504,9 +2504,12 @@ typedef enum {
 	show_simple,
 	show_long,
 	format_list,
+
+	// -f 関連は format_ に纏める
 #ifdef MD5
-	do_md5,
+	format_md5,
 #endif
+	format_unique,
 
 	deep_unique,
 	beginning_word,
@@ -2555,8 +2558,9 @@ debug_showArgvswitch(int alist[])
 		toStr(show_long),
 		toStr(format_list),
 #ifdef MD5
-		toStr(do_md5),
+		toStr(format_md5),
 #endif
+		toStr(format_unique),
 
 		toStr(deep_unique),
 		toStr(beginning_word),
@@ -3107,12 +3111,16 @@ main(int argc, char *argv[])
 		sortfunc = NULL;
 	}
 
+	// -f で行う内容を決定
+	for (int i=0; formatListString[i] != '\0'; i++) {
+		switch (formatListString[i]) {
 #ifdef MD5
-	// md5 を使用する
-	if (strchr(formatListString, '5')) {
-		alist[do_md5]++;
-	}
+			// md5 を使用する
+			case '5':           alist[format_md5]++;    break;
 #endif
+			case 'u': case 'U': alist[format_unique]++; break;
+		}
+	}
 
 	// --------------------------------------------------------------------------------
 	// -TB, -TE の設定
@@ -3406,7 +3414,7 @@ main(int argc, char *argv[])
 			makeMode(&fnamelist[j]);		// mode data
 
 #ifdef MD5
-			if (alist[do_md5]) {
+			if (alist[format_md5]) {
 				if (IS_DIRECTORY(fnamelist[j]) != 1) {
 					if (makeMD5(fnamelist[j].name, fnamelist[j].md5) == -1) {
 						strcpy(fnamelist[j].md5,  "-");
@@ -3764,17 +3772,16 @@ main(int argc, char *argv[])
 		// !! エスケープ文字列も表示、該当なしと、' ' の差がわからないから
 		// !! -n の時も、こちらにする
 // 		if (alist[do_uniquecheck] || alist[do_emacs] || enc.lbegin) {
-			if (strchr(formatListString, 'u') || strchr(formatListString, 'u') ) {
-				for (int j=0; j<p->nth; j++) {
-					if (fnamelist[j].uniquebegin == -1) {
-						continue;
-					}
-					int len = fnamelist[j].uniqueend - fnamelist[j].uniquebegin + 1;
-					strncpy(fnamelist[j].unique, fnamelist[j].name + fnamelist[j].uniquebegin, len);
-					fnamelist[j].unique[len] = '\0';
+		if (alist[format_unique]) {
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].uniquebegin == -1) {
+					continue;
 				}
+				int len = fnamelist[j].uniqueend - fnamelist[j].uniquebegin + 1;
+				strncpy(fnamelist[j].unique, fnamelist[j].name + fnamelist[j].uniquebegin, len);
+				fnamelist[j].unique[len] = '\0';
 			}
-// 		}
+		}
 
 		// --------------------------------------------------------------------------------
 		// 集計結果の該当長さの文字列を paint 色で表示
