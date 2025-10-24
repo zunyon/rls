@@ -31,8 +31,8 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "10/23"
-#define BTIME "23:25:40"
+#define BDATE "10/24"
+#define BTIME "22:47:24"
 
 #define RELTYPE "[CURRENT]"
 
@@ -304,63 +304,6 @@ debug_displayDuplist(struct DLIST *node)
 	debug_displayDuplist(node->left);
 	printf("dup: [%s]:%d\n", node->dupword, node->fnamelistNumber);
 	debug_displayDuplist(node->right);
-}
-#endif
-
-
-// ================================================================================
-#ifdef MD5
-int
-makeMD5(char *fname, char *md5)
-{
-	EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
-	if (!mdctx) {
-		strcpy(md5, "-");
-		return -1;
-	}
-
-	if (EVP_DigestInit_ex(mdctx, EVP_md5(), NULL) != 1) {
-		EVP_MD_CTX_free(mdctx);
-		strcpy(md5, "-");
-		return -1;
-	}
-
-	FILE *fp;
-	fp = fopen(fname, "rb");
-	if (fp == NULL) {
-		strcpy(md5, "-");
-		return -1;
-	}
-
-	// BUFSIZ より大きい 256k 単位で読み込めば遅くはない
-	unsigned char buf[256000];
-	size_t n;
-	while ((n = fread(buf, sizeof(char), 256000, fp)) > 0) {
-		if (EVP_DigestUpdate(mdctx, buf, n) != 1) {
-			EVP_MD_CTX_free(mdctx);
-			fclose(fp);
-			strcpy(md5, "-");
-			return -1;
-		}
-	}
-	fclose(fp);
-
-	unsigned char md_value[EVP_MAX_MD_SIZE];
-	unsigned int md_len;
-
-	if (EVP_DigestFinal_ex(mdctx, md_value, &md_len) != 1) {
-		EVP_MD_CTX_free(mdctx);
-		strcpy(md5, "-");
-		return -1;
-	}
-	EVP_MD_CTX_free(mdctx);
-
-	for (unsigned int i = 0; i < md_len; i++) {
-		sprintf(&md5[i * 2], "%02x", md_value[i]);
-	}
-	md5[md_len * 2] = '\0';
-
-	return 0;
 }
 #endif
 
@@ -863,6 +806,67 @@ countEntry(char *dname, char *path)
 
 	return file_count -2;			// "." と ".." を除く
 }
+
+
+// ================================================================================
+#ifdef MD5
+int
+makeMD5(char *fname, char *md5)
+{
+	debug printStr(label, "md5: ");
+
+	EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+	if (!mdctx) {
+		strcpy(md5, "-");
+		return -1;
+	}
+
+	if (EVP_DigestInit_ex(mdctx, EVP_md5(), NULL) != 1) {
+		EVP_MD_CTX_free(mdctx);
+		strcpy(md5, "-");
+		return -1;
+	}
+
+	FILE *fp;
+	fp = fopen(fname, "rb");
+	if (fp == NULL) {
+		strcpy(md5, "-");
+		return -1;
+	}
+
+	// BUFSIZ より大きい 256k 単位で読み込めば遅くはない
+	unsigned char buf[256000];
+	size_t n;
+	while ((n = fread(buf, sizeof(char), 256000, fp)) > 0) {
+		if (EVP_DigestUpdate(mdctx, buf, n) != 1) {
+			EVP_MD_CTX_free(mdctx);
+			fclose(fp);
+			strcpy(md5, "-");
+			return -1;
+		}
+	}
+	fclose(fp);
+
+	unsigned char md_value[EVP_MAX_MD_SIZE];
+	unsigned int md_len;
+
+	if (EVP_DigestFinal_ex(mdctx, md_value, &md_len) != 1) {
+		EVP_MD_CTX_free(mdctx);
+		strcpy(md5, "-");
+		return -1;
+	}
+	EVP_MD_CTX_free(mdctx);
+
+	for (unsigned int i = 0; i < md_len; i++) {
+		sprintf(&md5[i * 2], "%02x", md_value[i]);
+	}
+	md5[md_len * 2] = '\0';
+
+	debug printf("%s: %s\n", md5, fname);
+
+	return 0;
+}
+#endif
 
 
 // ================================================================================
@@ -3155,7 +3159,9 @@ main(int argc, char *argv[])
 
 		// -TB, -TE と併用で無ければ、色をつけないから uniqueCheck(), uniqueCheckFirstWord() を飛ばす
 		// -TB, -TE が指定されていたら、uniqueCheck() は行う
-		if (enc.lbegin == 0) {
+		// -fu も同様
+		// !!
+		if (enc.lbegin == 0 && alist[format_unique] == 0) {
 			alist[do_uniquecheck] = 0;
 			alist[do_emacs] = 0;
 		}

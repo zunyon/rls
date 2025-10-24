@@ -34,8 +34,7 @@ md5: $(sources) $(headers)
 
 # --------------------------------------------------------------------------------
 debug: $(sources) $(headers)
-	gcc $(DEBUG_OPT) $^ -o $(BIN)
-
+	gcc $(DEBUG_OPT) $(MD5_OPT) $^ -o $(BIN) $(MD5_LIBS)
 
 count: $(sources) $(headers) $(count_sources)
 	gcc $(COUNT_FLG) $^ -o $(BIN)
