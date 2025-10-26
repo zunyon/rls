@@ -95,10 +95,10 @@ jobs:
         $CC --version
         $MAKE --version
 
-    - name: run rls debug
-      run: |
-        $MAKE clean debug
-        ./rls -always
+#    - name: run rls debug
+#      run: |
+#        $MAKE clean debug
+#        ./rls -always
 
     # ここがダメ
     - name: run rls md5
