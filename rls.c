@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "10/24"
-#define BTIME "22:47:24"
+#define BDATE "10/27"
+#define BTIME "13:26:54"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 10/23 23:24"
+// my-last-update-time "2025, 10/27 13:01"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1893,18 +1893,23 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 
 			count = countMatchedString(data[i].info[j]);
 
+			// --------------------------------------------------------------------------------
 			// 左寄せ項目
 #ifdef MD5
-			if (strchr("mMoOgGtTwWuU5", (unsigned char) orderlist[j])) {
+			if (strchr("mMoOkKgGtTwWIHDuU5", (unsigned char) orderlist[j])) {
 #else
-			if (strchr("mMoOgGtTwWuU", (unsigned char) orderlist[j])) {
+			if (strchr("mMoOkKgGtTwWIHDuU", (unsigned char) orderlist[j])) {
 #endif
 				switch ((unsigned char) orderlist[j]) {
 				  case 'm': case 'M': len = data[i].model   + count * enc.tlen; break;
 				  case 'o': case 'O': len = data[i].ownerl  + count * enc.tlen; break;
+				  case 'k': case 'K': len = data[i].kindl   + count * enc.tlen; break;
 				  case 'g': case 'G': len = data[i].groupl  + count * enc.tlen; break;
 				  case 't': case 'T': len = data[i].timel   + count * enc.tlen; break;
 				  case 'w': case 'W': len = data[i].weekl   + count * enc.tlen; break;
+				  case 'I':           len = data[i].inodel  + count * enc.tlen; break;
+				  case 'H':           len = data[i].nlinkl  + count * enc.tlen; break;
+				  case 'D':           len = data[i].datel   + count * enc.tlen; break;
 				  case 'u': case 'U': len = data[i].uniquel + count * enc.tlen; break;
 #ifdef MD5
 				  case '5':           len = data[i].md5l    + count * enc.tlen; break;
@@ -1925,34 +1930,29 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 			}
 
 			// --------------------------------------------------------------------------------
-			// 右寄せ・特殊項目
+			// 右寄せ
+			if (strchr("isSh", (unsigned char) orderlist[j])) {
+				switch (orderlist[j]) {
+					case 'i': len = data[i].inodel + count * enc.tlen; break;
+					case 'h': len = data[i].nlinkl + count * enc.tlen; break;
+					case 's': len = data[i].sizecl + count * enc.tlen; break;
+					case 'S': len = data[i].sizel  + count * enc.tlen; break;
+				}
+
+				printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
+				debug printf("%c:", orderlist[j]);
+				printMatchedString(data[i], data[i].info[j], enc);
+				if (haveAfterdataStr[j]) {
+					printf(" ");
+				}
+
+				continue;
+			}
+
+			// --------------------------------------------------------------------------------
+			// 特殊項目
 			switch (orderlist[j]) {
-			  case 'i': case 'I':
-				len = data[i].inodel + count * enc.tlen;
-				if (digits[(unsigned char) orderlist[j]]) {
-					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
-				}
-				debug printf("%c:", orderlist[j]);
-				printMatchedString(data[i], data[i].info[j], enc);
-				if (haveAfterdataStr[j]) {
-					printf(" ");
-				}
-				break;
-
-			  case 'h': case 'H':
-				len = data[i].nlinkl + count * enc.tlen;
-				// 数値なので右寄せ表示
-				if (digits[(unsigned char) orderlist[j]]) {
-					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
-				}
-				debug printf("%c:", orderlist[j]);
-				printMatchedString(data[i], data[i].info[j], enc);
-				if (haveAfterdataStr[j]) {
-					printf(" ");
-				}
-				break;
-
-			  case 'd': case 'D':
+			  case 'd':
 				len = data[i].datel + count * enc.tlen;
 				// -t の時
 				if (digits[(unsigned char) orderlist[j]]) {
@@ -1965,19 +1965,6 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				} else {
 					printMatchedString(data[i], data[i].info[j], enc);
 				}
-				if (haveAfterdataStr[j]) {
-					printf(" ");
-				}
-				break;
-
-			  case 's': case 'S':
-				len = ((orderlist[j] == 's') ? data[i].sizecl : data[i].sizel) + count * enc.tlen;
-				// 数値なので右寄せ表示
-				if (digits[(unsigned char) orderlist[j]]) {
-					printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
-				}
-				debug printf("%c:", orderlist[j]);
-				printMatchedString(data[i], data[i].info[j], enc);				// size
 				if (haveAfterdataStr[j]) {
 					printf(" ");
 				}
@@ -2048,30 +2035,22 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 				}
 				break;
 
-			  case 'k': case 'K':
-				int ret = printKind(data[i], data[i].info[j], enc);
-				if (haveAfterdataStr[j]) {
-					if (ret == 0) {
-						printf(" ");
-					}
-				}
-				break;
-
 			  case 'l': case 'L':
 				len = data[i].linknamel + count * enc.tlen;
 				// symlink 先を表示
 				if (data[i].mode[0] == 'l') {
-					printf(" ");
 					printStr(data[i].color, "->");							// link 先と同じ色
 					printf(" ");
 					debug printf("%c:", orderlist[j]);
 					printMatchedString(data[i], data[i].info[j], enc);
 				}
-				if (haveAfterdataStr[j]) {
-					// -> の分を表示する
+				// -> の分を表示する
+				if (len == 0) {
 					if (orderlist[j] == 'l') {
-						printf("    ");
+						printf("   ");
 					}
+				}
+				if (haveAfterdataStr[j]) {
 					if (digits[(unsigned char) orderlist[j]]) {
 						printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
 					}
@@ -2087,12 +2066,13 @@ printLong(struct FNAME *data, int n, struct ENCLOSING enc, int digits[], char or
 					printStr(data[i].color, "[");
 					printMatchedString(data[i], data[i].info[j], enc);
 					printStr(data[i].color, "]");
-				}
-				if (haveAfterdataStr[j]) {
+				} else {
 					// [] の分を表示する
 					if (orderlist[j] == 'e') {
-						printf("  ");			// "[]" の分
+						printf("  ");
 					}
+				}
+				if (haveAfterdataStr[j]) {
 					if (digits[(unsigned char) orderlist[j]]) {
 						printf("%*s", digits[(unsigned char) orderlist[j]] - len, "");
 					}
