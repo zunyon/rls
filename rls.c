@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "10/27"
-#define BTIME "13:26:54"
+#define BDATE "10/29"
+#define BTIME "22:42:12"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 10/27 13:01"
+// my-last-update-time "2025, 10/29 22:26"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -211,8 +211,13 @@ mallocDuplist(char *word, int len)
 		exit(EXIT_FAILURE);
 	}
 
+	if (len > UNIQUE_LENGTH) {
+		len = UNIQUE_LENGTH;
+	}
+
 	*new = (struct DLIST) {"", NULL, NULL, -1, len };
 	strncpy(new->dupword, word, len);
+	new->dupword[len] = '\0';
 
 	return new;
 }
@@ -2669,11 +2674,24 @@ void
 freeDENT(struct DENT *dent, int dirarg)
 {
 	for (int i=0; i<dirarg; i++) {
-		for (int j=0; j<dent[i].nth; j++) {
-			free(dent[i].fnamelist[j].lowername);
+		if (dent[i].fnamelist) {
+			for (int j=0; j<dent[i].nth; j++) {
+				free(dent[i].fnamelist[j].lowername);
+			}
+			if (dent[i].nth) {
+				free(dent[i].fnamelist);
+// 				dent[i].fnamelist = NULL;
+			}
 		}
-		if (dent[i].nth) {
-			free(dent[i].fnamelist);
+
+		if (dent[i].direntlist) {
+			for (int j=0; j<dent[i].nth; j++) {
+				free(dent[i].direntlist[j]);
+			}
+			if (dent[i].nth) {
+				free(dent[i].direntlist);
+// 				dent[i].direntlist = NULL;
+			}
 		}
 
 		// --------------------------------------------------------------------------------
