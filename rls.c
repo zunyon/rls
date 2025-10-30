@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "10/29"
-#define BTIME "22:42:12"
+#define BDATE "10/30"
+#define BTIME "22:55:01"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 10/29 22:26"
+// my-last-update-time "2025, 10/30 22:54"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -215,8 +215,16 @@ mallocDuplist(char *word, int len)
 		len = UNIQUE_LENGTH;
 	}
 
-	*new = (struct DLIST) {"", NULL, NULL, -1, len };
-	strncpy(new->dupword, word, len);
+	*new = (struct DLIST) {"", NULL, NULL, 0, len };
+// 	new->length = len;
+// 	new->left = NULL;
+// 	new->right = NULL;
+// 	new->fnamelistNumber = 0;
+
+// 	strncpy(new->dupword, word, len);
+	for (int i=0; i<len; i++) {
+		new->dupword[i] = word[i];
+	}
 	new->dupword[len] = '\0';
 
 	return new;
@@ -3261,11 +3269,8 @@ main(int argc, char *argv[])
 		dent[i].md5_digits    = 0;
 #endif
 
-		// non-unique リストの初期化
-		dent[i].duplist = malloc(sizeof(struct DLIST));
-		dent[i].duplist->dupword[0] = '\0';
-		dent[i].duplist->left = NULL;
-		dent[i].duplist->right = NULL;
+	// non-unique リストの初期化
+	dent[i].duplist = mallocDuplist("", 0);
 
 		showorder[i] = i;
 	}
@@ -3508,10 +3513,7 @@ main(int argc, char *argv[])
 			debug printStr(label, "emacs:\n");
 
 			struct DLIST *extensionduplist;
-			extensionduplist = malloc(sizeof(struct DLIST));
-			extensionduplist->dupword[0] = '\0';
-			extensionduplist->left = NULL;
-			extensionduplist->right = NULL;
+			extensionduplist = mallocDuplist("", 0);
 
 			// 1 個目だけ特別対応
 			fnamelist[0].targetlist = 1;
