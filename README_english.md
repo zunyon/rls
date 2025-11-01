@@ -159,5 +159,5 @@ Some rls behaviors can be unintuitive at first. Explanations follow.
 [License: MIT](./LICENSE)
 
 ## Help
-- Version 0.3.0 help: ./README_rls_v0.3.0.md  
-- Version 0.4.0 (current) help: ./README_rls_current.md
+- [Version 0.4.0 current](./README_rls_current.md) help
+- [Version 0.3.0](./README_rls_v0.3.0.md) help

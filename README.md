@@ -238,8 +238,8 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 
 
 ## ヘルプ
-- [Version 0.3.0](./README_rls_v0.3.0.md)　のヘルプ
 - [Version 0.4.0 current](./README_rls_current.md)　のヘルプ
+- [Version 0.3.0](./README_rls_v0.3.0.md)　のヘルプ
 <br><br>
 
 
