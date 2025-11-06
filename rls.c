@@ -31,8 +31,8 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "11/02"
-#define BTIME "07:31:23"
+#define BDATE "11/07"
+#define BTIME "05:43:28"
 
 #define RELTYPE "[CURRENT]"
 
@@ -622,12 +622,15 @@ makeMode(struct FNAME *p)
 
 			c = 'l'; p->kind[0] = '@';
 			// symlink 先のファイル名
-			if (readlink(p->name, p->linkname, sizeof(p->linkname)) == -1) {
+			ssize_t r = readlink(p->name, p->linkname, sizeof(p->linkname) - 1);
+			if (r == -1) {
 				strcpy(p->errnostr, strerror(errno));
 				p->color = error;
 				p->linkname[0] = '\0';
 				break;
 			}
+			// readlink は null 終端しないので終端する
+			p->linkname[r] = '\0';
 
 			// link 先の sb を取得、link 先がディレクトリか
 			if (lstat(p->linkname, &sb) == -1) {
