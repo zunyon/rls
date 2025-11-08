@@ -32,14 +32,14 @@
 #define INCDATE
 #define BYEAR "2025"
 #define BDATE "11/08"
-#define BTIME "13:11:04"
+#define BTIME "21:48:28"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 11/08 10:45"
+// my-last-update-time "2025, 11/08 21:34"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -221,10 +221,7 @@ mallocDuplist(char *word, int len)
 // 	new->right = NULL;
 // 	new->fnamelistNumber = 0;
 
-// 	strncpy(new->dupword, word, len);
-	for (int i=0; i<len; i++) {
-		new->dupword[i] = word[i];
-	}
+	strncpy(new->dupword, word, len);
 	new->dupword[len] = '\0';
 
 	return new;
@@ -815,7 +812,7 @@ countEntry(char *dname, char *path)
 	for (int i=0; i<file_count; i++) {
 		free(namelist[i]);
 	}
-	// !! free() count
+	// !! free() COUNTFUNC
 	free(namelist);
 
 // 	debug printf(" %d, %s\n", file_count, tmppath);
@@ -1087,6 +1084,10 @@ addFNamelist(struct FNAME *p, char *name)
 	p->errnostr[0] = '\0';
 	p->date_f = 0;
 
+#ifdef MD5
+	p->md5[0] = '\0';
+#endif
+
 	p->length = strlen(p->name);
 // 	p->lowername = strdup(p->name);
 	p->lowername = (char *) malloc(sizeof(char) * (p->length + 1));
@@ -1164,19 +1165,17 @@ myAlphaSort(const void *a, const void *b)
 int
 myAlphaSortRev(const void *a, const void *b)
 {
-	struct FNAME *s1 = (struct FNAME *)a;
-	struct FNAME *s2 = (struct FNAME *)b;
-
-// 	return strcmp(s2->lowername, s1->lowername);
-	return strcasecmp(s2->name, s1->name);
-// 	return strcmp(s2->name, s1->name);				// ls と同じソート
+	return - myAlphaSort(a, b);
 }
 
 
-// size のソートの本体
+// size の小さい順
 int
-sizeSort(struct FNAME *s1, struct FNAME *s2)
+mySizeSort(const void *a, const void *b)
 {
+	struct FNAME *s1 = (struct FNAME *)a;
+	struct FNAME *s2 = (struct FNAME *)b;
+
 	int len1 = s1->sizel;
 	int len2 = s2->sizel;
 
@@ -1192,24 +1191,11 @@ sizeSort(struct FNAME *s1, struct FNAME *s2)
 	return (len1 < len2) ? -1 : 1;
 }
 
-// size の小さい順
-int
-mySizeSort(const void *a, const void *b)
-{
-	struct FNAME *s1 = (struct FNAME *)a;
-	struct FNAME *s2 = (struct FNAME *)b;
-
-	return sizeSort(s1, s2);
-}
-
 // size の大きい順
 int
 mySizeSortRev(const void *a, const void *b)
 {
-	struct FNAME *s1 = (struct FNAME *)a;
-	struct FNAME *s2 = (struct FNAME *)b;
-
-	return sizeSort(s2, s1);	// 逆順
+	return - mySizeSort(a, b);
 }
 
 
@@ -1227,10 +1213,7 @@ myMtimeSort(const void *a, const void *b)
 int
 myMtimeSortRev(const void *a, const void *b)
 {
-	struct FNAME *s1 = (struct FNAME *)a;
-	struct FNAME *s2 = (struct FNAME *)b;
-
-	return ((double) s2->sb.st_mtime - s1->sb.st_mtime < 1) ? 1 : -1;	// 逆順
+	return - myMtimeSort(a, b);
 }
 
 
@@ -2695,7 +2678,7 @@ freeDENT(struct DENT *dent, int dirarg)
 			}
 		}
 
-		// !! free() count
+		// !! free() COUNTFUNC
 		if (dent[i].direntlist) {
 			for (int j=0; j<dent[i].nth; j++) {
 				free(dent[i].direntlist[j]);
