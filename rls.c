@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "11/07"
-#define BTIME "05:43:28"
+#define BDATE "11/08"
+#define BTIME "13:11:04"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 11/02 07:31"
+// my-last-update-time "2025, 11/08 10:45"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -100,7 +100,7 @@
 #define toStr(n) #n
 
 // 対象がディレクトリかどうか
-#define IS_DIRECTORY(data) ((data).mode[0] == 'd' || (data).linkname[strlen((data).linkname) - 1] == '/')
+#define IS_DIRECTORY(data) ((data).mode[0] == 'd' || ((data).linkname[0] != '\0' && (data).linkname[strlen((data).linkname) - 1] == '/'))
 
 #define MAX(a, b) (((unsigned int)a) > ((unsigned int)b) ? ((unsigned int)a) : ((unsigned int)b))
 
@@ -622,15 +622,14 @@ makeMode(struct FNAME *p)
 
 			c = 'l'; p->kind[0] = '@';
 			// symlink 先のファイル名
-			ssize_t r = readlink(p->name, p->linkname, sizeof(p->linkname) - 1);
-			if (r == -1) {
+			ssize_t rlen = readlink(p->name, p->linkname, sizeof(p->linkname) - 1);
+			if (rlen == -1) {
 				strcpy(p->errnostr, strerror(errno));
 				p->color = error;
 				p->linkname[0] = '\0';
 				break;
 			}
-			// readlink は null 終端しないので終端する
-			p->linkname[r] = '\0';
+			p->linkname[rlen] = '\0';
 
 			// link 先の sb を取得、link 先がディレクトリか
 			if (lstat(p->linkname, &sb) == -1) {
@@ -816,6 +815,7 @@ countEntry(char *dname, char *path)
 	for (int i=0; i<file_count; i++) {
 		free(namelist[i]);
 	}
+	// !! free() count
 	free(namelist);
 
 // 	debug printf(" %d, %s\n", file_count, tmppath);
@@ -2695,6 +2695,7 @@ freeDENT(struct DENT *dent, int dirarg)
 			}
 		}
 
+		// !! free() count
 		if (dent[i].direntlist) {
 			for (int j=0; j<dent[i].nth; j++) {
 				free(dent[i].direntlist[j]);
@@ -3614,8 +3615,8 @@ main(int argc, char *argv[])
 		}
 
 		// --------------------------------------------------------------------------------
-		// printLong() でのみ使用する
-		if (alist[show_long]) {
+		// !! -f の内容によって、取得する項目を管理する
+		if (alist[size_sort] || alist[show_long]) {
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
@@ -3626,12 +3627,7 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				if (fnamelist[j].showlist == SHOW_SHORT) {
-					fnamelist[j].showlist = SHOW_LONG;
-				}
-
-				struct stat sb;
-				sb = fnamelist[j].sb;
+				struct stat sb = fnamelist[j].sb;
 
 				// filesize data
 				sprintf(fnamelist[j].size, "%ld", sb.st_size);
@@ -3666,7 +3662,27 @@ main(int argc, char *argv[])
 
 					makeReadableSize(fnamelist[j].nlink);
 				}
+			}
+		}
 
+		// --------------------------------------------------------------------------------
+		// printLong() でのみ使用する
+		if (alist[show_long]) {
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				// !! 本当は、sb をチェックする
+				if (fnamelist[j].mode[1] == '\0') {
+					continue;
+				}
+
+				if (fnamelist[j].showlist == SHOW_SHORT) {
+					fnamelist[j].showlist = SHOW_LONG;
+				}
+
+				struct stat sb = fnamelist[j].sb;
 				struct passwd *pw;
 				struct group *gr;
 
