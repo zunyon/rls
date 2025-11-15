@@ -84,7 +84,7 @@ jobs:
     - name: Install gmake, openssl
       run: |
         brew install make
-        brew install openssl
+#        brew install openssl
 
     # ここから共通 ----------
     - name: version - date, uname, cc, make
