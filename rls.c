@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "11/15"
-#define BTIME "20:09:28"
+#define BDATE "11/16"
+#define BTIME "20:45:10"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 11/15 19:52"
+// my-last-update-time "2025, 11/16 20:43"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -366,9 +366,7 @@ void
 colorUsage(void)
 {
 	printStr(label, "Default Colors:\n");
-
 	printf(" %s environment: same as -c option format, same restrictions. (set -x %s)\n", ENVNAME, ENVNAME);
-
 	printf("  default setting: %s\n", default_color_txt);
 
 	char *from;
@@ -659,9 +657,6 @@ struct ALIST {
 
 	char color_txt[sizeof(default_color_txt)];
 	char onlyPaintStr[FNAME_LENGTH + 1];
-
-	// aggregate の文字列長さ
-	int aggregatel;
 
 	int dirarg[256];
 
@@ -2161,7 +2156,7 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 // どの程度の文字列の長さで unique になっているか表示
 // -R や、-p の結果も paint で表示する
 void
-printAggregate(struct FNAME *fnamelist, int nth, int aggregatel)
+printAggregate(struct FNAME *fnamelist, int nth, int aggregate_length)
 {
 	debug printStr(label, "printAggregate:\n");
 
@@ -2208,9 +2203,9 @@ printAggregate(struct FNAME *fnamelist, int nth, int aggregatel)
 	printf(" all:%d/%d(%.1f%%) lines ", hitcount, nth, percent);
 	for (int i=1; i<UNIQUE_LENGTH; i++) {
 		if (count_chklen[i] != 0) {
-			if (i == aggregatel) { printEscapeColor(paint); }			// -R, -p 指定時に色付け
+			if (i == aggregate_length) { printEscapeColor(paint); }			// -R, -p 指定時に色付け
 			printf("[%d:%d(%.1f%%)]", i, count_chklen[i], round(count_chklen[i] * 100.0 / nth));
-			if (i == aggregatel) { printEscapeColor(reset); }
+			if (i == aggregate_length) { printEscapeColor(reset); }
 			printf(" ");
 		}
 	}
@@ -2461,7 +2456,7 @@ showUsage(char **argv)
 	printf(" -i: with -l, human-readable sIze. (-f with count, size, hardlinks)\n");
 	printf(" -w: with -l, day of the week, month Without abbreviation. (-f with week, date (month))\n");
 	printf(" "); printStr(label, "-r"); printf(": show aggregate Results.\n");
-	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggreagete Results with the \"paint\" color. (-Rnumber)\n");
+	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \"paint\" color. (-Rnumber)\n");
 	printf("     -r = -R = -i = -t > -w\n");
 
 	printf("\n");
@@ -2806,7 +2801,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 			paintString[tmplen] = '\0';
 			paintStringLen = tmplen;
 			// aggregate の該当長さに paint 色付け
-			cfg->aggregatel = paintStringLen;
+			cfg->aggregate_length = paintStringLen;
 			debug printf("paintString:[%s]\n", paintString);
 			continue;
 		}
@@ -2828,10 +2823,9 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 		if (strncmp(argv[i], "-R", 2) == 0) {
 			if (len == 2) { argverr[i] = error; continue; }
 
-			cfg->aggregate_length++;
-			cfg->aggregatel = atoi(argv[i] + 2);
-			if (cfg->aggregatel <= 0) { argverr[i] = error; continue; }
-			debug printf("aggregate length:%d\n", cfg->aggregatel);
+			cfg->aggregate_length = atoi(argv[i] + 2);
+			if (cfg->aggregate_length <= 0) { argverr[i] = error; continue; }
+			debug printf("aggregate length:%d\n", cfg->aggregate_length);
 			continue;
 		}
 
@@ -2886,6 +2880,31 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 		}
 	}
 
+	// --------------------------------------------------------------------------------
+	// -f で行う内容を決定
+	for (int i=0; cfg->formatListString[i] != '\0'; i++) {
+		switch (cfg->formatListString[i]) {
+#ifdef MD5
+			// md5 を使用する
+			case '5':           cfg->format_md5++;    break;
+#endif
+			case 'u': case 'U': cfg->format_unique++; break;
+			case 'o': case 'O': cfg->format_owner++;  break;
+			case 'g': case 'G': cfg->format_group++;  break;
+
+			// makeDate() で処理
+			case 'd': case 'D': cfg->format_date++;   break;
+			case 'w': case 'W': cfg->format_date++;   break;
+			case 't': case 'T': cfg->format_date++;   break;
+
+			// size, count
+			case 's': case 'S': cfg->format_size++;   break;
+			case 'c': case 'C': cfg->format_size++;   break;
+
+			case 'l': case 'L': cfg->format_link++;   break;
+		}
+	}
+
 	return 0;
 }
 
@@ -2894,8 +2913,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 void
 doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int count_is_file)
 {
-	// --------------------------------------------------------------------------------
-	// データ表示 (まずは is_file のデータ)、sort はしない
+	// データの表示、ファイル指定対応 (まずは is_file のデータ)、sort はしない
 	if (count_is_file) {
 		printStr(base, "single files:\n");
 
@@ -2933,7 +2951,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 				digits['l'] = MAX(p->linkname_digits, digits['l']);		// linkname
 				digits['e'] = MAX(p->errnostr_digits, digits['e']);		// errnostr
 #ifdef MD5
-				digits['5'] = MAX(p->md5_digits,   digits['5']);		// md5
+				digits['5'] = MAX(p->md5_digits,    digits['5']);		// md5
 #endif
 			}
 
@@ -3020,6 +3038,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		}
 	}
 
+	// --------------------------------------------------------------------------------
 	for (int i=0; i<dirarg; i++) {
 		struct DENT *p;
 		p = &dent[showorder[i]];
@@ -3073,7 +3092,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		// ================================================================================
 		// 集計表示
 		if (cfg.aggregate_results) {
-			printAggregate(fnamelist, p->nth, cfg.aggregatel);
+			printAggregate(fnamelist, p->nth, cfg.aggregate_length);
 		}
 
 		// --------------------------------------------------------------------------------
@@ -3144,7 +3163,7 @@ main(int argc, char *argv[])
 	lt = time(NULL);
 
 	// ================================================================================
-	// !! default 値の設定
+	// default 値の設定
 	struct ALIST cfg = {
 		.onlyPaintStr[0] = '\0',
 		.formatListString = "mogcdPNkLE",
@@ -3170,20 +3189,22 @@ main(int argc, char *argv[])
 		   ,
 		// --------------------------------------------------------------------------------
 
-			.termlen = 0,
-			.termhei = 0,
+		.termlen = 0,
+		.termhei = 0,
+
+		.aggregate_length = 0,
 	};
 
 	for (int i = 0; i < ListCount; i++) {
 		colorlist[i][0] = '\0';
 	}
 
-	// ================================================================================
+	// --------------------------------------------------------------------------------
 	// default color text を格納
 	strcpy(default_color_txt, cfg.color_txt);
 	initColor(0, cfg.color_txt);
 
-	// ================================================================================
+	// --------------------------------------------------------------------------------
 	memset(dirarglist, '\0', sizeof(dirarglist));
 	memset(argverr, 0, sizeof(argverr));
 	paintString[0] = '\0';
@@ -3224,7 +3245,7 @@ main(int argc, char *argv[])
 	sortfunc = myAlphaSort;				// 最後にアルファベット順で表示
 
 	// --------------------------------------------------------------------------------
-	// dirent 引数無しなので、カレントディレクトリをリストに加える
+	// dirent 引数無しなので、./ をリストに加える
 	if (dirarg == 0) {
 		strcpy(dirarglist[0], "./");
 		dirarg = 1;
@@ -3241,7 +3262,7 @@ main(int argc, char *argv[])
 		sortfunc = NULL;					// compareNameAlphabet でソート済みだから、myAlphaSort しない
 	}
 
-	// shimple 表示は long にしない (ファイルの種類を問わず単色表示)
+	// simple 表示は long にしない (ファイルの種類を問わず単色表示)
 	if (cfg.show_simple) {
 		cfg.show_long = 0;
 		cfg.readable_date = 0;
@@ -3250,23 +3271,18 @@ main(int argc, char *argv[])
 		cfg.format_list = 0;
 	}
 
-	// ----------------------------------------
+	// --------------------------------------------------------------------------------
 	// format_list は long 表示
 	if (cfg.format_list) {
 		cfg.show_long++;
 	}
 
 	// human readable date/size/week は long 表示
-	if (cfg.readable_date) {
-		cfg.show_long++;
-	}
-	if (cfg.readable_size) {
-		cfg.show_long++;
-	}
-	if (cfg.readable_week) {
+	if (cfg.readable_date || cfg.readable_size || cfg.readable_week) {
 		cfg.show_long++;
 	}
 
+	// --------------------------------------------------------------------------------
 	// only_file の時は、ディレクトリ表示を行わない
 	if (cfg.only_file) {
 		cfg.only_directory = 0;
@@ -3280,8 +3296,8 @@ main(int argc, char *argv[])
 	// --------------------------------------------------------------------------------
 	// 下に行くほど強い (sortfunc を上書きするから)
 	if (cfg.do_emacs) {
-		comparefunc = compareNameAlphabet;	// alphabet 順で scandir()
-		sortfunc = NULL;					// compareNameAlphabet でソート済みだから、myAlphaSort しない
+		comparefunc = compareNameAlphabet;		// alphabet 順で scandir()
+		sortfunc = NULL;						// compareNameAlphabet でソート済みだから、myAlphaSort しない
 	}
 
 	// mtime 順にソートする
@@ -3321,31 +3337,6 @@ main(int argc, char *argv[])
 	}
 
 	// --------------------------------------------------------------------------------
-	// !! -f で行う内容を決定
-	for (int i=0; cfg.formatListString[i] != '\0'; i++) {
-		switch (cfg.formatListString[i]) {
-#ifdef MD5
-			// md5 を使用する
-			case '5':           cfg.format_md5++;    break;
-#endif
-			case 'u': case 'U': cfg.format_unique++; break;
-			case 'o': case 'O': cfg.format_owner++;  break;
-			case 'g': case 'G': cfg.format_group++;  break;
-
-			// makeDate() で処理
-			case 'd': case 'D': cfg.format_date++;   break;
-			case 'w': case 'W': cfg.format_date++;   break;
-			case 't': case 'T': cfg.format_date++;   break;
-
-			// size, count
-			case 's': case 'S': cfg.format_size++;   break;
-			case 'c': case 'C': cfg.format_size++;   break;
-
-			case 'l': case 'L': cfg.format_link++;   break;
-		}
-	}
-
-	// --------------------------------------------------------------------------------
 	// -TB, -TE の設定
 	// 片側の指定だけなら同じ文字列を使用
 	if (cfg.lbegin == 0) {
@@ -3353,6 +3344,7 @@ main(int argc, char *argv[])
 		cfg.lbegin = cfg.lend;
 		cfg.tlen = cfg.lbegin + cfg.lend;
 	}
+
 	if (cfg.lend == 0) {
 		strcpy(cfg.textend, cfg.textbegin);
 		cfg.lend = cfg.lbegin;
@@ -3370,7 +3362,7 @@ main(int argc, char *argv[])
 #endif
 
 	// ================================================================================
-	// argv[i] は順不同なので、-n > -c > -d > env color > default color の優先順位を実装
+	// argv[i] は順不同なので、優先順位を実装
 	// 色をつけない
 	if (cfg.no_color) {
 		cfg.argv_color = 0;
@@ -3506,7 +3498,7 @@ main(int argc, char *argv[])
 		ret = countstat(dirarglist[i], &st);
 #endif
 
-		// -1: 失敗した場合もファイルとして扱う、そのために、最後の '/' を削除する
+		// -1: 失敗した場合もファイルとして扱うため、最後の '/' を削除する
 		if (ret == -1) {
 			p->is_file = 1;
 			char *tmp;
@@ -3522,7 +3514,7 @@ main(int argc, char *argv[])
 			p->is_file = 1;
 		}
 
-		// printLong()  の場合、/ のある無しによって、ディレクトリとファイルの使い分け
+		// -l 指定時、最後に '/' がないと、ファイルとして扱う
 		if (cfg.show_long) {
 			if (dirarglist[i][strlen(dirarglist[i]) - 1] != '/') {
 				p->is_file = 1;
@@ -3544,8 +3536,7 @@ main(int argc, char *argv[])
 	}
 
 	// --------------------------------------------------------------------------------
-	// 引数のディレクトリ分、表示を繰り返す
-	// データの取得
+	// データの取得、リストへの登録
 	for (int i=0; i<dirarg; i++) {
 		struct DENT *p;
 		p = &dent[i];
@@ -3571,12 +3562,6 @@ main(int argc, char *argv[])
 		// 配列で fnamelist の確保
 		p->fnamelist = (struct FNAME *) malloc(sizeof(struct FNAME) * p->nth);
 
-		struct FNAME *fnamelist;
-		fnamelist = p->fnamelist;
-
-		struct dirent **direntlist;
-		direntlist = p->direntlist;
-
 		if (p->fnamelist == NULL) {
 			perror("malloc");
 			printf(" =>size:%zu\n", sizeof(struct FNAME) * p->nth);
@@ -3586,6 +3571,12 @@ main(int argc, char *argv[])
 			}
 			exit(EXIT_FAILURE);
 		}
+
+		struct FNAME *fnamelist;
+		fnamelist = p->fnamelist;
+
+		struct dirent **direntlist;
+		direntlist = p->direntlist;
 
 		// fnamelist に登録
 		for (int j=0; j<p->nth; j++) {
@@ -3608,7 +3599,6 @@ main(int argc, char *argv[])
 				strcpy(fnamelist[j].errnostr, strerror(errno));
 				fnamelist[j].color = error;
 
-				// 必ず、SHOW_LONG, SHOW_SHORT に属させる事
 				if (cfg.show_long) {
 					strcpy(fnamelist[j].inode,  "-");
 					strcpy(fnamelist[j].nlink,  "-");
@@ -3644,7 +3634,6 @@ main(int argc, char *argv[])
 				} else {
 					strcpy(fnamelist[j].md5,  "-");
 				}
-// 				fnamelist[j].md5l = strlen(fnamelist[j].md5);
 			}
 #endif
 		}
@@ -3658,7 +3647,6 @@ main(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 		}
 	}
-
 
 #ifdef DEBUG
 	for (int i=0; i<dirarg; i++) {
@@ -3721,76 +3709,6 @@ main(int argc, char *argv[])
 		addDuplist(p->duplist, "..", 2, -1);
 
 		// ================================================================================
-		// 対象は、emacs やアーカイバのタイプ (画像や音楽ファイル、3D ファイルも)
-		if (cfg.do_emacs) {
-			debug printStr(label, "emacs:\n");
-
-			struct DLIST *extensionduplist;
-			extensionduplist = mallocDuplist("", 0);
-
-			// 1 個目だけ特別対応
-			fnamelist[0].targetlist = 1;
-			fnamelist[0].sourcelist = 1;
-
-			for (int j=1; j<p->nth; j++) {
-				// 拡張子対応、.el, .elc, .zip, .xxx 等
-				// 2 回以上おなじ拡張子がある場合、uniqueCheck() の対象にならないように、拡張子を登録する
-				char *extension = strchr(fnamelist[j].name, '.');
-				if (extension) {
-					extension++;
-					int len = strlen(extension);
-					if (len) {
-						if (searchDuplist(extensionduplist, extension, len, j) == 0) {
-							addDuplist(extensionduplist, extension, len, j);
-						} else {
-							searchDuplist(p->duplist, extension + 1, len, -1);
-// 							addDuplist(p->duplist, extension + 1, len, -1);
-						}
-					}
-				}
-
-				// --------------------------------------------------------------------------------
-				// 2 つの名称を比較して、どの程度同じか判断する、、、、.el, .elc なら、[i] の方がファイル名が長いはず
-				float m = matchPercent(fnamelist[j - 1], fnamelist[j]);
-
-				debug printf(" %.2f: %s\n", m, fnamelist[j].name);
-
-				// 0.75: 4 文字中 3 文字、5 文字中 4 文字以上同じ (x.el と、x.elc) で無ければ、別のファイルと考える
-				if (m < 0.75) {
-					fnamelist[j].targetlist = 1;
-					fnamelist[j].sourcelist = 1;
-				} else {
-					fnamelist[j].targetlist = -1;
-					fnamelist[j].sourcelist = -1;
-// 長い方に色付け、unique になる確率が上がる
-#if 1
-					// 同じグループと判断して、paint 色にする
-					fnamelist[j].color = paint;
-
-					// 前のファイル名とほぼ同じだけど、こっちの方がファイル名が長い (x.el と、x.elc)
-					if (fnamelist[j].length > fnamelist[j - 1].length) {
-						fnamelist[j - 1].targetlist = -1;
-						fnamelist[j].targetlist = 1;
-
-						fnamelist[j - 1].sourcelist = -1;
-						fnamelist[j].sourcelist = 1;
-					}
-#else
-// 最初の方に色付け
-					if (fnamelist[j].length > fnamelist[j - 1].length) {
-						fnamelist[j - 1].color = paint;
-					}
-#endif
-				}
-			}
-			freeDuplist(extensionduplist);
-
-			runUniqueCheck(fnamelist, p->nth, p->duplist, uniqueCheckEmacs, cfg.deep_unique);
-			refrectDuplist(p->duplist, fnamelist);
-			cfg.do_uniquecheck = 0;
-		}
-
-		// ================================================================================
 		// 表示しないデータを間引く
 		// '.' から始まるファイル/ディレクトリは表示対象外
 		if (cfg.show_dotfile == 0) {
@@ -3842,7 +3760,7 @@ main(int argc, char *argv[])
 		}
 
 		// ================================================================================
-		// !! -f の内容によって、取得する項目を管理する
+		// -l 表示を行う
 		if (cfg.show_long) {
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
@@ -3855,6 +3773,8 @@ main(int argc, char *argv[])
 			}
 		}
 
+		// ================================================================================
+		// !! -f の内容によって、取得する項目を管理する
 		// -z size_sort は short でも使うので、SHOW_LONG とは別に
 		if (cfg.size_sort || cfg.show_long) {
 			for (int j=0; j<p->nth; j++) {
@@ -3947,6 +3867,76 @@ main(int argc, char *argv[])
 		}
 
 		// ================================================================================
+		// 対象は、emacs やアーカイバのタイプ (画像や音楽ファイル、3D ファイルも)
+		if (cfg.do_emacs) {
+			debug printStr(label, "emacs:\n");
+
+			struct DLIST *extensionduplist;
+			extensionduplist = mallocDuplist("", 0);
+
+			// 1 個目だけ特別対応
+			fnamelist[0].targetlist = 1;
+			fnamelist[0].sourcelist = 1;
+
+			for (int j=1; j<p->nth; j++) {
+				// 拡張子対応、.el, .elc, .zip, .xxx 等
+				// 2 回以上おなじ拡張子がある場合、uniqueCheck() の対象にならないように、拡張子を登録する
+				char *extension = strchr(fnamelist[j].name, '.');
+				if (extension) {
+					extension++;
+					int len = strlen(extension);
+					if (len) {
+						if (searchDuplist(extensionduplist, extension, len, j) == 0) {
+							addDuplist(extensionduplist, extension, len, j);
+						} else {
+							searchDuplist(p->duplist, extension + 1, len, -1);
+// 							addDuplist(p->duplist, extension + 1, len, -1);
+						}
+					}
+				}
+
+				// --------------------------------------------------------------------------------
+				// 2 つの名称を比較して、どの程度同じか判断する、、、、.el, .elc なら、[i] の方がファイル名が長いはず
+				float m = matchPercent(fnamelist[j - 1], fnamelist[j]);
+
+				debug printf(" %.2f: %s\n", m, fnamelist[j].name);
+
+				// 0.75: 3/4 文字、4/5 文字以上同じ (x.el と、x.elc) で無ければ、別のファイルと考える
+				if (m < 0.75) {
+					fnamelist[j].targetlist = 1;
+					fnamelist[j].sourcelist = 1;
+				} else {
+					fnamelist[j].targetlist = -1;
+					fnamelist[j].sourcelist = -1;
+// 長い方に色付け、unique になる確率が上がる
+#if 1
+					// 同じグループと判断して、paint 色にする
+					fnamelist[j].color = paint;
+
+					// 前のファイル名とほぼ同じだけど、こっちの方がファイル名が長い (x.el と、x.elc)
+					if (fnamelist[j].length > fnamelist[j - 1].length) {
+						fnamelist[j - 1].targetlist = -1;
+						fnamelist[j].targetlist = 1;
+
+						fnamelist[j - 1].sourcelist = -1;
+						fnamelist[j].sourcelist = 1;
+					}
+#else
+// 最初の方に色付け
+					if (fnamelist[j].length > fnamelist[j - 1].length) {
+						fnamelist[j - 1].color = paint;
+					}
+#endif
+				}
+			}
+			freeDuplist(extensionduplist);
+
+			runUniqueCheck(fnamelist, p->nth, p->duplist, uniqueCheckEmacs, cfg.deep_unique);
+			refrectDuplist(p->duplist, fnamelist);
+			cfg.do_uniquecheck = 0;
+		}
+
+		// ================================================================================
 		// 指定文字列に着色する
 		if (cfg.paint_string) {
 			for (int j=0; j<p->nth; j++) {
@@ -4014,8 +4004,6 @@ main(int argc, char *argv[])
 		// --------------------------------------------------------------------------------
 		// ユニーク文字列
 		// !! エスケープ文字列も表示、該当なしと、' ' の差がわからないから
-		// !! -n の時も、こちらにする
-// 		if (cfg.do_uniquecheck || cfg.do_emacs || cfg.lbegin) {
 		if (cfg.format_unique) {
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
@@ -4041,7 +4029,7 @@ main(int argc, char *argv[])
 
 				if (fnamelist[j].uniquebegin != -1) {
 					int len = fnamelist[j].uniqueend - fnamelist[j].uniquebegin + 1;
-					if (len == cfg.aggregatel) {
+					if (len == cfg.aggregate_length) {
 						fnamelist[j].color = paint;
 					}
 				}
@@ -4067,9 +4055,8 @@ main(int argc, char *argv[])
 
 		// ================================================================================
 		// 全データに対して行う処理
-
 		// 最大長さ、qsort() で mySizeSort() で sizel を参照している
-		if (cfg.show_long) {
+		if (cfg.format_size) {
 			debug printStr(label, "fnameLength:\n");
 
 			for (int j=0; j<p->nth; j++) {
@@ -4146,10 +4133,12 @@ main(int argc, char *argv[])
 #endif
 	}
 
-	// ================================================================================
-	// データの表示 (ファイル指定対応)
-
+	// --------------------------------------------------------------------------------
 	// !! 表示順番の変更
+	// 引数の表示順変更、ディレクトリ表示があと
+	orderSort(showorder, dent, dirarg);
+
+	// ================================================================================
 	// 全データに対して行う
 	for (int i=0; i<dirarg; i++) {
 		struct DENT *p;
@@ -4200,10 +4189,6 @@ main(int argc, char *argv[])
 			}
 		}
 	}
-
-	// --------------------------------------------------------------------------------
-	// 引数の表示順変更、ディレクトリ表示があと
-	orderSort(showorder, dent, dirarg);
 
 	// --------------------------------------------------------------------------------
 	// データの表示 (パス指定対応)
