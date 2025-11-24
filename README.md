@@ -254,3 +254,5 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - fix `printAggregate()` の displaycount が 0 の時の処理修正
 - add `freeDENT()` の追加
 - fix `haveAfterdata()` のチェックを orderlist の最後までに修正
+- add `-E` の追加，拡張子の集計表示
+- add OpenMP への対応

@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "11/16"
-#define BTIME "20:45:10"
+#define BDATE "11/24"
+#define BTIME "20:56:34"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 11/16 20:43"
+// my-last-update-time "2025, 11/24 20:56"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -50,6 +50,7 @@
 
 // rls.fish の準備
 // countfunction.c の準備
+// OpenMP への対応
 
 
 // ================================================================================
@@ -182,6 +183,7 @@ struct DLIST {
 	struct DLIST *right;
 	int fnamelistNumber;				// unique な fnamelist の [] 番目、-1 なら複数存在 (unique でない)
 	int length;
+	int count;
 };
 
 
@@ -215,11 +217,12 @@ mallocDuplist(char *word, int len)
 		len = UNIQUE_LENGTH;
 	}
 
-	*new = (struct DLIST) {"", NULL, NULL, 0, len };
+	*new = (struct DLIST) {"", NULL, NULL, 0, len, 0};
 // 	new->length = len;
 // 	new->left = NULL;
 // 	new->right = NULL;
 // 	new->fnamelistNumber = 0;
+// 	new->count = 0;
 
 	strncpy(new->dupword, word, len);
 	new->dupword[len] = '\0';
@@ -251,6 +254,7 @@ addDuplist(struct DLIST *p, char *word, int len, int number)
 	// 無かった方に新規登録
 	struct DLIST *new_node = mallocDuplist(word, len);
 	new_node->fnamelistNumber = number;
+	new_node->count++;
 
 	*(ret < 0 ? &prev->left : &prev->right) = new_node;
 // 	if (ret < 0) {
@@ -287,6 +291,7 @@ searchDuplist(struct DLIST *p, char *word, int len, int number)
 				if (number != p->fnamelistNumber) {
 // 				if (number - p->fnamelistNumber) {
 					p->fnamelistNumber = -1;
+					p->count++;
 				}
 				return 1;
 			}
@@ -299,23 +304,6 @@ searchDuplist(struct DLIST *p, char *word, int len, int number)
 
 	return 0;
 }
-
-
-// --------------------------------------------------------------------------------
-#ifdef DEBUG
-void
-debug_displayDuplist(struct DLIST *node)
-{
-	if (node == NULL) {
-		return;
-	}
-
-	// 左から順番に表示
-	debug_displayDuplist(node->left);
-	printf("dup: [%s]:%d\n", node->dupword, node->fnamelistNumber);
-	debug_displayDuplist(node->right);
-}
-#endif
 
 
 // ================================================================================
@@ -351,7 +339,7 @@ printStr(CLIST color, const char *str)
 	// 色付け後にリセット、、、背景 or 文字色だけの設定が引き継がれないように
 	int len = strlen(str);
 	printEscapeColor(color);
-	if (str[len - 1] == '\n') {
+	if (len && str[len - 1] == '\n') {
 		printf("%.*s", len - 1, str);
 		printEscapeColor(reset);
 		printf("\n");
@@ -554,6 +542,7 @@ struct FNAME {
 		char path[FNAME_LENGTH];			// 絶対パスで指定されたパス名
 		char unique[FNAME_LENGTH];			// ユニーク文字列
 		char *name;							// 表示用ファイル名
+		char extension[FNAME_LENGTH];		// 拡張子
 		char kind[2];						// 種類
 		char linkname[FNAME_LENGTH];		// link 名
 		char errnostr[FNAME_LENGTH + 8];	// lstat() のエラー
@@ -620,6 +609,7 @@ struct ALIST {
 	int beginning_word;
 	int do_emacs;
 	int paint_string;
+	int do_extension;
 
 	int show_dotfile;
 	int only_directory;
@@ -878,7 +868,6 @@ countEntry(char *dname, char *path)
 	for (int i=0; i<file_count; i++) {
 		free(namelist[i]);
 	}
-	// !! free() COUNTFUNC
 	free(namelist);
 
 // 	debug printf(" %d, %s\n", file_count, tmppath);
@@ -1135,6 +1124,7 @@ addFNamelist(struct FNAME *p, char *name)
 	p->path[0] = '\0';
 	p->unique[0] = '\0';
 	p->name = name;		// namelist[i] をそのまま使用
+	p->extension[0] = '\0';
 	p->kind[0] = '\0'; p->kind[1] = '\0';
 	p->linkname[0] = '\0';
 	p->errnostr[0] = '\0';
@@ -1664,6 +1654,10 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 {
 	debug printStr(label, "printShort:\n");
 
+	if (cfg.show_long) {
+		return;
+	}
+
 	int printshort_count = 0;
 	int attempts = 0;
 
@@ -1684,6 +1678,9 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 	if (nth == 0) {
 		return;
 	}
+
+// 	char buffer[65536];
+// 	setvbuf(stdout, buffer, _IOFBF, sizeof(buffer));
 
 #ifdef DEBUG
 	printf("No:len:[unibegin,uniend] name/  lower:[name]\n");
@@ -1901,7 +1898,14 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 {
 	debug printStr(label, "printLong:\n");
 
+	if (cfg.show_long == 0) {
+		return;
+	}
+
 	int printlong_count = 0;
+
+// 	char buffer[65536];
+// 	setvbuf(stdout, buffer, _IOFBF, sizeof(buffer));
 
 	for (int i=0; i<n; i++) {
 		// 非表示設定のファイルは表示しない
@@ -1928,8 +1932,8 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 		char haveAfterdataStr[ListCountd + 1] = "";
 
 // 		printf("%s: ", cfg.formatListString);
-		int len = strlen(cfg.formatListString);
-		for (int j=0; j<len; j++) {
+		int flen = strlen(cfg.formatListString);
+		for (int j=0; j<flen; j++) {
 			haveAfterdataStr[j] = haveAfterdata(&data[i], cfg.formatListString, j);
 
 			// 一度 0 だった場合、以降はずっと 0
@@ -2153,6 +2157,62 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 
 
 // ================================================================================
+void
+displayDuplist(struct DLIST *node)
+{
+	if (node == NULL) {
+		return;
+	}
+
+	// 左から順番に表示
+	displayDuplist(node->left);
+	if (node->count) {
+		printf("[%s:%d] ", node->dupword, node->count);
+// 		printf("dup: [%s]:%d, %d\n", node->dupword, node->fnamelistNumber, node->count);
+	}
+	displayDuplist(node->right);
+}
+
+
+void
+printExtension(struct FNAME *fnamelist, int nth)
+{
+	debug printStr(label, "printExtension:\n");
+
+	struct DLIST *extensionduplist;
+	extensionduplist = mallocDuplist("", 0);
+
+	for (int i=0; i<nth; i++) {
+		if (fnamelist[i].showlist == SHOW_NONE) {
+			continue;
+		}
+
+		char *extension = fnamelist[i].extension;
+		int len = strlen(extension);
+		// !! if 文が無ければ、拡張子無しをカウント
+// 		if (len) {
+			// . が 1 文字目だったら拡張子と判断しない
+			if (len == fnamelist[i].length - 1) {
+				continue;
+			}
+
+			if (searchDuplist(extensionduplist, extension, len, i) == 0) {
+				addDuplist(extensionduplist, extension, len, i);
+			}
+// 		}
+	}
+
+	debug printf(" ");
+
+	printStr(label, "extension: ");
+	displayDuplist(extensionduplist);
+	printf("\n");
+
+	freeDuplist(extensionduplist);
+}
+
+
+// ================================================================================
 // どの程度の文字列の長さで unique になっているか表示
 // -R や、-p の結果も paint で表示する
 void
@@ -2193,7 +2253,7 @@ printAggregate(struct FNAME *fnamelist, int nth, int aggregate_length)
 
 	// 表示
 	debug printf(" ");
-	printStr(label, "aggregate results:");
+	printStr(label, "aggregate:");
 
 	// -P の時、表示数が変化するから
 	if (displaycount != nth) {
@@ -2455,9 +2515,10 @@ showUsage(char **argv)
 	printf(" -t: with -l, human-readable daTe. (-f with date)\n");
 	printf(" -i: with -l, human-readable sIze. (-f with count, size, hardlinks)\n");
 	printf(" -w: with -l, day of the week, month Without abbreviation. (-f with week, date (month))\n");
+	printf(" "); printStr(label, "-E"); printf(": show extension Results.\n");
 	printf(" "); printStr(label, "-r"); printf(": show aggregate Results.\n");
 	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \"paint\" color. (-Rnumber)\n");
-	printf("     -r = -R = -i = -t > -w\n");
+	printf("     -r = -R = -E = -i = -t > -w\n");
 
 	printf("\n");
 	printStr(label, "Other options:\n");
@@ -2679,7 +2740,6 @@ freeDENT(struct DENT *dent, int dirarg)
 			}
 		}
 
-		// !! free() COUNTFUNC
 		if (dent[i].direntlist) {
 			for (int j=0; j<dent[i].nth; j++) {
 				free(dent[i].direntlist[j]);
@@ -2692,10 +2752,7 @@ freeDENT(struct DENT *dent, int dirarg)
 
 		// --------------------------------------------------------------------------------
 		// デバッグ情報の表示
-#ifdef DEBUG
-		printf("path: %s\n", dent[i].path);
-// 		debug_displayDuplist(dent[i].duplist);
-#endif
+		debug printf("freeDENT path: %s\n", dent[i].path);
 
 		freeDuplist(dent[i].duplist);
 	}
@@ -2844,6 +2901,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 					case 'u': cfg->deep_unique++;       break;	// unique チェック回数を減らさない
 					case 'b': cfg->beginning_word++;    break;	// uniqueCheckFirstWord() のみ
 					case 'e': cfg->do_emacs++;          break;	// emacs 系ファイル名対応
+					case 'E': cfg->do_extension++;      break;	// 拡張子
 
 					case 'a': cfg->show_dotfile++;      break;	// '.' から始まるファイルを表示
 					case 'o': cfg->only_directory++;    break;	// ディレクトリのみ表示
@@ -3095,6 +3153,10 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 			printAggregate(fnamelist, p->nth, cfg.aggregate_length);
 		}
 
+		if (cfg.do_extension) {
+			printExtension(fnamelist, p->nth);
+		}
+
 		// --------------------------------------------------------------------------------
 		if (i != dirarg - 1) {
 			printf("\n");
@@ -3193,6 +3255,8 @@ main(int argc, char *argv[])
 		.termhei = 0,
 
 		.aggregate_length = 0,
+
+// 		.do_extension = 1,
 	};
 
 	for (int i = 0; i < ListCount; i++) {
@@ -3298,6 +3362,7 @@ main(int argc, char *argv[])
 	if (cfg.do_emacs) {
 		comparefunc = compareNameAlphabet;		// alphabet 順で scandir()
 		sortfunc = NULL;						// compareNameAlphabet でソート済みだから、myAlphaSort しない
+// 		cfg.do_extension++;
 	}
 
 	// mtime 順にソートする
@@ -3579,6 +3644,9 @@ main(int argc, char *argv[])
 		direntlist = p->direntlist;
 
 		// fnamelist に登録
+#ifdef OMP
+#pragma omp parallel for
+#endif
 		for (int j=0; j<p->nth; j++) {
 			// ファイル名の登録
 			addFNamelist(&fnamelist[j], direntlist[j]->d_name);
@@ -3868,6 +3936,23 @@ main(int argc, char *argv[])
 
 		// ================================================================================
 		// 対象は、emacs やアーカイバのタイプ (画像や音楽ファイル、3D ファイルも)
+
+		if (cfg.do_extension || cfg.do_emacs) {
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				// 最後の . 以降
+				char *extension = strrchr(fnamelist[j].name, '.');
+				if (extension) {
+					strcpy(fnamelist[j].extension, extension + 1);
+					debug printf("ext:%s, %s\n", fnamelist[j].extension, fnamelist[j].name);
+				}
+			}
+		}
+
+		// --------------------------------------------------------------------------------
 		if (cfg.do_emacs) {
 			debug printStr(label, "emacs:\n");
 
@@ -3881,7 +3966,7 @@ main(int argc, char *argv[])
 			for (int j=1; j<p->nth; j++) {
 				// 拡張子対応、.el, .elc, .zip, .xxx 等
 				// 2 回以上おなじ拡張子がある場合、uniqueCheck() の対象にならないように、拡張子を登録する
-				char *extension = strchr(fnamelist[j].name, '.');
+				char *extension = fnamelist[j].extension;
 				if (extension) {
 					extension++;
 					int len = strlen(extension);
@@ -4134,8 +4219,7 @@ main(int argc, char *argv[])
 	}
 
 	// --------------------------------------------------------------------------------
-	// !! 表示順番の変更
-	// 引数の表示順変更、ディレクトリ表示があと
+	// 表示順変更、ディレクトリ表示があと
 	orderSort(showorder, dent, dirarg);
 
 	// ================================================================================

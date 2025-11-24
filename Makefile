@@ -8,13 +8,14 @@ objects       = $(subst .c,.o,$(sources))
 
 
 # --------------------------------------------------------------------------------
-CFLAGS    = -O3 -pipe -Wall -Wextra
+CFLAGS    = -O3 -pipe -Wall -Wextra $(OMP_OPT)
 LDFLAGS   = 
 
 DEBUG_OPT = -DDEBUG -g3 -O0 -Wall -Wextra
 COUNT_FLG = -DCOUNTFUNC
 MD5_OPT   = -DMD5
 MD5_LIBS  = -lssl -lcrypto
+OMP_OPT   = -DOMP -fopenmp
 
 
 # ================================================================================
