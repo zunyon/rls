@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "11/24"
-#define BTIME "20:56:34"
+#define BDATE "11/26"
+#define BTIME "23:06:32"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 11/24 20:56"
+// my-last-update-time "2025, 11/26 23:06"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -224,7 +224,9 @@ mallocDuplist(char *word, int len)
 // 	new->fnamelistNumber = 0;
 // 	new->count = 0;
 
-	strncpy(new->dupword, word, len);
+	if (len) {
+		strncpy(new->dupword, word, len);
+	}
 	new->dupword[len] = '\0';
 
 	return new;
@@ -2407,6 +2409,9 @@ showVersion(char **argv)
 	#ifdef PROFILE
 		printStr(label, " [PROFILE]");
 	#endif
+	#ifdef OMP
+		printStr(label, " [OpenMP]");
+	#endif
 
 	printf("\n");
 #endif
@@ -3645,7 +3650,10 @@ main(int argc, char *argv[])
 
 		// fnamelist に登録
 #ifdef OMP
-#pragma omp parallel for
+// printf("default threads: %d\n", omp_get_num_threads());
+// omp_set_num_threads(p->nth);
+// #pragma omp parallel for
+#pragma omp parallel for num_threads( (p->nth > 512) ? 32 : 4)
 #endif
 		for (int j=0; j<p->nth; j++) {
 			// ファイル名の登録
