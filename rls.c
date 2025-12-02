@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "11/26"
-#define BTIME "23:06:32"
+#define BDATE "12/02"
+#define BTIME "23:51:27"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 11/26 23:06"
+// my-last-update-time "2025, 12/02 23:47"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -2903,7 +2903,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 					case 's': cfg->show_simple++;       break;	// lstat() を使用しない printShort()
 					case 'l': cfg->show_long++;         break;	// long 表示
 
-					case 'u': cfg->deep_unique++;       break;	// unique チェック回数を減らさない
+					case 'u': cfg->deep_unique++;       break;	// unique チェックを最後まで行う
 					case 'b': cfg->beginning_word++;    break;	// uniqueCheckFirstWord() のみ
 					case 'e': cfg->do_emacs++;          break;	// emacs 系ファイル名対応
 					case 'E': cfg->do_extension++;      break;	// 拡張子
@@ -2963,6 +2963,8 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 			// size, count
 			case 's': case 'S': cfg->format_size++;   break;
 			case 'c': case 'C': cfg->format_size++;   break;
+			case 'i': case 'I': cfg->format_size++;   break;
+			case 'h': case 'H': cfg->format_size++;   break;
 
 			case 'l': case 'L': cfg->format_link++;   break;
 		}
@@ -3431,6 +3433,19 @@ main(int argc, char *argv[])
 	}
 #endif
 
+	// --------------------------------------------------------------------------------
+	if (cfg.format_list) {
+		cfg.show_long++;
+	}
+
+	// --------------------------------------------------------------------------------
+	// -l が指定されなかったら、-f も基本的に無し
+	// pickupString() 向けに操作
+	if (cfg.show_long == 0) {
+		cfg.formatListString[0] = 'n'; 
+		cfg.formatListString[1] = '\0'; 
+	}
+
 	// ================================================================================
 	// argv[i] は順不同なので、優先順位を実装
 	// 色をつけない
@@ -3441,7 +3456,6 @@ main(int argc, char *argv[])
 		// -TB, -TE と併用で無ければ、色をつけないから uniqueCheck(), uniqueCheckFirstWord() を飛ばす
 		// -TB, -TE が指定されていたら、uniqueCheck() は行う
 		// -fu も同様
-		// !!
 		if (cfg.lbegin == 0 && cfg.format_unique == 0) {
 			cfg.do_uniquecheck = 0;
 			cfg.do_emacs = 0;
@@ -3785,6 +3799,129 @@ main(int argc, char *argv[])
 		addDuplist(p->duplist, "..", 2, -1);
 
 		// ================================================================================
+		// -f の内容によって、取得する項目を管理する
+		// makeDate() は pickupString() より前に実施
+		if (cfg.format_date) {
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				// !! 本当は、sb をチェックする
+				if (fnamelist[j].mode[1] == '\0') {
+					continue;
+				}
+
+				makeDate(&fnamelist[j], lt, cfg.readable_week);
+				// ----------------------------------------
+				// 時間を読みやすくする
+				if (cfg.readable_date) {
+					makeReadableDate(&fnamelist[j], lt);
+				}
+			}
+		}
+
+		// --------------------------------------------------------------------------------
+		// -z size_sort は short でも使うので、SHOW_LONG とは別に
+		if (cfg.format_size || cfg.size_sort) {
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				// !! 本当は、sb をチェックする
+				if (fnamelist[j].mode[1] == '\0') {
+					continue;
+				}
+
+				// filesize, count data
+				sprintf(fnamelist[j].size, "%ld", fnamelist[j].sb.st_size);
+				makeSize(fnamelist[j].sizec, fnamelist[j].sb.st_size);
+
+				// countsize data
+				if (IS_DIRECTORY(fnamelist[j])) {
+					// ディレクトリの場合は、最大エントリー数を記載
+					int ret = countEntry(fnamelist[j].name, dirarglist[i]);
+
+					if (ret != -1) {
+						sprintf(fnamelist[j].count, "%d", ret);
+						makeSize(fnamelist[j].countc, ret);
+					} else {
+						// ディレクトリだけど、読めない
+						strcpy(fnamelist[j].count, "-");
+						strcpy(fnamelist[j].countc, "-");
+					}
+				} else {
+					// ファイルの時は、.size の値をコピー
+					strcpy(fnamelist[j].count, fnamelist[j].size);
+					strcpy(fnamelist[j].countc, fnamelist[j].sizec);
+				}
+
+				makeSize(fnamelist[j].inode, fnamelist[j].sb.st_ino);
+				makeSize(fnamelist[j].nlink, fnamelist[j].sb.st_nlink);
+
+				// ----------------------------------------
+				// サイズを読みやすくする
+				if (cfg.readable_size) {
+					makeReadableSize(fnamelist[j].sizec);
+					makeReadableSize(fnamelist[j].countc);
+
+					makeReadableSize(fnamelist[j].nlink);
+				}
+			}
+		}
+
+		if (cfg.format_owner) {
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				// !! 本当は、sb をチェックする
+				if (fnamelist[j].mode[1] == '\0') {
+					continue;
+				}
+
+				struct passwd *pw;
+				pw = getpwuid(fnamelist[j].sb.st_uid);					// owner
+				if (pw == NULL) {
+					perror("getpwuid");
+					printf(" =>Y%s\n", fnamelist[j].name);
+					exit(EXIT_FAILURE);
+				}
+				strcpy(fnamelist[j].owner, pw->pw_name);
+			}
+		}
+
+		if (cfg.format_group) {
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				// !! 本当は、sb をチェックする
+				if (fnamelist[j].mode[1] == '\0') {
+					continue;
+				}
+
+				struct group *gr;
+				gr = getgrgid(fnamelist[j].sb.st_gid);					// group
+				if (gr == NULL) {
+					perror("getgrgid");
+					printf(" =>Y%s\n", fnamelist[j].name);
+					exit(EXIT_FAILURE);
+				}
+				strcpy(fnamelist[j].group, gr->gr_name);
+			}
+		}
+
+#ifdef DEBUG
+		printf("\n");
+		printf("unique list: before\n");
+		debug_displayAllQsortdata(fnamelist, p->nth, cfg);
+#endif
+
+		// ================================================================================
 		// 表示しないデータを間引く
 		// '.' から始まるファイル/ディレクトリは表示対象外
 		if (cfg.show_dotfile == 0) {
@@ -3825,7 +3962,6 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				// pickupString() は makeDate() 後
 				if (pickupString(fnamelist[j], cfg.onlyPaintStr, cfg.formatListString, strstr) == 1) {
 					continue;
 				}
@@ -3847,99 +3983,6 @@ main(int argc, char *argv[])
 					fnamelist[j].showlist = SHOW_LONG;
 				}
 			}
-		}
-
-		// ================================================================================
-		// !! -f の内容によって、取得する項目を管理する
-		// -z size_sort は short でも使うので、SHOW_LONG とは別に
-		if (cfg.size_sort || cfg.show_long) {
-			for (int j=0; j<p->nth; j++) {
-				if (fnamelist[j].showlist == SHOW_NONE) {
-					continue;
-				}
-
-				// !! 本当は、sb をチェックする
-				if (fnamelist[j].mode[1] == '\0') {
-					continue;
-				}
-
-				struct stat sb = fnamelist[j].sb;
-
-				if (cfg.format_size || cfg.size_sort) {
-					// filesize, count data
-					sprintf(fnamelist[j].size, "%ld", sb.st_size);
-					makeSize(fnamelist[j].sizec, sb.st_size);
-
-					// countsize data
-					if (IS_DIRECTORY(fnamelist[j])) {
-						// ディレクトリの場合は、最大エントリー数を記載
-						int ret = countEntry(fnamelist[j].name, dirarglist[i]);
-
-						if (ret != -1) {
-							sprintf(fnamelist[j].count, "%d", ret);
-							makeSize(fnamelist[j].countc, ret);
-						} else {
-							// ディレクトリだけど、読めない
-							strcpy(fnamelist[j].count, "-");
-							strcpy(fnamelist[j].countc, "-");
-						}
-					} else {
-						// ファイルの時は、.size の値をコピー
-						strcpy(fnamelist[j].count, fnamelist[j].size);
-						strcpy(fnamelist[j].countc, fnamelist[j].sizec);
-					}
-
-					makeSize(fnamelist[j].inode, sb.st_ino);
-					makeSize(fnamelist[j].nlink, sb.st_nlink);
-
-					// ----------------------------------------
-					// サイズを読みやすくする
-					if (cfg.readable_size) {
-						makeReadableSize(fnamelist[j].sizec);
-						makeReadableSize(fnamelist[j].countc);
-
-						makeReadableSize(fnamelist[j].nlink);
-					}
-				}
-
-				if (cfg.format_owner) {
-					struct passwd *pw;
-					pw = getpwuid(sb.st_uid);					// owner
-					if (pw == NULL) {
-						perror("getpwuid");
-						printf(" =>Y%s\n", fnamelist[j].name);
-						exit(EXIT_FAILURE);
-					}
-					strcpy(fnamelist[j].owner, pw->pw_name);
-				}
-
-				if (cfg.format_group) {
-					struct group *gr;
-					gr = getgrgid(sb.st_gid);					// group
-					if (gr == NULL) {
-						perror("getgrgid");
-						printf(" =>Y%s\n", fnamelist[j].name);
-						exit(EXIT_FAILURE);
-					}
-					strcpy(fnamelist[j].group, gr->gr_name);
-				}
-
-				if (cfg.format_date) {
-					makeDate(&fnamelist[j], lt, cfg.readable_week);
-
-					// ----------------------------------------
-					// 時間を読みやすくする
-					if (cfg.readable_date) {
-						makeReadableDate(&fnamelist[j], lt);
-					}
-				}
-			}
-
-#ifdef DEBUG
-			printf("\n");
-			printf("unique list: before\n");
-			debug_displayAllQsortdata(fnamelist, p->nth, cfg);
-#endif
 		}
 
 		// ================================================================================
@@ -4037,7 +4080,6 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				// pickupString() は makeDate() 後
 				if (pickupString(fnamelist[j], paintString, cfg.formatListString, strcasestr) == 1) {
 					// hit した記録、aggregate_results でカウント
 					fnamelist[j].uniqueend = 1;
