@@ -245,7 +245,7 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 
 ## v0.3.0 からの変更内容
 - add `-R` の追加，指定数字の文字列長さを paint 色で表示
-- add `-f` の項目追加（`|`, `,`, `S`, `C`, `u`, `U`）
+- add `-f` の項目追加（`|`, `,`, `S`, `C`, `u`, `U`, 'x', 'X'）
 - add `-w` の追加，英語表期の場合，月，曜日などを省略せずに表示
 - chg `-O` から `-S` へ変更，ソートを行わない
 - add `-O` の追加，ディレクトリを非表示
@@ -254,5 +254,5 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - fix `printAggregate()` の displaycount が 0 の時の処理修正
 - add `freeDENT()` の追加
 - fix `haveAfterdata()` のチェックを orderlist の最後までに修正
-- add `-E` の追加，拡張子の集計表示
+- add `-X` の追加，拡張子の集計表示
 - add OpenMP への対応

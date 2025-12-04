@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "12/02"
-#define BTIME "23:51:27"
+#define BDATE "12/04"
+#define BTIME "22:53:42"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 12/02 23:47"
+// my-last-update-time "2025, 12/04 22:49"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -544,10 +544,10 @@ struct FNAME {
 		char path[FNAME_LENGTH];			// 絶対パスで指定されたパス名
 		char unique[FNAME_LENGTH];			// ユニーク文字列
 		char *name;							// 表示用ファイル名
-		char extension[FNAME_LENGTH];		// 拡張子
 		char kind[2];						// 種類
 		char linkname[FNAME_LENGTH];		// link 名
 		char errnostr[FNAME_LENGTH + 8];	// lstat() のエラー
+		char extension[FNAME_LENGTH];		// 拡張子
 #ifdef MD5
 		char md5[33];						// 16 文字 * 2 バイト + '\0'
 #endif
@@ -567,6 +567,7 @@ struct FNAME {
 	int weekl;
 	int pathl;
 	int uniquel;
+	int extensionl;
 
 	int print_length;				// 表示時のファイル名の長さ、全角考慮 wcStrlen()
 	int length;						// ファイル名の長さ strlen()
@@ -600,6 +601,7 @@ struct ALIST {
 	int format_md5;
 #endif
 	int format_unique;
+	int format_extension;
 	int format_owner;
 	int format_group;
 	int format_date;
@@ -1126,10 +1128,10 @@ addFNamelist(struct FNAME *p, char *name)
 	p->path[0] = '\0';
 	p->unique[0] = '\0';
 	p->name = name;		// namelist[i] をそのまま使用
-	p->extension[0] = '\0';
 	p->kind[0] = '\0'; p->kind[1] = '\0';
 	p->linkname[0] = '\0';
 	p->errnostr[0] = '\0';
+	p->extension[0] = '\0';
 	p->date_f = 0;
 
 #ifdef MD5
@@ -1637,6 +1639,7 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 		  case 'u': case 'U': if (func(p.unique, string)) { return 1; } break;
 		  case 'n': case 'N': if (func(p.name,   string)) { return 1; } break;
 		  case 'k': case 'K': if (func(p.kind,   string)) { return 1; } break;
+		  case 'x': case 'X': if (func(p.extension,      string)) { return 1; } break;
 		  case 'l': case 'L': if (strcasestr(p.linkname, string)) { return 1; } break;
 		  case 'e': case 'E': if (strcasestr(p.errnostr, string)) { return 1; } break;
 #ifdef MD5
@@ -1957,9 +1960,9 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 			// --------------------------------------------------------------------------------
 			// 左寄せ項目
 #ifdef MD5
-			if (strchr("mMoOkKgGtTwWIHDuU5", (unsigned char) cfg.formatListString[j])) {
+			if (strchr("mMoOkKgGtTwWIHDuUxX5", (unsigned char) cfg.formatListString[j])) {
 #else
-			if (strchr("mMoOkKgGtTwWIHDuU", (unsigned char) cfg.formatListString[j])) {
+			if (strchr("mMoOkKgGtTwWIHDuUxX", (unsigned char) cfg.formatListString[j])) {
 #endif
 				switch ((unsigned char) cfg.formatListString[j]) {
 				  case 'm': case 'M': len = data[i].model   + count * cfg.tlen; break;
@@ -1972,6 +1975,7 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 				  case 'H':           len = data[i].nlinkl  + count * cfg.tlen; break;
 				  case 'D':           len = data[i].datel   + count * cfg.tlen; break;
 				  case 'u': case 'U': len = data[i].uniquel + count * cfg.tlen; break;
+				  case 'x': case 'X': len = data[i].extensionl + count * cfg.tlen; break;
 #ifdef MD5
 				  case '5':           len = data[i].md5l    + count * cfg.tlen; break;
 #endif
@@ -2456,7 +2460,7 @@ showUsage(char **argv)
 	printf(" -l: Long listing format.\n");
 	printf(" "); printStr(normal, "-f"); printf(": with -l, change Format orders. (default: -fmogcdPNkLE)\n");
 	printf("      m:mode, o:owner, g:group, c:count, d:date, p:path, n:name, k:kind, l:linkname, e:errno,\n");
-	printf("      i:inode, h:hardlinks, s:size, t:time, w:week, u:uniqueword.\n");
+	printf("      i:inode, h:hardlinks, s:size, t:time, w:week, u:uniqueword, x:extension.\n");
 #ifdef MD5
 	printf("      5:MD5 message digest.\n");
 #endif
@@ -2466,6 +2470,7 @@ showUsage(char **argv)
 	printf("      p:with -l, argv is \"PATH/FILE\" format,\n");
 	printf("      s:size of DIRECTORY and FILE,\n");
 	printf("      c:if FILE, the size of FILE. Otherwise, number of directory entries. (without \".\" and \"..\")\n");
+	printf("      x:word after the last dot, dot is not the beginning character of the filename.\n");
 	printf("      S, C:no comma output.\n");
 	printf("      Upper case is padding off. (Same length: no change in appearance)\n");
 	printf("     -s > -l = -f > default short listing (include file status)\n");
@@ -2520,7 +2525,7 @@ showUsage(char **argv)
 	printf(" -t: with -l, human-readable daTe. (-f with date)\n");
 	printf(" -i: with -l, human-readable sIze. (-f with count, size, hardlinks)\n");
 	printf(" -w: with -l, day of the week, month Without abbreviation. (-f with week, date (month))\n");
-	printf(" "); printStr(label, "-E"); printf(": show extension Results.\n");
+	printf(" "); printStr(label, "-X"); printf(": show extension Results.\n");
 	printf(" "); printStr(label, "-r"); printf(": show aggregate Results.\n");
 	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \"paint\" color. (-Rnumber)\n");
 	printf("     -r = -R = -E = -i = -t > -w\n");
@@ -2595,6 +2600,7 @@ struct DENT {
 	int kind_digits;
 	int linkname_digits;
 	int errnostr_digits;
+	int extension_digits;
 #ifdef MD5
 	int md5_digits;
 #endif
@@ -2616,9 +2622,10 @@ debug_showArgvswitch(struct ALIST cfg)
 	showSwitch(show_long);
 	showSwitch(format_list);
 #ifdef MD5
-	showSwitch(format_list);
+	showSwitch(format_md5);
 #endif
 	showSwitch(format_unique);
+	showSwitch(format_extension);
 
 	showSwitch(deep_unique);
 	showSwitch(beginning_word);
@@ -2724,9 +2731,10 @@ fnameLength(struct FNAME *p)
 	// lstat() が失敗しても、"-" にならない
 	p->kindl  = strlen(p->kind);	// 固定長
 	p->pathl  = strlen(p->path);
-	p->uniquel   = strlen(p->unique);
-	p->linknamel = strlen(p->linkname);
-	p->errnostrl = strlen(p->errnostr);
+	p->uniquel    = strlen(p->unique);
+	p->linknamel  = strlen(p->linkname);
+	p->errnostrl  = strlen(p->errnostr);
+	p->extensionl = strlen(p->extension);
 }
 
 
@@ -2906,7 +2914,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 					case 'u': cfg->deep_unique++;       break;	// unique チェックを最後まで行う
 					case 'b': cfg->beginning_word++;    break;	// uniqueCheckFirstWord() のみ
 					case 'e': cfg->do_emacs++;          break;	// emacs 系ファイル名対応
-					case 'E': cfg->do_extension++;      break;	// 拡張子
+					case 'X': cfg->do_extension++;      break;	// 拡張子
 
 					case 'a': cfg->show_dotfile++;      break;	// '.' から始まるファイルを表示
 					case 'o': cfg->only_directory++;    break;	// ディレクトリのみ表示
@@ -2954,6 +2962,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 			case 'u': case 'U': cfg->format_unique++; break;
 			case 'o': case 'O': cfg->format_owner++;  break;
 			case 'g': case 'G': cfg->format_group++;  break;
+			case 'x': case 'X': cfg->format_extension++; break;
 
 			// makeDate() で処理
 			case 'd': case 'D': cfg->format_date++;   break;
@@ -3013,8 +3022,9 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 				digits['u'] = MAX(p->unique_digits, digits['u']);		// ユニーク文字列
 				digits['n'] = MAX(p->name_digits,   digits['n']);		// 名前の桁数
 				digits['k'] = MAX(p->kind_digits,   digits['k']);		// 種類の桁数
-				digits['l'] = MAX(p->linkname_digits, digits['l']);		// linkname
-				digits['e'] = MAX(p->errnostr_digits, digits['e']);		// errnostr
+				digits['l'] = MAX(p->linkname_digits,  digits['l']);	// linkname
+				digits['e'] = MAX(p->errnostr_digits,  digits['e']);	// errnostr
+				digits['x'] = MAX(p->extension_digits, digits['X']);	// 拡張子
 #ifdef MD5
 				digits['5'] = MAX(p->md5_digits,    digits['5']);		// md5
 #endif
@@ -3137,6 +3147,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 			digits['k'] = p->kind_digits;
 			digits['l'] = p->linkname_digits;
 			digits['e'] = p->errnostr_digits;
+			digits['x'] = p->extension_digits;
 #ifdef MD5
 			digits['5'] = p->md5_digits;
 #endif
@@ -3262,8 +3273,6 @@ main(int argc, char *argv[])
 		.termhei = 0,
 
 		.aggregate_length = 0,
-
-// 		.do_extension = 1,
 	};
 
 	for (int i = 0; i < ListCount; i++) {
@@ -3369,7 +3378,6 @@ main(int argc, char *argv[])
 	if (cfg.do_emacs) {
 		comparefunc = compareNameAlphabet;		// alphabet 順で scandir()
 		sortfunc = NULL;						// compareNameAlphabet でソート済みだから、myAlphaSort しない
-// 		cfg.do_extension++;
 	}
 
 	// mtime 順にソートする
@@ -3434,8 +3442,25 @@ main(int argc, char *argv[])
 #endif
 
 	// --------------------------------------------------------------------------------
-	if (cfg.format_list) {
-		cfg.show_long++;
+	// -f では fnameLength() を使用する
+	if (
+#ifdef MD5
+		cfg.format_md5 ||
+#endif
+		cfg.format_unique ||
+		cfg.format_extension ||
+		cfg.format_owner ||
+		cfg.format_group ||
+		cfg.format_date ||
+		cfg.format_size ||
+		cfg.format_link
+		) {
+		cfg.format_list++;
+	}
+
+	// --------------------------------------------------------------------------------
+	if (cfg.format_extension) {
+		cfg.do_extension++;
 	}
 
 	// --------------------------------------------------------------------------------
@@ -3552,8 +3577,9 @@ main(int argc, char *argv[])
 		dent[i].unique_digits = 0;
 		dent[i].name_digits   = 0;
 		dent[i].kind_digits   = 0;
-		dent[i].linkname_digits = 0;
-		dent[i].errnostr_digits = 0;
+		dent[i].linkname_digits  = 0;
+		dent[i].errnostr_digits  = 0;
+		dent[i].extension_digits = 0;
 #ifdef MD5
 		dent[i].md5_digits    = 0;
 #endif
@@ -3915,6 +3941,24 @@ main(int argc, char *argv[])
 			}
 		}
 
+		// --------------------------------------------------------------------------------
+		if (cfg.do_extension || cfg.do_emacs) {
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				// 最後の . 以降
+				char *extension = strrchr(fnamelist[j].name, '.');
+				if (extension) {
+					if (extension != fnamelist[j].name) {
+						strcpy(fnamelist[j].extension, extension + 1);
+						debug printf("ext:%s, %s\n", fnamelist[j].extension, fnamelist[j].name);
+					}
+				}
+			}
+		}
+
 #ifdef DEBUG
 		printf("\n");
 		printf("unique list: before\n");
@@ -3987,23 +4031,6 @@ main(int argc, char *argv[])
 
 		// ================================================================================
 		// 対象は、emacs やアーカイバのタイプ (画像や音楽ファイル、3D ファイルも)
-
-		if (cfg.do_extension || cfg.do_emacs) {
-			for (int j=0; j<p->nth; j++) {
-				if (fnamelist[j].showlist == SHOW_NONE) {
-					continue;
-				}
-
-				// 最後の . 以降
-				char *extension = strrchr(fnamelist[j].name, '.');
-				if (extension) {
-					strcpy(fnamelist[j].extension, extension + 1);
-					debug printf("ext:%s, %s\n", fnamelist[j].extension, fnamelist[j].name);
-				}
-			}
-		}
-
-		// --------------------------------------------------------------------------------
 		if (cfg.do_emacs) {
 			debug printStr(label, "emacs:\n");
 
@@ -4190,8 +4217,8 @@ main(int argc, char *argv[])
 
 		// ================================================================================
 		// 全データに対して行う処理
-		// 最大長さ、qsort() で mySizeSort() で sizel を参照している
-		if (cfg.format_size) {
+		// -f で xxxl を参照している
+		if (cfg.format_list) {
 			debug printStr(label, "fnameLength:\n");
 
 			for (int j=0; j<p->nth; j++) {
@@ -4253,9 +4280,10 @@ main(int argc, char *argv[])
 			p->week_digits   = MAX(p->week_digits,   countMatchedString(fnamelist[j].week)   * cfg.tlen + fnamelist[j].weekl);
 			p->kind_digits   = MAX(p->kind_digits,   countMatchedString(fnamelist[j].kind)   * cfg.tlen + fnamelist[j].kindl);
 			p->path_digits   = MAX(p->path_digits,   countMatchedString(fnamelist[j].path)   * cfg.tlen + fnamelist[j].pathl);
-			p->unique_digits   = MAX(p->unique_digits,   countMatchedString(fnamelist[j].unique)   * cfg.tlen + fnamelist[j].uniquel);
-			p->linkname_digits = MAX(p->linkname_digits, countMatchedString(fnamelist[j].linkname) * cfg.tlen + fnamelist[j].linknamel);
-			p->errnostr_digits = MAX(p->errnostr_digits, countMatchedString(fnamelist[j].errnostr) * cfg.tlen + fnamelist[j].errnostrl);
+			p->unique_digits    = MAX(p->unique_digits,    countMatchedString(fnamelist[j].unique)    * cfg.tlen + fnamelist[j].uniquel);
+			p->linkname_digits  = MAX(p->linkname_digits,  countMatchedString(fnamelist[j].linkname)  * cfg.tlen + fnamelist[j].linknamel);
+			p->errnostr_digits  = MAX(p->errnostr_digits,  countMatchedString(fnamelist[j].errnostr)  * cfg.tlen + fnamelist[j].errnostrl);
+			p->extension_digits = MAX(p->extension_digits, countMatchedString(fnamelist[j].extension) * cfg.tlen + fnamelist[j].extensionl);
 #ifdef MD5
 			p->md5_digits    = MAX(p->md5_digits,    countMatchedString(fnamelist[j].md5)    * cfg.tlen + fnamelist[j].md5l);
 #endif
@@ -4308,6 +4336,7 @@ main(int argc, char *argv[])
 				info_pointers['k'] = info_pointers['K'] = fnamelist[j].kind;
 				info_pointers['l'] = info_pointers['L'] = fnamelist[j].linkname;
 				info_pointers['e'] = info_pointers['E'] = fnamelist[j].errnostr;
+				info_pointers['x'] = info_pointers['X'] = fnamelist[j].extension;
 #ifdef MD5
 				info_pointers['5'] =                      fnamelist[j].md5;
 #endif
