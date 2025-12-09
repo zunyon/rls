@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "12/04"
-#define BTIME "22:53:42"
+#define BDATE "12/09"
+#define BTIME "22:44:30"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 12/04 22:49"
+// my-last-update-time "2025, 12/09 22:42"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1226,19 +1226,13 @@ mySizeSort(const void *a, const void *b)
 	struct FNAME *s1 = (struct FNAME *)a;
 	struct FNAME *s2 = (struct FNAME *)b;
 
-	int len1 = s1->sizel;
-	int len2 = s2->sizel;
-
-	if (len1 == len2) {
+	if (s1->sb.st_size == s2->sb.st_size) {
 		// 同じファイルサイズの時、ファイル名をアルファベット順でソート
-		if (strcmp(s1->size, s2->size) == 0) {
-// 			return strcmp(s1->lowername, s2->lowername);
-			return strcasecmp(s1->name, s2->name);
-		}
-		return strcmp(s1->size, s2->size);
+// 		return strcmp(s1->lowername, s2->lowername);
+		return strcasecmp(s1->name, s2->name);
 	}
 
-	return (len1 < len2) ? -1 : 1;
+	return (s1->sb.st_size < s2->sb.st_size) ? -1 : 1;
 }
 
 // size の大きい順
@@ -2742,6 +2736,8 @@ fnameLength(struct FNAME *p)
 void
 freeDENT(struct DENT *dent, int dirarg)
 {
+	debug printStr(label, "freeDENT:\n");
+
 	for (int i=0; i<dirarg; i++) {
 		if (dent[i].fnamelist) {
 			for (int j=0; j<dent[i].nth; j++) {
@@ -2765,7 +2761,7 @@ freeDENT(struct DENT *dent, int dirarg)
 
 		// --------------------------------------------------------------------------------
 		// デバッグ情報の表示
-		debug printf("freeDENT path: %s\n", dent[i].path);
+		debug printf(" path: %s\n", dent[i].path);
 
 		freeDuplist(dent[i].duplist);
 	}
@@ -2776,6 +2772,8 @@ freeDENT(struct DENT *dent, int dirarg)
 int
 initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 {
+	debug printStr(label, "initAlist:\n");
+
 	for (int i=1; i<argc; i++) {
 		int len = strlen(argv[i]);
 
@@ -2980,6 +2978,119 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 	}
 
 	return 0;
+}
+
+
+// 各引数の依存関係の処理を行う
+void
+progressAlist(struct ALIST *cfg)
+{
+	debug printStr(label, "progressAlist:\n");
+
+	// ================================================================================
+	// -f が指定された場合は、long 表示
+	if (cfg->format_list) {
+		cfg->show_long++;
+	}
+
+	// human readable date/size/week は long 表示
+	if (
+		// ただし、-f にその要素があれば
+// 		(cfg->format_size && cfg->readable_size) ||
+// 		(cfg->format_date && (cfg->readable_date || cfg->readable_week))
+
+		// -f にその要素が無くても -l にはする
+		cfg->readable_size || cfg->readable_date || cfg->readable_week
+		) {
+		cfg->show_long++;
+	}
+
+	// ================================================================================
+	// only_file の時は、ディレクトリ表示を行わない
+	if (cfg->only_file) {
+		cfg->only_directory = 0;
+	}
+
+	// only_directory の時は、'.' から始まるディレクトリも表示する
+	if (cfg->only_directory) {
+		cfg->show_dotfile++;
+	}
+
+	// -p 指定文字列で色付け
+	if (cfg->paint_string) {
+		cfg->do_uniquecheck = 0;
+		cfg->deep_unique = 0;
+		cfg->beginning_word = 0;
+		cfg->do_emacs = 0;
+	}
+
+	// simple 表示は long にしない (ファイルの種類を問わず単色表示)
+	if (cfg->show_simple) {
+		cfg->show_long = 0;
+		cfg->readable_date = 0;
+		cfg->readable_size = 0;
+		cfg->readable_week = 0;
+	}
+
+	// --------------------------------------------------------------------------------
+	// -TB, -TE の設定
+	// 片側の指定だけなら同じ文字列を使用
+	if (cfg->lbegin == 0) {
+		strcpy(cfg->textbegin, cfg->textend);
+		cfg->lbegin = cfg->lend;
+		cfg->tlen = cfg->lbegin + cfg->lend;
+	}
+
+	if (cfg->lend == 0) {
+		strcpy(cfg->textend, cfg->textbegin);
+		cfg->lend = cfg->lbegin;
+		cfg->tlen = cfg->lbegin + cfg->lend;
+	}
+
+#ifdef DEBUG
+	if (cfg->lbegin == 0 && cfg->lend == 0) {
+		strcpy(cfg->textbegin, "[");
+		strcpy(cfg->textend,   "]");
+		cfg->lbegin = strlen(cfg->textbegin);
+		cfg->lend   = strlen(cfg->textend);
+		cfg->tlen = cfg->lbegin + cfg->lend;
+	}
+#endif
+
+	// --------------------------------------------------------------------------------
+	// -l が指定されなかったら、-f も基本的に無し
+	// pickupString() 向けに操作
+	if (cfg->show_long == 0) {
+		cfg->formatListString[0] = 'n';
+		cfg->formatListString[1] = '\0';
+
+#ifdef MD5
+		cfg->format_md5 = 0;
+#endif
+		cfg->format_unique = 0;
+		cfg->format_owner = 0;
+		cfg->format_group = 0;
+		cfg->format_extension = 0;
+	}
+
+	// 引数の色指定
+	if (cfg->argv_color) {
+		cfg->default_color = 0;		// 環境変数を見ない
+	}
+
+	// 色をつけない
+	if (cfg->no_color) {
+		cfg->argv_color = 0;
+		cfg->default_color = 0;
+
+		// -TB, -TE と併用で無ければ、色をつけないから uniqueCheck(), uniqueCheckFirstWord() を飛ばす
+		// -TB, -TE が指定されていたら、uniqueCheck() は行う
+		// -fu も同様
+		if (cfg->lbegin == 0 && cfg->format_unique == 0) {
+			cfg->do_uniquecheck = 0;
+			cfg->do_emacs = 0;
+		}
+	}
 }
 
 
@@ -3273,11 +3384,22 @@ main(int argc, char *argv[])
 		.termhei = 0,
 
 		.aggregate_length = 0,
+
+		.do_uniquecheck = 1,												// uniqueCheck(), uniqueCheckFirstWord() を実行する
 	};
 
 	for (int i = 0; i < ListCount; i++) {
 		colorlist[i][0] = '\0';
 	}
+
+	// --------------------------------------------------------------------------------
+	int (*comparefunc) (const struct dirent **, const struct dirent **);	// scandir() 時のソート
+	int (*sortfunc)(const void *, const void *);							// 表示時のソート
+
+	// デフォルトは、uniqueCheck() 向けの設定
+	comparefunc = compareNameLength;	// ファイル名の長い順で scandir() -> uniqueCheck(), uniqueCheckFirstWord() の比較回数が一番小さくなる
+	printName = printUnique;			// uniqueCheck(), uniqueCheckFirstWord() 結果を表示する
+	sortfunc = myAlphaSort;				// 最後にアルファベット順で表示
 
 	// --------------------------------------------------------------------------------
 	// default color text を格納
@@ -3302,7 +3424,7 @@ main(int argc, char *argv[])
 
 	// ================================================================================
 	// 出力先ターミナルサイズの取得
-	if (cfg.show_long == 0) {
+	if (cfg.show_simple || cfg.show_long == 0) {
 		getTerminalSize(&cfg.termlen, &cfg.termhei);
 	}
 
@@ -3314,63 +3436,22 @@ main(int argc, char *argv[])
 	}
 
 	// ================================================================================
+	progressAlist(&cfg);
+
+	// ================================================================================
 	// 依存・関連する argv の処理
-	int (*comparefunc) (const struct dirent **, const struct dirent **);	// scandir() 時のソート
-	int (*sortfunc)(const void *, const void *);							// 表示時のソート
-
-	// デフォルトは、uniqueCheck() 向けの設定
-	comparefunc = compareNameLength;	// ファイル名の長い順で scandir() -> uniqueCheck(), uniqueCheckFirstWord() の比較回数が一番小さくなる
-	cfg.do_uniquecheck = 1;				// uniqueCheck(), uniqueCheckFirstWord() を実行する
-	printName = printUnique;			// uniqueCheck(), uniqueCheckFirstWord() 結果を表示する
-	sortfunc = myAlphaSort;				// 最後にアルファベット順で表示
-
-	// --------------------------------------------------------------------------------
 	// dirent 引数無しなので、./ をリストに加える
 	if (dirarg == 0) {
 		strcpy(dirarglist[0], "./");
 		dirarg = 1;
 	}
 
+	// --------------------------------------------------------------------------------
 	// -p 指定文字列で色付け
 	if (cfg.paint_string) {
-		cfg.do_uniquecheck = 0;
-		cfg.deep_unique = 0;
-		cfg.beginning_word = 0;
-		cfg.do_emacs = 0;
 		comparefunc = compareNameAlphabet;
 		printName = printMatchedString;
 		sortfunc = NULL;					// compareNameAlphabet でソート済みだから、myAlphaSort しない
-	}
-
-	// simple 表示は long にしない (ファイルの種類を問わず単色表示)
-	if (cfg.show_simple) {
-		cfg.show_long = 0;
-		cfg.readable_date = 0;
-		cfg.readable_size = 0;
-		cfg.readable_week = 0;
-		cfg.format_list = 0;
-	}
-
-	// --------------------------------------------------------------------------------
-	// format_list は long 表示
-	if (cfg.format_list) {
-		cfg.show_long++;
-	}
-
-	// human readable date/size/week は long 表示
-	if (cfg.readable_date || cfg.readable_size || cfg.readable_week) {
-		cfg.show_long++;
-	}
-
-	// --------------------------------------------------------------------------------
-	// only_file の時は、ディレクトリ表示を行わない
-	if (cfg.only_file) {
-		cfg.only_directory = 0;
-	}
-
-	// only_directory の時は、'.' から始まるディレクトリも表示する
-	if (cfg.only_directory) {
-		cfg.show_dotfile++;
 	}
 
 	// --------------------------------------------------------------------------------
@@ -3416,85 +3497,13 @@ main(int argc, char *argv[])
 		sortfunc = NULL;
 	}
 
-	// --------------------------------------------------------------------------------
-	// -TB, -TE の設定
-	// 片側の指定だけなら同じ文字列を使用
-	if (cfg.lbegin == 0) {
-		strcpy(cfg.textbegin, cfg.textend);
-		cfg.lbegin = cfg.lend;
-		cfg.tlen = cfg.lbegin + cfg.lend;
-	}
-
-	if (cfg.lend == 0) {
-		strcpy(cfg.textend, cfg.textbegin);
-		cfg.lend = cfg.lbegin;
-		cfg.tlen = cfg.lbegin + cfg.lend;
-	}
-
-#ifdef DEBUG
-	if (cfg.lbegin == 0 && cfg.lend == 0) {
-		strcpy(cfg.textbegin, "[");
-		strcpy(cfg.textend,   "]");
-		cfg.lbegin = strlen(cfg.textbegin);
-		cfg.lend   = strlen(cfg.textend);
-		cfg.tlen = cfg.lbegin + cfg.lend;
-	}
-#endif
-
-	// --------------------------------------------------------------------------------
-	// -f では fnameLength() を使用する
-	if (
-#ifdef MD5
-		cfg.format_md5 ||
-#endif
-		cfg.format_unique ||
-		cfg.format_extension ||
-		cfg.format_owner ||
-		cfg.format_group ||
-		cfg.format_date ||
-		cfg.format_size ||
-		cfg.format_link
-		) {
-		cfg.format_list++;
-	}
-
-	// --------------------------------------------------------------------------------
-	if (cfg.format_extension) {
-		cfg.do_extension++;
-	}
-
-	// --------------------------------------------------------------------------------
-	// -l が指定されなかったら、-f も基本的に無し
-	// pickupString() 向けに操作
-	if (cfg.show_long == 0) {
-		cfg.formatListString[0] = 'n'; 
-		cfg.formatListString[1] = '\0'; 
-	}
-
 	// ================================================================================
 	// argv[i] は順不同なので、優先順位を実装
-	// 色をつけない
 	if (cfg.no_color) {
-		cfg.argv_color = 0;
-		cfg.default_color = 0;
-
-		// -TB, -TE と併用で無ければ、色をつけないから uniqueCheck(), uniqueCheckFirstWord() を飛ばす
-		// -TB, -TE が指定されていたら、uniqueCheck() は行う
-		// -fu も同様
-		if (cfg.lbegin == 0 && cfg.format_unique == 0) {
-			cfg.do_uniquecheck = 0;
-			cfg.do_emacs = 0;
-		}
-
 		// 色の初期化
 		for (int i=0; i<ListCount; i++) {
 			colorlist[i][0] = '\0';
 		}
-	}
-
-	// 引数の色指定
-	if (cfg.argv_color) {
-		cfg.default_color = 0;		// 環境変数を見ない
 	}
 
 #ifdef DEBUG
@@ -3546,7 +3555,6 @@ main(int argc, char *argv[])
 		showEscapeList();
 		exit(EXIT_SUCCESS);
 	}
-
 
 	// ================================================================================
 	// 引数のディレクトリ分の準備、初期化
@@ -3942,7 +3950,7 @@ main(int argc, char *argv[])
 		}
 
 		// --------------------------------------------------------------------------------
-		if (cfg.do_extension || cfg.do_emacs) {
+		if (cfg.format_extension || cfg.do_extension || cfg.do_emacs) {
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
@@ -4172,12 +4180,11 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				if (fnamelist[j].uniquebegin == -1) {
-					continue;
+				if (fnamelist[j].uniquebegin != -1) {
+					int len = fnamelist[j].uniqueend - fnamelist[j].uniquebegin + 1;
+					strncpy(fnamelist[j].unique, fnamelist[j].name + fnamelist[j].uniquebegin, len);
+					fnamelist[j].unique[len] = '\0';
 				}
-				int len = fnamelist[j].uniqueend - fnamelist[j].uniquebegin + 1;
-				strncpy(fnamelist[j].unique, fnamelist[j].name + fnamelist[j].uniquebegin, len);
-				fnamelist[j].unique[len] = '\0';
 			}
 		}
 
@@ -4198,6 +4205,69 @@ main(int argc, char *argv[])
 			}
 		}
 
+		// --------------------------------------------------------------------------------
+		// 共通、printShort() でも、printLong() でも print_length は必要
+		for (int j=0; j<p->nth; j++) {
+			if (fnamelist[j].showlist == SHOW_NONE) {
+				continue;
+			}
+
+			// 何文字エスケープされるか、printLength: の計算値、printUnique() と合わせる
+			// !! printMatchedString() とも合わせる必用あり
+			int count = 0;
+			// cfg.do_uniquecheck (uniqueCheck()) が終わっている必要あり
+			if (fnamelist[j].uniquebegin != -1) {
+				for (int k=fnamelist[j].uniquebegin; k<=fnamelist[j].uniqueend; k++) {
+					if (strchr(ESCAPECHARACTER, fnamelist[j].name[k])) {
+						count++;
+					}
+				}
+				count += cfg.tlen;
+			}
+			fnamelist[j].print_length = wcStrlen(fnamelist[j]) + count;
+		}
+
+		// --------------------------------------------------------------------------------
+		// 各項目の最大表示長さ
+		if (cfg.show_long) {
+			debug printStr(label, "fnameLength:\n");
+
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				// 各項目の長さ計算
+				fnameLength(&fnamelist[j]);
+
+				// 各項目の最大幅数の確定
+				p->name_digits =  MAX(p->name_digits, countMatchedString(fnamelist[j].name) * cfg.tlen + fnamelist[j].print_length);
+
+				p->inode_digits  = MAX(p->inode_digits,  countMatchedString(fnamelist[j].inode)  * cfg.tlen + fnamelist[j].inodel);
+				p->nlink_digits  = MAX(p->nlink_digits,  countMatchedString(fnamelist[j].nlink)  * cfg.tlen + fnamelist[j].nlinkl);
+				p->mode_digits   = MAX(p->mode_digits,   countMatchedString(fnamelist[j].mode)   * cfg.tlen + fnamelist[j].model);
+				p->owner_digits  = MAX(p->owner_digits,  countMatchedString(fnamelist[j].owner)  * cfg.tlen + fnamelist[j].ownerl);
+				p->group_digits  = MAX(p->group_digits,  countMatchedString(fnamelist[j].group)  * cfg.tlen + fnamelist[j].groupl);
+				p->size_digits   = MAX(p->size_digits,   countMatchedString(fnamelist[j].size)   * cfg.tlen + fnamelist[j].sizel);
+				p->sizec_digits  = MAX(p->sizec_digits,  countMatchedString(fnamelist[j].sizec)  * cfg.tlen + fnamelist[j].sizecl);
+				p->count_digits  = MAX(p->count_digits,  countMatchedString(fnamelist[j].count)  * cfg.tlen + fnamelist[j].countl);
+				p->countc_digits = MAX(p->countc_digits, countMatchedString(fnamelist[j].countc) * cfg.tlen + fnamelist[j].countcl);
+				p->date_digits   = MAX(p->date_digits,   countMatchedString(fnamelist[j].date)   * cfg.tlen + fnamelist[j].datel);
+				p->time_digits   = MAX(p->time_digits,   countMatchedString(fnamelist[j].time)   * cfg.tlen + fnamelist[j].timel);
+				p->week_digits   = MAX(p->week_digits,   countMatchedString(fnamelist[j].week)   * cfg.tlen + fnamelist[j].weekl);
+				p->kind_digits   = MAX(p->kind_digits,   countMatchedString(fnamelist[j].kind)   * cfg.tlen + fnamelist[j].kindl);
+				p->path_digits   = MAX(p->path_digits,   countMatchedString(fnamelist[j].path)   * cfg.tlen + fnamelist[j].pathl);
+				p->unique_digits    = MAX(p->unique_digits,    countMatchedString(fnamelist[j].unique)    * cfg.tlen + fnamelist[j].uniquel);
+				p->linkname_digits  = MAX(p->linkname_digits,  countMatchedString(fnamelist[j].linkname)  * cfg.tlen + fnamelist[j].linknamel);
+				p->errnostr_digits  = MAX(p->errnostr_digits,  countMatchedString(fnamelist[j].errnostr)  * cfg.tlen + fnamelist[j].errnostrl);
+				p->extension_digits = MAX(p->extension_digits, countMatchedString(fnamelist[j].extension) * cfg.tlen + fnamelist[j].extensionl);
+#ifdef MD5
+				p->md5_digits    = MAX(p->md5_digits,    countMatchedString(fnamelist[j].md5)    * cfg.tlen + fnamelist[j].md5l);
+#endif
+			}
+		}
+
+		// --------------------------------------------------------------------------------
 #ifdef DEBUG
 		debug printStr(label, "scandir/qsort:\n");
 		printf(" scandir: ");
@@ -4217,76 +4287,10 @@ main(int argc, char *argv[])
 
 		// ================================================================================
 		// 全データに対して行う処理
-		// -f で xxxl を参照している
-		if (cfg.format_list) {
-			debug printStr(label, "fnameLength:\n");
 
-			for (int j=0; j<p->nth; j++) {
-				if (fnamelist[j].showlist == SHOW_NONE) {
-					continue;
-				}
-
-				fnameLength(&fnamelist[j]);
-			}
-		}
-
-		// --------------------------------------------------------------------------------
 		// 表示用にソートする
 		if (sortfunc) {
 			qsort(fnamelist, p->nth, sizeof(struct FNAME), sortfunc);
-		}
-
-		// --------------------------------------------------------------------------------
-		// 各項目の最大幅数の確定
-		for (int j=0; j<p->nth; j++) {
-			if (fnamelist[j].showlist == SHOW_NONE) {
-				continue;
-			}
-
-			// 何文字エスケープされるか、printLength: の計算値、printUnique() と合わせる
-			// !! printMatchedString() とも合わせる必用あり
-			int count = 0;
-			// uniqueCheck() が終わっている必要あり
-			if (fnamelist[j].uniquebegin != -1) {
-				for (int k=fnamelist[j].uniquebegin; k<=fnamelist[j].uniqueend; k++) {
-					if (strchr(ESCAPECHARACTER, fnamelist[j].name[k])) {
-						count++;
-					}
-				}
-				count += cfg.tlen;
-			}
-			fnamelist[j].print_length = wcStrlen(fnamelist[j]) + count;
-
-			// --------------------------------------------------------------------------------
-			// 各項目の最大表示長さ
-			p->name_digits =  MAX(p->name_digits, countMatchedString(fnamelist[j].name) * cfg.tlen + fnamelist[j].print_length);
-
-			// -l で無ければ使用しない
-			if (cfg.show_long == 0) {
-				continue;
-			}
-
-			p->inode_digits  = MAX(p->inode_digits,  countMatchedString(fnamelist[j].inode)  * cfg.tlen + fnamelist[j].inodel);
-			p->nlink_digits  = MAX(p->nlink_digits,  countMatchedString(fnamelist[j].nlink)  * cfg.tlen + fnamelist[j].nlinkl);
-			p->mode_digits   = MAX(p->mode_digits,   countMatchedString(fnamelist[j].mode)   * cfg.tlen + fnamelist[j].model);
-			p->owner_digits  = MAX(p->owner_digits,  countMatchedString(fnamelist[j].owner)  * cfg.tlen + fnamelist[j].ownerl);
-			p->group_digits  = MAX(p->group_digits,  countMatchedString(fnamelist[j].group)  * cfg.tlen + fnamelist[j].groupl);
-			p->size_digits   = MAX(p->size_digits,   countMatchedString(fnamelist[j].size)   * cfg.tlen + fnamelist[j].sizel);
-			p->sizec_digits  = MAX(p->sizec_digits,  countMatchedString(fnamelist[j].sizec)  * cfg.tlen + fnamelist[j].sizecl);
-			p->count_digits  = MAX(p->count_digits,  countMatchedString(fnamelist[j].count)  * cfg.tlen + fnamelist[j].countl);
-			p->countc_digits = MAX(p->countc_digits, countMatchedString(fnamelist[j].countc) * cfg.tlen + fnamelist[j].countcl);
-			p->date_digits   = MAX(p->date_digits,   countMatchedString(fnamelist[j].date)   * cfg.tlen + fnamelist[j].datel);
-			p->time_digits   = MAX(p->time_digits,   countMatchedString(fnamelist[j].time)   * cfg.tlen + fnamelist[j].timel);
-			p->week_digits   = MAX(p->week_digits,   countMatchedString(fnamelist[j].week)   * cfg.tlen + fnamelist[j].weekl);
-			p->kind_digits   = MAX(p->kind_digits,   countMatchedString(fnamelist[j].kind)   * cfg.tlen + fnamelist[j].kindl);
-			p->path_digits   = MAX(p->path_digits,   countMatchedString(fnamelist[j].path)   * cfg.tlen + fnamelist[j].pathl);
-			p->unique_digits    = MAX(p->unique_digits,    countMatchedString(fnamelist[j].unique)    * cfg.tlen + fnamelist[j].uniquel);
-			p->linkname_digits  = MAX(p->linkname_digits,  countMatchedString(fnamelist[j].linkname)  * cfg.tlen + fnamelist[j].linknamel);
-			p->errnostr_digits  = MAX(p->errnostr_digits,  countMatchedString(fnamelist[j].errnostr)  * cfg.tlen + fnamelist[j].errnostrl);
-			p->extension_digits = MAX(p->extension_digits, countMatchedString(fnamelist[j].extension) * cfg.tlen + fnamelist[j].extensionl);
-#ifdef MD5
-			p->md5_digits    = MAX(p->md5_digits,    countMatchedString(fnamelist[j].md5)    * cfg.tlen + fnamelist[j].md5l);
-#endif
 		}
 
 #ifdef DEBUG
