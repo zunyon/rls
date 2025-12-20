@@ -256,3 +256,8 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - fix `haveAfterdata()` のチェックを orderlist の最後までに修正
 - add `-X` の追加，拡張子の集計表示
 - add OpenMP への対応
+- add `-F` の追加，項目単位でソート（`-m`, `-z`, `-N` の廃止）
+  - add `rowSort()` の追加
+  - add `toggleFunction()` ソート関数の昇順/降順の切り替え
+  - chg `countEntry()` のカウント方法の変更
+  - chg `myAlphaSort()`, `mySizeSort()` の `-F` 対応

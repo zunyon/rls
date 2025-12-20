@@ -31,21 +31,21 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "12/09"
-#define BTIME "22:44:30"
+#define BDATE "12/21"
+#define BTIME "06:44:12"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 12/09 22:42"
+// my-last-update-time "2025, 12/21 06:38"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
 //   指定文字情報を含むファイルの選別表示
 // 出力レイアウトの変更
-//   long list 表示では、横方向は -f で、縦方向はソート
+//   long list 表示では、横方向は -f で、縦方向は -F でソート
 //   short list 表示では、リダイレクト時もレイアウトを崩さない
 
 // rls.fish の準備
@@ -551,6 +551,7 @@ struct FNAME {
 #ifdef MD5
 		char md5[33];						// 16 文字 * 2 バイト + '\0'
 #endif
+	char *sortc;
 
 	// 各項目の長さ
 	int inodel;
@@ -608,6 +609,26 @@ struct ALIST {
 	int format_size;
 	int format_link;
 
+	// 各項目の sort 順
+	// path は無し
+	int (*inode_sortfunc)(const void *, const void *);
+	int (*nlink_sortfunc)(const void *, const void *);
+	int (*mode_sortfunc)(const void *, const void *);
+	int (*owner_sortfunc)(const void *, const void *);
+	int (*group_sortfunc)(const void *, const void *);
+	int (*size_sortfunc)(const void *, const void *);
+	int (*count_sortfunc)(const void *, const void *);
+	int (*date_sortfunc)(const void *, const void *);
+	int (*time_sortfunc)(const void *, const void *);
+	int (*week_sortfunc)(const void *, const void *);
+	int (*unique_sortfunc)(const void *, const void *);
+	int (*name_sortfunc)(const void *, const void *);
+	int (*linkname_sortfunc)(const void *, const void *);
+	int (*errnostr_sortfunc)(const void *, const void *);
+	int (*extension_sortfunc)(const void *, const void *);
+	int (*md5_sortfunc)(const void *, const void *);
+	int (*kind_sortfunc)(const void *, const void *);
+
 	int do_uniquecheck;
 	int deep_unique;
 	int beginning_word;
@@ -624,9 +645,6 @@ struct ALIST {
 	int argv_color;
 	int default_color;
 
-	int mtime_sort;
-	int size_sort;
-	int name_sort;
 	int no_sort;
 
 	int readable_date;
@@ -648,6 +666,7 @@ struct ALIST {
 	int tlen;
 
 	char formatListString[ListCountd + 1];
+	char formatSortString[ListCountd + 1];
 
 	char color_txt[sizeof(default_color_txt)];
 	char onlyPaintStr[FNAME_LENGTH + 1];
@@ -848,7 +867,6 @@ countEntry(char *dname, char *path)
 {
 // 	debug printStr(label, "countEntry:\n");
 
-	struct dirent **namelist;
 	char fullpath[FNAME_LENGTH];
 	char *tmppath;
 
@@ -859,24 +877,27 @@ countEntry(char *dname, char *path)
 		tmppath = fullpath;
 	}
 
-	int file_count = scandir(tmppath, &namelist, NULL, NULL);	// sort 不要
+	DIR *dr;
+	dr = opendir(tmppath);
+	if (dr == NULL) {
+		return -1;
+	}
 
-	if (file_count == -1) {
-		debug printf(" scandir: %s: -1.\n", tmppath);
+	int count = 0;
+	while (readdir(dr) != NULL) {
+		count++;
+	}
+	closedir(dr);
+
+	if (count == -1) {
+// 		debug printf(" scandir: %s: -1.\n", tmppath);
 		return -1;
 	}
 #ifdef COUNTFUNC
-	count_malloc += file_count;
+	count_malloc += count;
 #endif
 
-	for (int i=0; i<file_count; i++) {
-		free(namelist[i]);
-	}
-	free(namelist);
-
-// 	debug printf(" %d, %s\n", file_count, tmppath);
-
-	return file_count -2;			// "." と ".." を除く
+	return count -2;			// "." と ".." を除く
 }
 
 
@@ -1172,43 +1193,15 @@ addFNamelist(struct FNAME *p, char *name)
 
 
 // ================================================================================
-// scandir() 時ソート
-// ファイル名の長い順にする
-int
-compareNameLength(const struct dirent **s1, const struct dirent **s2)
-{
-	int len1 = strlen((*s1)->d_name);
-	int len2 = strlen((*s2)->d_name);
-
-	if (len1 == len2) {
-		return strcmp((*s1)->d_name, (*s2)->d_name);
-	}
-
-	return (len1 < len2) ? 1 : -1;
-}
-
-
-// アルファベット順
-// myAlphaSort() と同様に、大文字/小文字を分けないために、strcasecmp()
-int
-compareNameAlphabet(const struct dirent **s1, const struct dirent **s2)
-{
-	return strcasecmp((*s1)->d_name, (*s2)->d_name);
-}
-
-
-// --------------------------------------------------------------------------------
 // qsort() 時のソート
-// 大文字/小文字を分けない
+// alphabet 順、長さも関係ない
 int
 myAlphaSort(const void *a, const void *b)
 {
 	struct FNAME *s1 = (struct FNAME *)a;
 	struct FNAME *s2 = (struct FNAME *)b;
 
-// 	return strcmp(s1->lowername, s2->lowername);
-	return strcasecmp(s1->name, s2->name);
-// 	return strcmp(s1->name, s2->name);				// ls と同じソート
+	return strcasecmp(s1->sortc, s2->sortc);
 }
 
 
@@ -1226,13 +1219,14 @@ mySizeSort(const void *a, const void *b)
 	struct FNAME *s1 = (struct FNAME *)a;
 	struct FNAME *s2 = (struct FNAME *)b;
 
-	if (s1->sb.st_size == s2->sb.st_size) {
-		// 同じファイルサイズの時、ファイル名をアルファベット順でソート
-// 		return strcmp(s1->lowername, s2->lowername);
-		return strcasecmp(s1->name, s2->name);
+	int len1 = strlen(s1->sortc);
+	int len2 = strlen(s2->sortc);
+
+	if (len1 == len2) {
+		return strcasecmp(s1->sortc, s2->sortc);
 	}
 
-	return (s1->sb.st_size < s2->sb.st_size) ? -1 : 1;
+	return (len1 < len2) ? -1 : 1;
 }
 
 // size の大きい順
@@ -1678,9 +1672,6 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 		return;
 	}
 
-// 	char buffer[65536];
-// 	setvbuf(stdout, buffer, _IOFBF, sizeof(buffer));
-
 #ifdef DEBUG
 	printf("No:len:[unibegin,uniend] name/  lower:[name]\n");
 
@@ -1903,9 +1894,6 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 
 	int printlong_count = 0;
 
-// 	char buffer[65536];
-// 	setvbuf(stdout, buffer, _IOFBF, sizeof(buffer));
-
 	for (int i=0; i<n; i++) {
 		// 非表示設定のファイルは表示しない
 		if (data[i].showlist != SHOW_LONG) {
@@ -1954,10 +1942,11 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 			// --------------------------------------------------------------------------------
 			// 左寄せ項目
 #ifdef MD5
-			if (strchr("mMoOkKgGtTwWIHDuUxX5", (unsigned char) cfg.formatListString[j])) {
+			if (strchr("mMoOkKgGtTwWIHDuUxX5", (unsigned char) cfg.formatListString[j]))
 #else
-			if (strchr("mMoOkKgGtTwWIHDuUxX", (unsigned char) cfg.formatListString[j])) {
+			if (strchr("mMoOkKgGtTwWIHDuUxX", (unsigned char) cfg.formatListString[j]))
 #endif
+			{
 				switch ((unsigned char) cfg.formatListString[j]) {
 				  case 'm': case 'M': len = data[i].model   + count * cfg.tlen; break;
 				  case 'o': case 'O': len = data[i].ownerl  + count * cfg.tlen; break;
@@ -2379,7 +2368,7 @@ showVersion(char **argv)
 
 	printf("\n");
 	printf(" Change Layout of display list.\n");
-	printf("  Long listing format:  change format orders width -f.\n");
+	printf("  Long listing format:  change format orders with -f, sort orders with -F.\n");
 	printf("  Short lisring format: layout is preserved on redirect. (similar to result layout on redirect: -fNk)\n");
 
 
@@ -2508,11 +2497,18 @@ showUsage(char **argv)
 
 	printf("\n");
 	printStr(label, "Sort options:\n");
-	printf(" -m: Mtime sort. (alphabet sort -> mtime sort, -mm: reverse mtime sort)\n");
-	printf(" -z: siZe sort. (alphabet sort -> size sort, -zz: reverse size sort, -fc is calculated as -fs)\n");
-	printf(" -N: reverse alphabet (Name) sort. (alphabet sort -> reverse alphabet sort, -NN: alphabet sort)\n");
+	printf(" "); printStr(normal, "-F"); printf(": change the sort order. (default: -Fn)\n");
+	printf("      item is 1st, 2nd, 3rd, ..., sort order item. (-Fns: 1st:name, 2nd:size sort.)\n");
+	printf("      duplicates of the same item is a Reverse sort instruction.\n");
+	printf("       alphabet: m:mode, o:owner, g:group, n:name, k:kind, l:linkname, e:errno, w:week, u:uniqueword, x:extension.\n");
+#ifdef MD5
+	printf("                 5:MD5 message digest.\n");
+#endif
+	printf("       size:     i:inode, h:hardlinks, s:size, c:count.\n");
+	printf("       mtime:    d:date, t:time.\n");
+	printf("      path (p) is not sort order item.\n");
 	printf(" -S: no Sort order.\n");
-	printf("     -S > -N(N) > -z(z) > -m(m)\n");
+	printf("     -S > -F\n");
 
 	printf("\n");
 	printStr(label, "Additional options:\n");
@@ -2625,6 +2621,7 @@ debug_showArgvswitch(struct ALIST cfg)
 	showSwitch(beginning_word);
 	showSwitch(do_emacs);
 	showSwitch(paint_string);
+	showSwitch(do_extension);
 
 	showSwitch(do_uniquecheck);
 	showSwitch(show_dotfile);
@@ -2636,9 +2633,6 @@ debug_showArgvswitch(struct ALIST cfg)
 	showSwitch(argv_color);
 	showSwitch(default_color);
 
-	showSwitch(mtime_sort);
-	showSwitch(size_sort);
-	showSwitch(name_sort);
 	showSwitch(no_sort);
 
 	showSwitch(readable_date);
@@ -2695,6 +2689,59 @@ orderSort(int showorder[], struct DENT dent[], int dirarg)
 		printf(" show order:%d, %d\n", showorder[i], dent[showorder[i]].is_file);
 	}
 #endif
+}
+
+
+// -f で指定された項目で sort
+void
+rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg, int (*sortfunc)(const void *, const void *))
+{
+	debug printStr(label, "rowSort:\n");
+
+	// sn など複数指定を行う、、、、reverse で処理するのが良さげ
+	for (int i=strlen(cfg.formatSortString) -1; i>=0; i--) {
+		debug printf(" [%c]\n", cfg.formatSortString[i]);
+		for (int j=0; j<nth; j++) {
+
+			// path は無しで
+			switch (cfg.formatSortString[i]) {
+#ifdef MD5
+			  case '5': sortfunc = cfg.md5_sortfunc;  fnamelist[j].sortc = fnamelist[j].md5;  break;
+#endif
+			  case 'n': sortfunc = cfg.name_sortfunc; fnamelist[j].sortc = fnamelist[j].name; break;
+// 			  case 'p': sortfunc = cfg.path_sortfunc; fnamelist[j].sortc = fnamelist[j].path; break;
+			  case 'p': sortfunc = myAlphaSort;       fnamelist[j].sortc = fnamelist[j].name; break;
+			  case 'k': sortfunc = cfg.kind_sortfunc; fnamelist[j].sortc = fnamelist[j].kind; break;
+			  case 'e': sortfunc = cfg.errnostr_sortfunc; fnamelist[j].sortc = fnamelist[j].errnostr; break;
+			  case 'l': sortfunc = cfg.linkname_sortfunc; fnamelist[j].sortc = fnamelist[j].linkname; break;
+
+			  case 'u': sortfunc = cfg.unique_sortfunc; fnamelist[j].sortc = fnamelist[j].unique; break;
+			  case 'x': sortfunc = cfg.extension_sortfunc; fnamelist[j].sortc = fnamelist[j].extension; break;
+
+			  case 'm': sortfunc = cfg.mode_sortfunc;  fnamelist[j].sortc = fnamelist[j].mode;  break;
+			  case 'o': sortfunc = cfg.owner_sortfunc; fnamelist[j].sortc = fnamelist[j].owner; break;
+			  case 'g': sortfunc = cfg.group_sortfunc; fnamelist[j].sortc = fnamelist[j].group; break;
+
+			  // date
+			  case 'd': sortfunc = cfg.date_sortfunc; fnamelist[j].sortc = fnamelist[j].date; break;
+			  case 't': sortfunc = cfg.time_sortfunc; fnamelist[j].sortc = fnamelist[j].date; break;
+			  case 'w': sortfunc = cfg.week_sortfunc; fnamelist[j].sortc = fnamelist[j].week; break;
+
+			  // size
+			  case 'c': sortfunc = cfg.count_sortfunc; fnamelist[j].sortc = fnamelist[j].count; break;
+			  case 's': sortfunc = cfg.size_sortfunc;  fnamelist[j].sortc = fnamelist[j].size;  break;
+			  case 'i': sortfunc = cfg.inode_sortfunc; fnamelist[j].sortc = fnamelist[j].inode; break;
+			  case 'h': sortfunc = cfg.nlink_sortfunc; fnamelist[j].sortc = fnamelist[j].nlink; break;
+
+			default:
+				fnamelist[j].sortc = fnamelist[j].name;
+				sortfunc = myAlphaSort;
+				break;
+			}
+		}
+
+		qsort(fnamelist, nth, sizeof(struct FNAME), sortfunc);
+	}
 }
 
 
@@ -2769,6 +2816,14 @@ freeDENT(struct DENT *dent, int dirarg)
 
 
 // ================================================================================
+typedef int (*sortfunc)(const void *, const void *);
+
+void
+toggleFunction(sortfunc *target, sortfunc a, sortfunc b)
+{
+	*target = (*target == a) ? b : a;
+}
+
 int
 initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 {
@@ -2840,6 +2895,19 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 			// 後の指定が優先 (上書き) される
 			strncpy(cfg->formatListString, argv[i] + 2, len - 2);
 			cfg->formatListString[len - 2] = '\0';
+			continue;
+		}
+
+		// 表示順の sort 指定
+		if (strncmp(argv[i], "-F", 2) == 0) {
+			if (len == 2) { argverr[i] = error; continue; }
+
+			if (len - 2 > ListCountd) {
+				len = ListCountd + 2;
+			}
+			// 後の指定が優先 (上書き) される
+			strncpy(cfg->formatSortString, argv[i] + 2, len - 2);
+			cfg->formatSortString[len - 2] = '\0';
 			continue;
 		}
 
@@ -2921,9 +2989,6 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 					case 'n': cfg->no_color++;          break;	// no color 表示
 					case 'd': cfg->default_color++;     break;	// default color 表示
 
-					case 'm': cfg->mtime_sort++;        break;	// mtime でソート
-					case 'z': cfg->size_sort++;         break;	// size でソート
-					case 'N': cfg->name_sort++;         break;	// name でソート
 					case 'S': cfg->no_sort++;           break;	// ソート無し
 
 					case 't': cfg->readable_date++;     break;	// human readable time
@@ -2955,7 +3020,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 		switch (cfg->formatListString[i]) {
 #ifdef MD5
 			// md5 を使用する
-			case '5':           cfg->format_md5++;    break;
+			case '5':           cfg->format_md5++; break;
 #endif
 			case 'u': case 'U': cfg->format_unique++; break;
 			case 'o': case 'O': cfg->format_owner++;  break;
@@ -2963,17 +3028,50 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 			case 'x': case 'X': cfg->format_extension++; break;
 
 			// makeDate() で処理
-			case 'd': case 'D': cfg->format_date++;   break;
-			case 'w': case 'W': cfg->format_date++;   break;
-			case 't': case 'T': cfg->format_date++;   break;
+			case 'd': case 'D': cfg->format_date++; break;
+			case 'w': case 'W': cfg->format_date++; break;
+			case 't': case 'T': cfg->format_date++; break;
 
 			// size, count
-			case 's': case 'S': cfg->format_size++;   break;
-			case 'c': case 'C': cfg->format_size++;   break;
-			case 'i': case 'I': cfg->format_size++;   break;
-			case 'h': case 'H': cfg->format_size++;   break;
+			case 's': case 'S': cfg->format_size++; break;
+			case 'c': case 'C': cfg->format_size++; break;
+			case 'i': case 'I': cfg->format_size++; break;
+			case 'h': case 'H': cfg->format_size++; break;
 
-			case 'l': case 'L': cfg->format_link++;   break;
+			case 'l': case 'L': cfg->format_link++; break;
+		}
+	}
+
+	// --------------------------------------------------------------------------------
+	// -F の sort で行う内容を決定
+	for (int i=0; cfg->formatSortString[i] != '\0'; i++) {
+		switch (cfg->formatSortString[i]) {
+#ifdef MD5
+		  // md5 を使用する
+		  case '5': cfg->format_md5++; toggleFunction(&cfg->md5_sortfunc, myAlphaSort, myAlphaSortRev); break;
+#endif
+		  case 'n': toggleFunction(&cfg->name_sortfunc, myAlphaSort, myAlphaSortRev); break;
+		  case 'm': toggleFunction(&cfg->mode_sortfunc, myAlphaSort, myAlphaSortRev); break;
+		  case 'k': toggleFunction(&cfg->kind_sortfunc, myAlphaSort, myAlphaSortRev); break;
+		  case 'e': toggleFunction(&cfg->errnostr_sortfunc, myAlphaSort, myAlphaSortRev); break;
+		  case 'l': cfg->format_link++; toggleFunction(&cfg->linkname_sortfunc, myAlphaSort, myAlphaSortRev); break;
+
+		  case 'u': cfg->format_unique++; toggleFunction(&cfg->unique_sortfunc, myAlphaSort, myAlphaSortRev); break;
+		  case 'o': cfg->format_owner++;  toggleFunction(&cfg->owner_sortfunc,  myAlphaSort, myAlphaSortRev); break;
+		  case 'g': cfg->format_group++;  toggleFunction(&cfg->group_sortfunc,  myAlphaSort, myAlphaSortRev); break;
+		  case 'x': cfg->format_extension++; toggleFunction(&cfg->extension_sortfunc, myAlphaSort, myAlphaSortRev); break;
+
+		  case 'w': cfg->format_date++; toggleFunction(&cfg->week_sortfunc, myAlphaSort, myAlphaSortRev); break;
+
+			// makeDate() で処理
+		  case 'd': cfg->format_date++; toggleFunction(&cfg->date_sortfunc, myMtimeSort, myMtimeSortRev); break;
+		  case 't': cfg->format_date++; toggleFunction(&cfg->time_sortfunc, myMtimeSort, myMtimeSortRev); break;
+
+		  // size, count
+		  case 's': cfg->format_size++; toggleFunction(&cfg->size_sortfunc, mySizeSort, mySizeSortRev); break;
+		  case 'c': cfg->format_size++; toggleFunction(&cfg->count_sortfunc, mySizeSort, mySizeSortRev); break;
+		  case 'i': cfg->format_size++; toggleFunction(&cfg->inode_sortfunc, mySizeSort, mySizeSortRev); break;
+		  case 'h': cfg->format_size++; toggleFunction(&cfg->nlink_sortfunc, mySizeSort, mySizeSortRev); break;
 		}
 	}
 
@@ -3358,6 +3456,7 @@ main(int argc, char *argv[])
 	struct ALIST cfg = {
 		.onlyPaintStr[0] = '\0',
 		.formatListString = "mogcdPNkLE",
+		.formatSortString = "",																			// -f の sort 指定
 
 		// --------------------------------------------------------------------------------
 		// Control Sequence Introducer
@@ -3386,6 +3485,28 @@ main(int argc, char *argv[])
 		.aggregate_length = 0,
 
 		.do_uniquecheck = 1,												// uniqueCheck(), uniqueCheckFirstWord() を実行する
+
+		// 各項目の sort 順
+		.md5_sortfunc  = myAlphaSortRev,
+		.mode_sortfunc = myAlphaSortRev,
+		.kind_sortfunc = myAlphaSortRev,
+		.unique_sortfunc = myAlphaSortRev,
+		.owner_sortfunc  = myAlphaSortRev,
+		.group_sortfunc  = myAlphaSortRev,
+		.extension_sortfunc = myAlphaSortRev,
+		.linkname_sortfunc  = myAlphaSortRev,
+		.errnostr_sortfunc  = myAlphaSortRev,
+
+		.week_sortfunc = myAlphaSortRev,
+		.date_sortfunc = myMtimeSort,
+		.time_sortfunc = myMtimeSort,
+
+		.size_sortfunc  = mySizeSortRev,
+		.count_sortfunc = mySizeSortRev,
+		.inode_sortfunc = mySizeSortRev,
+		.nlink_sortfunc = mySizeSortRev,
+
+		.name_sortfunc = myAlphaSort,
 	};
 
 	for (int i = 0; i < ListCount; i++) {
@@ -3393,13 +3514,11 @@ main(int argc, char *argv[])
 	}
 
 	// --------------------------------------------------------------------------------
-	int (*comparefunc) (const struct dirent **, const struct dirent **);	// scandir() 時のソート
 	int (*sortfunc)(const void *, const void *);							// 表示時のソート
 
 	// デフォルトは、uniqueCheck() 向けの設定
-	comparefunc = compareNameLength;	// ファイル名の長い順で scandir() -> uniqueCheck(), uniqueCheckFirstWord() の比較回数が一番小さくなる
 	printName = printUnique;			// uniqueCheck(), uniqueCheckFirstWord() 結果を表示する
-	sortfunc = myAlphaSort;				// 最後にアルファベット順で表示
+	sortfunc = NULL;
 
 	// --------------------------------------------------------------------------------
 	// default color text を格納
@@ -3429,6 +3548,10 @@ main(int argc, char *argv[])
 	}
 
 	// --------------------------------------------------------------------------------
+// 	char buffer[65536];
+// 	setvbuf(stdout, buffer, _IOFBF, sizeof(buffer));
+
+	// --------------------------------------------------------------------------------
 	// 出力先の確認
 	// terminal でない場合は無色、-always が指定された場合は color
 	if (isatty(fileno(stdout)) == 0 && cfg.output_escape == 0) {
@@ -3449,51 +3572,12 @@ main(int argc, char *argv[])
 	// --------------------------------------------------------------------------------
 	// -p 指定文字列で色付け
 	if (cfg.paint_string) {
-		comparefunc = compareNameAlphabet;
 		printName = printMatchedString;
-		sortfunc = NULL;					// compareNameAlphabet でソート済みだから、myAlphaSort しない
 	}
 
 	// --------------------------------------------------------------------------------
-	// 下に行くほど強い (sortfunc を上書きするから)
-	if (cfg.do_emacs) {
-		comparefunc = compareNameAlphabet;		// alphabet 順で scandir()
-		sortfunc = NULL;						// compareNameAlphabet でソート済みだから、myAlphaSort しない
-	}
-
-	// mtime 順にソートする
-	if (cfg.mtime_sort) {
-		// 新しい順
-		sortfunc = myMtimeSort;
-		if (cfg.mtime_sort > 1) {
-			// 逆順
-			sortfunc = myMtimeSortRev;
-		}
-	}
-
-	// size 順にソートする
-	if (cfg.size_sort) {
-		// 小さい順
-		sortfunc = mySizeSort;
-		if (cfg.size_sort > 1) {
-			// 逆順
-			sortfunc = mySizeSortRev;
-		}
-	}
-
-	// name 順にソートする
-	if (cfg.name_sort) {
-		// 逆順
-		sortfunc = myAlphaSortRev;
-		if (cfg.name_sort > 1) {
-			// 通常
-			sortfunc = myAlphaSort;
-		}
-	}
-
 	// ソートしない
 	if (cfg.no_sort) {
-		comparefunc = NULL;
 		sortfunc = NULL;
 	}
 
@@ -3669,7 +3753,7 @@ main(int argc, char *argv[])
 		}
 
 		// --------------------------------------------------------------------------------
-		p->nth = scandir("./", &p->direntlist, NULL, comparefunc);
+		p->nth = scandir("./", &p->direntlist, NULL, NULL);
 		if (p->nth == -1) {
 			perror("scandir");
 			printf(" =>path:%s\n", dirarglist[i]);
@@ -3701,7 +3785,8 @@ main(int argc, char *argv[])
 // printf("default threads: %d\n", omp_get_num_threads());
 // omp_set_num_threads(p->nth);
 // #pragma omp parallel for
-#pragma omp parallel for num_threads( (p->nth > 512) ? 32 : 4)
+// #pragma omp parallel for schedule(dynamic, 3)
+#pragma omp parallel for num_threads( (p->nth > 512) ? 32 : 3)
 #endif
 		for (int j=0; j<p->nth; j++) {
 			// ファイル名の登録
@@ -3856,8 +3941,7 @@ main(int argc, char *argv[])
 		}
 
 		// --------------------------------------------------------------------------------
-		// -z size_sort は short でも使うので、SHOW_LONG とは別に
-		if (cfg.format_size || cfg.size_sort) {
+		if (cfg.format_size) {
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
@@ -4042,6 +4126,12 @@ main(int argc, char *argv[])
 		if (cfg.do_emacs) {
 			debug printStr(label, "emacs:\n");
 
+			// グルーピングするために sort
+			for (int j=0; j<p->nth; j++) {
+				fnamelist[j].sortc = fnamelist[j].name;
+			}
+			qsort(fnamelist, p->nth, sizeof(struct FNAME), myAlphaSort);
+
 			struct DLIST *extensionduplist;
 			extensionduplist = mallocDuplist("", 0);
 
@@ -4067,7 +4157,7 @@ main(int argc, char *argv[])
 				}
 
 				// --------------------------------------------------------------------------------
-				// 2 つの名称を比較して、どの程度同じか判断する、、、、.el, .elc なら、[i] の方がファイル名が長いはず
+				// 2 つの名称を比較して、どの程度同じか判断する、、、、.el, .elc なら、[j] の方がファイル名が長いはず
 				float m = matchPercent(fnamelist[j - 1], fnamelist[j]);
 
 				debug printf(" %.2f: %s\n", m, fnamelist[j].name);
@@ -4269,12 +4359,7 @@ main(int argc, char *argv[])
 
 		// --------------------------------------------------------------------------------
 #ifdef DEBUG
-		debug printStr(label, "scandir/qsort:\n");
-		printf(" scandir: ");
-		if (comparefunc == NULL)                { printf("NULL\n");                }
-		if (comparefunc == compareNameLength)   { printf("compareNameLength\n");   }
-		if (comparefunc == compareNameAlphabet) { printf("compareNameAlphabet\n"); }
-
+		debug printStr(label, "qsort:\n");
 		printf(" qsort:   ");
 		if (sortfunc == NULL)           { printf("NULL\n");           }
 		if (sortfunc == myAlphaSort)    { printf("myAlphaSort\n");    }
@@ -4288,10 +4373,19 @@ main(int argc, char *argv[])
 		// ================================================================================
 		// 全データに対して行う処理
 
-		// 表示用にソートする
-		if (sortfunc) {
+		// 表示用にアルファベット順でソートする
+		if (strlen(cfg.formatSortString) == 0 && cfg.no_sort == 0) {
+			strcpy(cfg.formatSortString, "n");
+			toggleFunction(&cfg.name_sortfunc, myAlphaSort, myAlphaSortRev);
+			sortfunc = cfg.name_sortfunc;
+			toggleFunction(&cfg.name_sortfunc, myAlphaSort, myAlphaSortRev);
+
+			for (int j=0; j<p->nth; j++) {
+				fnamelist[j].sortc = fnamelist[j].name;
+			}
 			qsort(fnamelist, p->nth, sizeof(struct FNAME), sortfunc);
 		}
+		rowSort(fnamelist, p->nth, cfg, sortfunc);
 
 #ifdef DEBUG
 		printf("\n");
@@ -4372,6 +4466,9 @@ main(int argc, char *argv[])
 	printf("\n");
 	showCountFunc();
 #endif
+
+	// setvbuf()
+// 	fflush(stdout);
 
 	return (EXIT_SUCCESS);
 }
