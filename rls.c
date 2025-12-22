@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "12/21"
-#define BTIME "06:44:12"
+#define BDATE "12/22"
+#define BTIME "23:35:36"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 12/21 06:38"
+// my-last-update-time "2025, 12/22 23:35"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -587,7 +587,6 @@ struct FNAME {
 	CLIST color;					// 表示色
 
 	int sourcelist;					// check の対象にするか/しないか
-	int targetlist;					// uniqueCheck(), uniqueCheckFirstWord() の対象にするか/しないか
 	int showlist;					// 表示するか/しないか
 };
 
@@ -1186,7 +1185,6 @@ addFNamelist(struct FNAME *p, char *name)
 
 	// uniqueCheck(), uniqueCheckFirstWord() 候補
 	p->sourcelist = 1;
-	p->targetlist = 1;
 	// 全表示候補
 	p->showlist = SHOW_SHORT;	// デフォルトは printShort()
 }
@@ -1269,7 +1267,6 @@ debug_displayAllQsortdata(struct FNAME *data, int n, struct ALIST cfg)
 		printf("[%2d,%2d] ", data[i].uniquebegin, data[i].uniqueend);
 		printf("sh:%2d ", data[i].showlist);			// -1(error), 0(非表示), 1(short), 2(long)
 		printf("sr:%2d ", data[i].sourcelist);
-		printf("tr:%2d ", data[i].targetlist);
 		printName(data[i], data[i].name, cfg);			// name
 		if (strcmp(data[i].name, data[i].lowername)) {
 			printf("  lower:[%s]", data[i].lowername);
@@ -2694,13 +2691,15 @@ orderSort(int showorder[], struct DENT dent[], int dirarg)
 
 // -f で指定された項目で sort
 void
-rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg, int (*sortfunc)(const void *, const void *))
+rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 {
 	debug printStr(label, "rowSort:\n");
 
+	int (*sortfunc)(const void *, const void *);
 	// sn など複数指定を行う、、、、reverse で処理するのが良さげ
 	for (int i=strlen(cfg.formatSortString) -1; i>=0; i--) {
 		debug printf(" [%c]\n", cfg.formatSortString[i]);
+		sortfunc = NULL;
 		for (int j=0; j<nth; j++) {
 
 			// path は無しで
@@ -3015,6 +3014,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 	}
 
 	// --------------------------------------------------------------------------------
+	// !! ここからは、progressAlist() か
 	// -f で行う内容を決定
 	for (int i=0; cfg->formatListString[i] != '\0'; i++) {
 		switch (cfg->formatListString[i]) {
@@ -3040,6 +3040,13 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 
 			case 'l': case 'L': cfg->format_link++; break;
 		}
+	}
+
+	// --------------------------------------------------------------------------------
+	// -S > -F、ソートしない
+	// 本当は progressAlist() だけど、-F の xxx_softfunc を考えるとここで初期化
+	if (cfg->no_sort) {
+		cfg->formatSortString[0] = '\0';
 	}
 
 	// --------------------------------------------------------------------------------
@@ -3514,11 +3521,8 @@ main(int argc, char *argv[])
 	}
 
 	// --------------------------------------------------------------------------------
-	int (*sortfunc)(const void *, const void *);							// 表示時のソート
-
 	// デフォルトは、uniqueCheck() 向けの設定
 	printName = printUnique;			// uniqueCheck(), uniqueCheckFirstWord() 結果を表示する
-	sortfunc = NULL;
 
 	// --------------------------------------------------------------------------------
 	// default color text を格納
@@ -3559,10 +3563,10 @@ main(int argc, char *argv[])
 	}
 
 	// ================================================================================
+	// 依存・関連する argv の処理
 	progressAlist(&cfg);
 
-	// ================================================================================
-	// 依存・関連する argv の処理
+	// --------------------------------------------------------------------------------
 	// dirent 引数無しなので、./ をリストに加える
 	if (dirarg == 0) {
 		strcpy(dirarglist[0], "./");
@@ -3576,12 +3580,6 @@ main(int argc, char *argv[])
 	}
 
 	// --------------------------------------------------------------------------------
-	// ソートしない
-	if (cfg.no_sort) {
-		sortfunc = NULL;
-	}
-
-	// ================================================================================
 	// argv[i] は順不同なので、優先順位を実装
 	if (cfg.no_color) {
 		// 色の初期化
@@ -3646,39 +3644,12 @@ main(int argc, char *argv[])
 	int showorder[dirarg];
 
 	// 初期化
+	memset(dent, 0, sizeof(dent));
 	for (int i=0; i<dirarg; i++) {
 		dent[i].path = dirarglist[i];
-		dent[i].nth = 0;
-
-		dent[i].is_file = 0;
 		memset(dent[i].is_filename, 0, sizeof(dent[i].is_filename));
-
-		dent[i].inode_digits  = 0;
-		dent[i].nlink_digits  = 0;
-		dent[i].mode_digits   = 0;
-		dent[i].owner_digits  = 0;
-		dent[i].group_digits  = 0;
-		dent[i].size_digits   = 0;
-		dent[i].sizec_digits  = 0;
-		dent[i].count_digits  = 0;
-		dent[i].countc_digits = 0;
-		dent[i].date_digits   = 0;
-		dent[i].time_digits   = 0;
-		dent[i].week_digits   = 0;
-		dent[i].path_digits   = 0;
-		dent[i].unique_digits = 0;
-		dent[i].name_digits   = 0;
-		dent[i].kind_digits   = 0;
-		dent[i].linkname_digits  = 0;
-		dent[i].errnostr_digits  = 0;
-		dent[i].extension_digits = 0;
-#ifdef MD5
-		dent[i].md5_digits    = 0;
-#endif
-
 		// non-unique リストの初期化
 		dent[i].duplist = mallocDuplist("", 0);
-
 		showorder[i] = i;
 	}
 
@@ -3870,8 +3841,8 @@ main(int argc, char *argv[])
 	// ================================================================================
 	// データの加工
 	// fnamelist の処理、uniqueCheck() 対象のデータの選別
+	// !! sorucelist が do_emacs 用になっている
 	// sourcelist: unique check の対象にするか
-	// targetlist: uniqueCheck(), uniqueCheckFirstWord() の対象にするか
 	// showlist:   printShort(), printLong() で表示する対象
 
 	for (int i=0; i<dirarg; i++) {
@@ -4136,7 +4107,6 @@ main(int argc, char *argv[])
 			extensionduplist = mallocDuplist("", 0);
 
 			// 1 個目だけ特別対応
-			fnamelist[0].targetlist = 1;
 			fnamelist[0].sourcelist = 1;
 
 			for (int j=1; j<p->nth; j++) {
@@ -4164,10 +4134,8 @@ main(int argc, char *argv[])
 
 				// 0.75: 3/4 文字、4/5 文字以上同じ (x.el と、x.elc) で無ければ、別のファイルと考える
 				if (m < 0.75) {
-					fnamelist[j].targetlist = 1;
 					fnamelist[j].sourcelist = 1;
 				} else {
-					fnamelist[j].targetlist = -1;
 					fnamelist[j].sourcelist = -1;
 // 長い方に色付け、unique になる確率が上がる
 #if 1
@@ -4176,9 +4144,6 @@ main(int argc, char *argv[])
 
 					// 前のファイル名とほぼ同じだけど、こっちの方がファイル名が長い (x.el と、x.elc)
 					if (fnamelist[j].length > fnamelist[j - 1].length) {
-						fnamelist[j - 1].targetlist = -1;
-						fnamelist[j].targetlist = 1;
-
 						fnamelist[j - 1].sourcelist = -1;
 						fnamelist[j].sourcelist = 1;
 					}
@@ -4230,10 +4195,8 @@ main(int argc, char *argv[])
 					}
 
 					if (fnamelist[j].name[0] == '.') {
-						fnamelist[j].targetlist = 1;
 						fnamelist[j].sourcelist = 1;
 					} else {
-						fnamelist[j].targetlist = -1;
 						fnamelist[j].sourcelist = -1;
 					}
 				}
@@ -4247,10 +4210,8 @@ main(int argc, char *argv[])
 					}
 
 					if (fnamelist[j].name[0] != '.') {
-						fnamelist[j].targetlist = 1;
 						fnamelist[j].sourcelist = 1;
 					} else {
-						fnamelist[j].targetlist = -1;
 						fnamelist[j].sourcelist = -1;
 					}
 				}
@@ -4357,24 +4318,13 @@ main(int argc, char *argv[])
 			}
 		}
 
-		// --------------------------------------------------------------------------------
-#ifdef DEBUG
-		debug printStr(label, "qsort:\n");
-		printf(" qsort:   ");
-		if (sortfunc == NULL)           { printf("NULL\n");           }
-		if (sortfunc == myAlphaSort)    { printf("myAlphaSort\n");    }
-		if (sortfunc == myAlphaSortRev) { printf("myAlphaSortRev\n"); }
-		if (sortfunc == mySizeSort)     { printf("mySizeSort\n");     }
-		if (sortfunc == mySizeSortRev)  { printf("mySizeSortRev\n");  }
-		if (sortfunc == myMtimeSort)    { printf("myMtimeSort\n");    }
-		if (sortfunc == myMtimeSortRev) { printf("myMtimeSortRev\n"); }
-#endif
-
 		// ================================================================================
 		// 全データに対して行う処理
 
 		// 表示用にアルファベット順でソートする
 		if (strlen(cfg.formatSortString) == 0 && cfg.no_sort == 0) {
+			int (*sortfunc)(const void *, const void *);
+
 			strcpy(cfg.formatSortString, "n");
 			toggleFunction(&cfg.name_sortfunc, myAlphaSort, myAlphaSortRev);
 			sortfunc = cfg.name_sortfunc;
@@ -4385,7 +4335,7 @@ main(int argc, char *argv[])
 			}
 			qsort(fnamelist, p->nth, sizeof(struct FNAME), sortfunc);
 		}
-		rowSort(fnamelist, p->nth, cfg, sortfunc);
+		rowSort(fnamelist, p->nth, cfg);
 
 #ifdef DEBUG
 		printf("\n");
