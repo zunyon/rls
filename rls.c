@@ -31,21 +31,21 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "12/22"
-#define BTIME "23:35:36"
+#define BDATE "12/24"
+#define BTIME "22:09:33"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 12/22 23:35"
+// my-last-update-time "2025, 12/24 22:03"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
 //   指定文字情報を含むファイルの選別表示
 // 出力レイアウトの変更
-//   long list 表示では、横方向は -f で、縦方向は -F でソート
+//   long list 表示では、横方向は -f で、縦方向は -F でソート (columnar like)
 //   short list 表示では、リダイレクト時もレイアウトを崩さない
 
 // rls.fish の準備
@@ -2427,8 +2427,7 @@ showUsage(char **argv)
 
 	printf("\n");
 	printf(" If multiple options are specified:\n");
-	printf("  The last option is overwritten: -c, -p, -P, -f, -TB, -TE, -R.\n");
-	printf("  All options are merged:         -m, -z, -N.\n");
+	printf("  The last option is overwritten: -c, -p, -P, -f, -TB, -TE, -R, -F.\n");
 
 	printf("\n");
 	printf(" Options have priority. (Last line of each "); printStr(label, "options:"); printf(")\n");
@@ -2446,30 +2445,29 @@ showUsage(char **argv)
 #endif
 	printf("      [, ], |, ',':specified character is displayed.\n");
 	printf("      ---\n");
-	printf("      d:\"%%b %%e %%H:%%M\" or \"%%b %%e  %%Y\" format,\n");
-	printf("      p:with -l, argv is \"PATH/FILE\" format,\n");
-	printf("      s:size of DIRECTORY and FILE,\n");
+	printf("      d:\"%%b %%e %%H:%%M\" or \"%%b %%e  %%Y\" format.\n");
+	printf("      p:with -l, argv is \"PATH/FILE\" format.\n");
+	printf("      s:size of DIRECTORY and FILE.\n");
 	printf("      c:if FILE, the size of FILE. Otherwise, number of directory entries. (without \".\" and \"..\")\n");
 	printf("      x:word after the last dot, dot is not the beginning character of the filename.\n");
 	printf("      S, C:no comma output.\n");
-	printf("      Upper case is padding off. (Same length: no change in appearance)\n");
+	printf("      Upper case is padding off. (Same length: no change in appearance (m, k, t, w, 5))\n");
 	printf("     -s > -l = -f > default short listing (include file status)\n");
 
 	printf("\n");
-	printStr(label, "Coloring algorithm options:\n");
-	printf(" -u: deep Unique word check. (default check -> deep check)\n");
-	printf(" -b: Beginning of file name. (default check -> beginning check)\n");
-	printf(" "); printStr(normal, "-p"); printf(": Paint the matched string. (-pstring, case insensitive)\n");
-	printf(" -e: paint Elisp like file unique group name word check.\n");
-	printf("     -p > -u > -b = -e > default unique word check algorithm\n");
-
-	printf("\n");
-	printStr(label, "Output data options:\n");
-	printf(" -a: show All dot files.\n");
-	printf(" -o: with -a, show Only directories. (-s > -o > [FILE])\n");
-	printf(" -O: show Only files.\n");
-	printf(" "); printStr(normal, "-P"); printf(": like -p, Pickup only the string matched. (-Pstring, case sensitive)\n");
-	printf("     -P = -O > -o > -a\n");
+	printStr(label, "Sort options:\n");
+	printf(" "); printStr(normal, "-F"); printf(": change the sort order. (default: -Fn)\n");
+	printf("      item is 1st, 2nd, 3rd, ..., sort order item.\n");
+	printf("      duplicates of the same item is a Reverse sort instruction. (-Fnss: 1st:name, 2nd:reverse size sort)\n");
+	printf("       alphabet: m:mode, o:owner, g:group, n:name, k:kind, l:linkname, e:errno, w:week, u:uniqueword, x:extension.\n");
+#ifdef MD5
+	printf("                 5:MD5 message digest.\n");
+#endif
+	printf("       size:     i:inode, h:hardlinks, s:size, c:count.\n");
+	printf("       mtime:    d:date, t:time.\n");
+	printf("      path (p) is not sort order item.\n");
+	printf(" -S: no Sort order.\n");
+	printf("     -S > -F\n");
 
 	printf("\n");
 	printStr(label, "Color options:\n");
@@ -2493,26 +2491,27 @@ showUsage(char **argv)
 	printf("     -n > -c > -d > %s env color > default color\n", ENVNAME);
 
 	printf("\n");
-	printStr(label, "Sort options:\n");
-	printf(" "); printStr(normal, "-F"); printf(": change the sort order. (default: -Fn)\n");
-	printf("      item is 1st, 2nd, 3rd, ..., sort order item. (-Fns: 1st:name, 2nd:size sort.)\n");
-	printf("      duplicates of the same item is a Reverse sort instruction.\n");
-	printf("       alphabet: m:mode, o:owner, g:group, n:name, k:kind, l:linkname, e:errno, w:week, u:uniqueword, x:extension.\n");
-#ifdef MD5
-	printf("                 5:MD5 message digest.\n");
-#endif
-	printf("       size:     i:inode, h:hardlinks, s:size, c:count.\n");
-	printf("       mtime:    d:date, t:time.\n");
-	printf("      path (p) is not sort order item.\n");
-	printf(" -S: no Sort order.\n");
-	printf("     -S > -F\n");
+	printStr(label, "Coloring algorithm options:\n");
+	printf(" -u: deep Unique word check. (default check -> deep check)\n");
+	printf(" -b: Beginning of file name. (default check -> beginning check)\n");
+	printf(" "); printStr(normal, "-p"); printf(": Paint the matched string. (-pstring, case insensitive)\n");
+	printf(" -e: paint Elisp like file unique group name word check.\n");
+	printf("     -p > -u > -b = -e > default unique word check algorithm\n");
+
+	printf("\n");
+	printStr(label, "Output data options:\n");
+	printf(" -a: show All dot files.\n");
+	printf(" -o: with -a, show Only directories. (-s > -o > [FILE])\n");
+	printf(" -O: show Only files.\n");
+	printf(" "); printStr(normal, "-P"); printf(": like -p, Pickup only the string matched. (-Pstring, case sensitive)\n");
+	printf("     -P = -O > -o > -a\n");
 
 	printf("\n");
 	printStr(label, "Additional options:\n");
 	printf(" -t: with -l, human-readable daTe. (-f with date)\n");
 	printf(" -i: with -l, human-readable sIze. (-f with count, size, hardlinks)\n");
 	printf(" -w: with -l, day of the week, month Without abbreviation. (-f with week, date (month))\n");
-	printf(" "); printStr(label, "-X"); printf(": show extension Results.\n");
+	printf(" "); printStr(label, "-X"); printf(": show eXtension results.\n");
 	printf(" "); printStr(label, "-r"); printf(": show aggregate Results.\n");
 	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \"paint\" color. (-Rnumber)\n");
 	printf("     -r = -R = -E = -i = -t > -w\n");
@@ -3453,12 +3452,6 @@ main(int argc, char *argv[])
 #endif
 
 	// ================================================================================
-	// makeDate() 用の初期化
-	// プログラム開始直後 (大体今) を1回だけ
-	time_t lt;
-	lt = time(NULL);
-
-	// ================================================================================
 	// default 値の設定
 	struct ALIST cfg = {
 		.onlyPaintStr[0] = '\0',
@@ -3545,6 +3538,12 @@ main(int argc, char *argv[])
 		}
 	}
 
+	// dirent 引数無しなので、./ をリストに加える
+	if (dirarg == 0) {
+		strcpy(dirarglist[0], "./");
+		dirarg = 1;
+	}
+
 	// ================================================================================
 	// 出力先ターミナルサイズの取得
 	if (cfg.show_simple || cfg.show_long == 0) {
@@ -3553,7 +3552,10 @@ main(int argc, char *argv[])
 
 	// --------------------------------------------------------------------------------
 // 	char buffer[65536];
+// 	char buffer[1048576];
 // 	setvbuf(stdout, buffer, _IOFBF, sizeof(buffer));
+// '\n' があると遅いみたい
+// 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	// --------------------------------------------------------------------------------
 	// 出力先の確認
@@ -3565,13 +3567,6 @@ main(int argc, char *argv[])
 	// ================================================================================
 	// 依存・関連する argv の処理
 	progressAlist(&cfg);
-
-	// --------------------------------------------------------------------------------
-	// dirent 引数無しなので、./ をリストに加える
-	if (dirarg == 0) {
-		strcpy(dirarglist[0], "./");
-		dirarg = 1;
-	}
 
 	// --------------------------------------------------------------------------------
 	// -p 指定文字列で色付け
@@ -3804,18 +3799,6 @@ main(int argc, char *argv[])
 
 			// only_directory の IS_DIRECTORY() で使用
 			makeMode(&fnamelist[j], cfg);		// mode data
-
-#ifdef MD5
-			if (cfg.format_md5) {
-				if (IS_DIRECTORY(fnamelist[j]) != 1) {
-					if (makeMD5(fnamelist[j].name, fnamelist[j].md5) == -1) {
-						strcpy(fnamelist[j].md5,  "-");
-					}
-				} else {
-					strcpy(fnamelist[j].md5,  "-");
-				}
-			}
-#endif
 		}
 
 		// --------------------------------------------------------------------------------
@@ -3841,7 +3824,7 @@ main(int argc, char *argv[])
 	// ================================================================================
 	// データの加工
 	// fnamelist の処理、uniqueCheck() 対象のデータの選別
-	// !! sorucelist が do_emacs 用になっている
+	// !! sourcelist が do_emacs 用になっている
 	// sourcelist: unique check の対象にするか
 	// showlist:   printShort(), printLong() で表示する対象
 
@@ -3890,8 +3873,32 @@ main(int argc, char *argv[])
 
 		// ================================================================================
 		// -f の内容によって、取得する項目を管理する
+
+#ifdef MD5
+		if (cfg.format_md5) {
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				if (IS_DIRECTORY(fnamelist[j]) != 1) {
+					if (makeMD5(fnamelist[j].name, fnamelist[j].md5) == -1) {
+						strcpy(fnamelist[j].md5,  "-");
+					}
+				} else {
+					strcpy(fnamelist[j].md5,  "-");
+				}
+			}
+		}
+#endif
+
+		// --------------------------------------------------------------------------------
 		// makeDate() は pickupString() より前に実施
 		if (cfg.format_date) {
+			// プログラム開始直後 (大体今) を1回だけ
+			time_t lt;
+			lt = time(NULL);
+
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
