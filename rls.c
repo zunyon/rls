@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "12/24"
-#define BTIME "22:09:33"
+#define BDATE "12/25"
+#define BTIME "22:38:56"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 12/24 22:03"
+// my-last-update-time "2025, 12/25 22:37"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -3873,7 +3873,6 @@ main(int argc, char *argv[])
 
 		// ================================================================================
 		// -f の内容によって、取得する項目を管理する
-
 #ifdef MD5
 		if (cfg.format_md5) {
 			for (int j=0; j<p->nth; j++) {
@@ -3881,11 +3880,15 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				if (IS_DIRECTORY(fnamelist[j]) != 1) {
-					if (makeMD5(fnamelist[j].name, fnamelist[j].md5) == -1) {
-						strcpy(fnamelist[j].md5,  "-");
-					}
-				} else {
+				char *fname = fnamelist[j].name;
+				char fullpath[FNAME_LENGTH];
+
+				if (chdir(dirarglist[i]) != 0) {
+					sprintf(fullpath, "%s%s", dirarglist[i], fnamelist[j].name);
+					fname = fullpath;
+				}
+
+				if (IS_DIRECTORY(fnamelist[j]) || (makeMD5(fname, fnamelist[j].md5) == -1)) {
 					strcpy(fnamelist[j].md5,  "-");
 				}
 			}
