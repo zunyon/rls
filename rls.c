@@ -32,14 +32,14 @@
 #define INCDATE
 #define BYEAR "2025"
 #define BDATE "12/27"
-#define BTIME "06:30:42"
+#define BTIME "08:25:03"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 12/27 06:29"
+// my-last-update-time "2025, 12/27 08:22"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -527,6 +527,7 @@ initColor(int default_color, char *argcolor)
 // 表示するファイルの情報
 struct FNAME {
 	struct stat sb;					// st_mode, st_mtime, st_size, st_uid, st_gid を使用
+	int isstat;
 
 	char *info[ListCountd];			// この構造体の文字列要素の先頭
 		char inode[DATALEN];				// inode
@@ -3770,10 +3771,10 @@ main(int argc, char *argv[])
 
 				switch (direntlist[j]->d_type) {
 				  // !! DT_REG には Permission denied のファイルも含まれる
-				  case DT_DIR:  fnamelist[j].kind[0] = '/'; fnamelist[j].color = dir; break;
-				  case DT_FIFO: fnamelist[j].kind[0] = '|'; fnamelist[j].color = fifo; break;
+				  case DT_DIR:  fnamelist[j].kind[0] = '/'; fnamelist[j].color = dir; fnamelist[j].mode[0] = 'd'; break;
+				  case DT_FIFO: fnamelist[j].kind[0] = '|'; fnamelist[j].color = fifo;   break;
 				  case DT_SOCK: fnamelist[j].kind[0] = '='; fnamelist[j].color = socket; break;
-				  case DT_LNK: {fnamelist[j].kind[0] = '@';
+				  case DT_LNK: {fnamelist[j].kind[0] = '@'; fnamelist[j].mode[0] = 'l'; 
 					  // symlink 先のファイル名
 					  ssize_t rlen = readlink(fnamelist[j].name, fnamelist[j].linkname, sizeof(fnamelist[j].linkname) - 1);
 					  if (rlen == -1) {
@@ -3783,13 +3784,15 @@ main(int argc, char *argv[])
 					  }
 					  fnamelist[j].linkname[rlen] = '\0';
 
+					  struct stat sb;
 					  // link 先の sb を取得、link 先がディレクトリか
-					  if (lstat(fnamelist[j].linkname, &fnamelist[j].sb) == -1) {
+					  if (lstat(fnamelist[j].linkname, &sb) == -1) {
 						  // データが取れなかったから異常
 						  fnamelist[j].color = error;
 					  } else {
 						  // ディレクトリだったら / を追記
-						  if ((fnamelist[j].sb.st_mode & S_IFMT) == S_IFDIR) {
+						  if ((sb.st_mode & S_IFMT) == S_IFDIR) {
+							  strcat(fnamelist[j].linkname, "/");
 							  fnamelist[j].color = dir;
 							  fnamelist[j].kind[0] = '/';
 						  }
@@ -3802,7 +3805,8 @@ main(int argc, char *argv[])
 				continue;
 			}
 
-			if (lstat(direntlist[j]->d_name, &fnamelist[j].sb) == -1) {
+			fnamelist[j].isstat = (lstat(direntlist[j]->d_name, &fnamelist[j].sb) == 0) ? 1 : -1;
+			if (fnamelist[j].isstat == -1) {
 				// lstat() が失敗した時の処理 (-l /mnt/c/)
 
 				// 失敗のエラーメッセージを errnostr に格納
@@ -3941,8 +3945,7 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				// !! 本当は、sb をチェックする
-				if (fnamelist[j].mode[1] == '\0') {
+				if (fnamelist[j].isstat == -1) {
 					continue;
 				}
 
@@ -3962,8 +3965,7 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				// !! 本当は、sb をチェックする
-				if (fnamelist[j].mode[1] == '\0') {
+				if (fnamelist[j].isstat == -1) {
 					continue;
 				}
 
@@ -4010,8 +4012,7 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				// !! 本当は、sb をチェックする
-				if (fnamelist[j].mode[1] == '\0') {
+				if (fnamelist[j].isstat == -1) {
 					continue;
 				}
 
@@ -4032,8 +4033,7 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				// !! 本当は、sb をチェックする
-				if (fnamelist[j].mode[1] == '\0') {
+				if (fnamelist[j].isstat == -1) {
 					continue;
 				}
 
