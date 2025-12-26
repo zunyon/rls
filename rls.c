@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "12/25"
-#define BTIME "22:38:56"
+#define BDATE "12/27"
+#define BTIME "06:30:42"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 12/25 22:37"
+// my-last-update-time "2025, 12/27 06:29"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -691,8 +691,6 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 		case S_IFIFO:  c = '|'; p->color = fifo;   p->kind[0] = '|'; break;	// FIFO/pipe         /tmp/fish.ryoma/
 		case S_IFSOCK: c = 's'; p->color = socket; p->kind[0] = '='; break;	// socket            /tmp/tmux-100/
 		case S_IFLNK: {														// symlink
-			struct stat sb;
-
 			c = 'l'; p->kind[0] = '@';
 			if (cfg.format_link) {
 				// symlink 先のファイル名
@@ -705,6 +703,7 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 				}
 				p->linkname[rlen] = '\0';
 
+				struct stat sb;
 				// link 先の sb を取得、link 先がディレクトリか
 				if (lstat(p->linkname, &sb) == -1) {
 					// データが取れなかったから異常
@@ -3764,8 +3763,44 @@ main(int argc, char *argv[])
 			}
 
 			// --------------------------------------------------------------------------------
-			// 表示に関係なく、uniqueCheck(), uniqueCheckFirstWord() で使用
-			// printLong(), printShort() 両方で必要な共通処理
+			// printShort() なら十分
+			if (cfg.show_long == 0) {
+// 				fnamelist[j].kind[0] = '\0';
+				fnamelist[j].kind[1] = '\0';
+
+				switch (direntlist[j]->d_type) {
+				  // !! DT_REG には Permission denied のファイルも含まれる
+				  case DT_DIR:  fnamelist[j].kind[0] = '/'; fnamelist[j].color = dir; break;
+				  case DT_FIFO: fnamelist[j].kind[0] = '|'; fnamelist[j].color = fifo; break;
+				  case DT_SOCK: fnamelist[j].kind[0] = '='; fnamelist[j].color = socket; break;
+				  case DT_LNK: {fnamelist[j].kind[0] = '@';
+					  // symlink 先のファイル名
+					  ssize_t rlen = readlink(fnamelist[j].name, fnamelist[j].linkname, sizeof(fnamelist[j].linkname) - 1);
+					  if (rlen == -1) {
+						  fnamelist[j].color = error;
+						  fnamelist[j].linkname[0] = '\0';
+						  break;
+					  }
+					  fnamelist[j].linkname[rlen] = '\0';
+
+					  // link 先の sb を取得、link 先がディレクトリか
+					  if (lstat(fnamelist[j].linkname, &fnamelist[j].sb) == -1) {
+						  // データが取れなかったから異常
+						  fnamelist[j].color = error;
+					  } else {
+						  // ディレクトリだったら / を追記
+						  if ((fnamelist[j].sb.st_mode & S_IFMT) == S_IFDIR) {
+							  fnamelist[j].color = dir;
+							  fnamelist[j].kind[0] = '/';
+						  }
+					  }
+
+					  break;
+				  }
+				}
+
+				continue;
+			}
 
 			if (lstat(direntlist[j]->d_name, &fnamelist[j].sb) == -1) {
 				// lstat() が失敗した時の処理 (-l /mnt/c/)
@@ -3790,7 +3825,6 @@ main(int argc, char *argv[])
 #ifdef MD5
 					strcpy(fnamelist[j].md5,    "-");
 #endif
-
 					fnamelist[j].showlist = SHOW_LONG;
 				}
 
@@ -3798,7 +3832,7 @@ main(int argc, char *argv[])
 			}
 
 			// only_directory の IS_DIRECTORY() で使用
-			makeMode(&fnamelist[j], cfg);		// mode data
+			makeMode(&fnamelist[j], cfg);
 		}
 
 		// --------------------------------------------------------------------------------
