@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2025"
-#define BDATE "12/27"
-#define BTIME "08:25:03"
+#define BDATE "12/28"
+#define BTIME "14:30:49"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 12/27 08:22"
+// my-last-update-time "2025, 12/28 14:17"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -140,7 +140,7 @@
 #endif
 
 
-// -P で使用、needle はすでに小文字化済み
+// -P で使用、needle は小文字化済み
 #ifdef MYSTRCASESTR
 char *
 myStrcasestr(const char *haystack, const char *needle)
@@ -187,7 +187,7 @@ struct DLIST {
 };
 
 
-// ================================================================================
+// --------------------------------------------------------------------------------
 void
 freeDuplist(struct DLIST *node)
 {
@@ -218,16 +218,11 @@ mallocDuplist(char *word, int len)
 	}
 
 	*new = (struct DLIST) {"", NULL, NULL, 0, len, 0};
-// 	new->length = len;
-// 	new->left = NULL;
-// 	new->right = NULL;
-// 	new->fnamelistNumber = 0;
-// 	new->count = 0;
 
 	if (len) {
 		strncpy(new->dupword, word, len);
+		new->dupword[len] = '\0';
 	}
-	new->dupword[len] = '\0';
 
 	return new;
 }
@@ -259,11 +254,6 @@ addDuplist(struct DLIST *p, char *word, int len, int number)
 	new_node->count++;
 
 	*(ret < 0 ? &prev->left : &prev->right) = new_node;
-// 	if (ret < 0) {
-// 		prev->left = new_node;
-// 	} else {
-// 		prev->right = new_node;
-// 	}
 }
 
 
@@ -859,8 +849,8 @@ makeReadableSize(char *numstr)
 
 
 // --------------------------------------------------------------------------------
+// 指定ディレクトリに含まれているエントリー数を返す
 // -fc のディレクトリ内のエントリー数
-// 指定ディレクトリに含まれているエントリー数を返す、stat() をしないから、chdir() は不要
 int
 countEntry(char *dname, char *path)
 {
@@ -877,8 +867,7 @@ countEntry(char *dname, char *path)
 	}
 
 	DIR *dr;
-	dr = opendir(tmppath);
-	if (dr == NULL) {
+	if ((dr = opendir(tmppath)) == NULL) {
 		return -1;
 	}
 
@@ -920,8 +909,7 @@ makeMD5(char *fname, char *md5)
 	}
 
 	FILE *fp;
-	fp = fopen(fname, "rb");
-	if (fp == NULL) {
+	if ((fp = fopen(fname, "rb")) == NULL) {
 		strcpy(md5, "-");
 		return -1;
 	}
@@ -1053,13 +1041,6 @@ countMatchedString(const char *str)
 	}
 
 	int ret = 0;
-// 	for (int i=0; i<length; i++) {
-// 		if (strncmp(paintString, name + i, paintStringLen) == 0) {
-// 			i += paintStringLen - 1;
-// 			ret++;
-// 		}
-// 	}
-
 	const char *pos = name;
 	while ((pos = strstr(pos, paintString)) != NULL) {
 		ret++;
@@ -1202,7 +1183,6 @@ myAlphaSort(const void *a, const void *b)
 	return strcasecmp(s1->sortc, s2->sortc);
 }
 
-
 int
 myAlphaSortRev(const void *a, const void *b)
 {
@@ -1227,7 +1207,6 @@ mySizeSort(const void *a, const void *b)
 	return (len1 < len2) ? -1 : 1;
 }
 
-// size の大きい順
 int
 mySizeSortRev(const void *a, const void *b)
 {
@@ -1245,7 +1224,6 @@ myMtimeSort(const void *a, const void *b)
 	return ((double) s1->sb.st_mtime - s2->sb.st_mtime < 1) ? 1 : -1;
 }
 
-// mtime の古い順
 int
 myMtimeSortRev(const void *a, const void *b)
 {
@@ -1440,14 +1418,6 @@ uniqueCheck(struct FNAME *p, int j, int len, struct DLIST *duplist)
 
 		if (searchDuplist(duplist, tmp, len, j) == 0) {
 			addDuplist(duplist, tmp, len, j);
-
-// #ifdef DEBUG
-// 			printf("[");
-// 			for (int i=0; i<len; i++) {
-// 				printf("%c", tmp[i]);
-// 			}
-// 			printf("], %d\n", len);
-// #endif
 		}
 	}
 }
@@ -1476,14 +1446,6 @@ uniqueCheckFirstWord(struct FNAME *p, int j, int len, struct DLIST *duplist)
 
 	if (searchDuplist(duplist, tmp, len, j) == 0) {
 		addDuplist(duplist, tmp, len, j);
-
-// #ifdef DEBUG
-// 		printf("[");
-// 		for (int i=0; i<len; i++) {
-// 			printf("%c", tmp[i]);
-// 		}
-// 		printf("], %d\n", len);
-// #endif
 	}
 }
 
@@ -1492,7 +1454,8 @@ uniqueCheckFirstWord(struct FNAME *p, int j, int len, struct DLIST *duplist)
 void
 uniqueCheckEmacs(struct FNAME *p, int j, int len, struct DLIST *duplist)
 {
-	// uniqueCheckEmacs 特有 ----------------------------------------
+	// --------------------------------------------------------------------------------
+	// uniqueCheckEmacs 固有、これ以外は uniqueCheck()
 	char ename[FNAME_LENGTH];
 	strcpy(ename, p[j].lowername);
 
@@ -1538,14 +1501,6 @@ uniqueCheckEmacs(struct FNAME *p, int j, int len, struct DLIST *duplist)
 
 		if (searchDuplist(duplist, tmp, len, j) == 0) {
 			addDuplist(duplist, tmp, len, j);
-
-// #ifdef DEBUG
-// 			printf("[");
-// 			for (int i=0; i<len; i++) {
-// 				printf("%c", tmp[i]);
-// 			}
-// 			printf("], %d\n", len);
-// #endif
 		}
 	}
 }
@@ -1572,7 +1527,7 @@ matchPercent(struct FNAME p1, struct FNAME p2)
 
 
 // ================================================================================
-// 表示用漢字対策
+// 漢字表示対策
 #include <wchar.h>
 int wcwidth(wchar_t c);
 
@@ -1581,7 +1536,7 @@ wcStrlen(struct FNAME p)
 {
 	// ワイド文字列に変換
 	wchar_t wstr[FNAME_LENGTH + 1];
-	size_t wlen = mbstowcs(wstr, p.name, sizeof(wstr)/sizeof(wchar_t) - 1);
+	size_t wlen = mbstowcs(wstr, p.name, sizeof(wstr) / sizeof(wchar_t) - 1);
 	if (wlen == (size_t) -1) {
 		// 変換失敗時はバイト長を返す
 		return strlen(p.name);
@@ -1628,7 +1583,7 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 		  case 'l': case 'L': if (strcasestr(p.linkname, string)) { return 1; } break;
 		  case 'e': case 'E': if (strcasestr(p.errnostr, string)) { return 1; } break;
 #ifdef MD5
-		  case '5':           if (func(p.md5,  string)) { return 1; } break;
+		  case '5':           if (func(p.md5,    string)) { return 1; } break;
 #endif
 		}
 	}
@@ -1797,7 +1752,7 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 				// リダイレクトしてもレイアウトを保つように
 				printName(data[index], data[index].name, cfg);
 				int ret = printKind(data[index], data[index].kind, cfg);
-				// 右が -1 なら出力しない
+				// 表示項目が最後 (右が -1) ならパディング出力しない
 				if (j < row - 1 && rowcolumnlist[j + 1][i] != -1) {
 					printf("%*s", columnlist[j] - data[index].print_length + sep - ret, "");
 				}
@@ -1920,7 +1875,7 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 		for (int j=0; j<flen; j++) {
 			haveAfterdataStr[j] = haveAfterdata(&data[i], cfg.formatListString, j);
 
-			// 一度 0 だった場合、以降はずっと 0
+			// 途中の 0 以降は、最後まで 0
 			if (haveAfterdataStr[j] == 0) {
 // 				printf("%2d:(%c) ", j, cfg.formatListString[j]);
 				for (; cfg.formatListString[j] != '\0'; j++) {
@@ -1963,14 +1918,12 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 
 				debug printf("%c:", cfg.formatListString[j]);
 				printMatchedString(data[i], data[i].info[j], cfg);
-				if (haveAfterdataStr[j] == 0) {
-					continue;
+				if (haveAfterdataStr[j]) {
+					if (digits[(unsigned char) cfg.formatListString[j]]) {
+						printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
+					}
+					printf(" ");
 				}
-				if (digits[(unsigned char) cfg.formatListString[j]]) {
-					printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
-				}
-				printf(" ");
-
 				continue;
 			}
 
@@ -1990,7 +1943,6 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 				if (haveAfterdataStr[j]) {
 					printf(" ");
 				}
-
 				continue;
 			}
 
@@ -2647,7 +2599,7 @@ debug_showArgvswitch(struct ALIST cfg)
 
 // --------------------------------------------------------------------------------
 void
-swap(int *a, int *b)
+mySwap(int *a, int *b)
 {
 	if (a != b) {			// XOR なので、異なる場合にのみ実行
 		*a = *a ^ *b;
@@ -2671,7 +2623,7 @@ orderSort(int showorder[], struct DENT dent[], int dirarg)
 
 		for (int j=0; j<dirarg - i - 1; j++) {
 			if (dent[showorder[j]].is_file == 0 && dent[showorder[j + 1]].is_file == 1) {
-				swap(&showorder[j], &showorder[j + 1]);
+				mySwap(&showorder[j], &showorder[j + 1]);
 				swapped = 1;
 			}
 		}
@@ -2804,8 +2756,6 @@ freeDENT(struct DENT *dent, int dirarg)
 			}
 		}
 
-		// --------------------------------------------------------------------------------
-		// デバッグ情報の表示
 		debug printf(" path: %s\n", dent[i].path);
 
 		freeDuplist(dent[i].duplist);
@@ -3012,8 +2962,16 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 		}
 	}
 
-	// --------------------------------------------------------------------------------
-	// !! ここからは、progressAlist() か
+	return 0;
+}
+
+
+// 各引数の依存関係の処理を行う
+void
+progressAlist(struct ALIST *cfg)
+{
+	debug printStr(label, "progressAlist:\n");
+
 	// -f で行う内容を決定
 	for (int i=0; cfg->formatListString[i] != '\0'; i++) {
 		switch (cfg->formatListString[i]) {
@@ -3043,7 +3001,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 
 	// --------------------------------------------------------------------------------
 	// -S > -F、ソートしない
-	// 本当は progressAlist() だけど、-F の xxx_softfunc を考えるとここで初期化
+	// -F の xxx_softfunc を考えるとここで初期化
 	if (cfg->no_sort) {
 		cfg->formatSortString[0] = '\0';
 	}
@@ -3081,16 +3039,6 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 		}
 	}
 
-	return 0;
-}
-
-
-// 各引数の依存関係の処理を行う
-void
-progressAlist(struct ALIST *cfg)
-{
-	debug printStr(label, "progressAlist:\n");
-
 	// ================================================================================
 	// -f が指定された場合は、long 表示
 	if (cfg->format_list) {
@@ -3098,14 +3046,8 @@ progressAlist(struct ALIST *cfg)
 	}
 
 	// human readable date/size/week は long 表示
-	if (
-		// ただし、-f にその要素があれば
-// 		(cfg->format_size && cfg->readable_size) ||
-// 		(cfg->format_date && (cfg->readable_date || cfg->readable_week))
-
-		// -f にその要素が無くても -l にはする
-		cfg->readable_size || cfg->readable_date || cfg->readable_week
-		) {
+	// -f にその要素が無くても -l にはする
+	if ( cfg->readable_size || cfg->readable_date || cfg->readable_week ) {
 		cfg->show_long++;
 	}
 
@@ -3438,11 +3380,11 @@ main(int argc, char *argv[])
 	// ================================================================================
 	// mytolower() 用の初期化
 #ifdef MYTOLOWER
-	for (int i=0; i<=UCHAR_MAX; i++){
-		map[i] = i;
-	}
-
 	{
+		for (int i=0; i<=UCHAR_MAX; i++){
+			map[i] = i;
+		}
+
 		int len = strlen(upper);
 		for (int i=0; i<len; i++){
 			map[(unsigned char) upper[i]] = lower[i];
