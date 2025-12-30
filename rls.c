@@ -30,16 +30,16 @@
 
 // build date
 #define INCDATE
-#define BYEAR "2025"
-#define BDATE "12/28"
-#define BTIME "14:30:49"
+#define BYEAR "2026"
+#define BDATE "12/31"
+#define BTIME "06:32:55"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 12/28 14:17"
+// my-last-update-time "2025, 12/31 06:30"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -133,7 +133,7 @@
 	// - を _ に変更する
 	const char *upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ-";
 	const char *lower = "abcdefghijklmnopqrstuvwxyz_";
-	int map[UCHAR_MAX + 1];
+	int map[UCHAR_MAX +1];
 
 	#undef tolower
 	#define tolower(i) map[(unsigned char)i]
@@ -206,8 +206,7 @@ mallocDuplist(char *word, int len)
 {
 	struct DLIST *new;
 
-	new = malloc(sizeof(struct DLIST));
-	if (new == NULL) {
+	if ((new = malloc(sizeof(struct DLIST))) == NULL) {
 		perror("malloc");
 		printf(" =>You have no memory. %zu\n", sizeof(struct DLIST));
 		exit(EXIT_FAILURE);
@@ -661,7 +660,7 @@ struct ALIST {
 	char color_txt[sizeof(default_color_txt)];
 	char onlyPaintStr[FNAME_LENGTH + 1];
 
-	int dirarg[256];
+	int dirarg[FNAME_LENGTH];
 
 	unsigned short int termlen;
 	unsigned short int termhei;
@@ -1056,7 +1055,8 @@ void
 printMatchedString(struct FNAME p, const char *str, struct ALIST cfg)
 {
 	// このファイル情報のどれにも該当していない pickupString() されていない
-	if (p.uniqueend == -1 || paintStringLen == 0) {
+// 	if (p.uniqueend == -1 || paintStringLen == 0) {
+	if (paintStringLen == 0) {
 		printStr(base, str);
 		return;
 	}
@@ -1894,9 +1894,11 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 			// --------------------------------------------------------------------------------
 			// 左寄せ項目
 #ifdef MD5
-			if (strchr("mMoOkKgGtTwWIHDuUxX5", (unsigned char) cfg.formatListString[j]))
+// 			if (strchr("mMoOkKgGtTwWIHDuUxX5", (unsigned char) cfg.formatListString[j]))
+			if (strchr("mMoOkKgGtTwWIHDxX5", (unsigned char) cfg.formatListString[j]))
 #else
-			if (strchr("mMoOkKgGtTwWIHDuUxX", (unsigned char) cfg.formatListString[j]))
+// 			if (strchr("mMoOkKgGtTwWIHDuUxX", (unsigned char) cfg.formatListString[j]))
+			if (strchr("mMoOkKgGtTwWIHDxX", (unsigned char) cfg.formatListString[j]))
 #endif
 			{
 				switch ((unsigned char) cfg.formatListString[j]) {
@@ -1909,7 +1911,7 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 				  case 'I':           len = data[i].inodel  + count * cfg.tlen; break;
 				  case 'H':           len = data[i].nlinkl  + count * cfg.tlen; break;
 				  case 'D':           len = data[i].datel   + count * cfg.tlen; break;
-				  case 'u': case 'U': len = data[i].uniquel + count * cfg.tlen; break;
+// 				  case 'u': case 'U': len = data[i].uniquel + count * cfg.tlen; break;
 				  case 'x': case 'X': len = data[i].extensionl + count * cfg.tlen; break;
 #ifdef MD5
 				  case '5':           len = data[i].md5l    + count * cfg.tlen; break;
@@ -2029,6 +2031,22 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 					if (cfg.formatListString[j + 1] != 'k' && cfg.formatListString[j + 1] != 'K') {
 						printf(" ");
 					}
+				}
+				break;
+
+			  // 個別対応
+			  case 'u': case 'U':
+				debug printf("%c:", cfg.formatListString[j]);
+				len = data[i].uniquel + count * cfg.tlen;
+// 				printf("\033[4m");
+// 				printf("\033[100m");
+				printMatchedString(data[i], data[i].info[j], cfg);
+// 				printEscapeColor(reset);
+				if (haveAfterdataStr[j]) {
+					if (digits[(unsigned char) cfg.formatListString[j]]) {
+						printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
+					}
+					printf(" ");
 				}
 				break;
 
@@ -2169,14 +2187,11 @@ printAggregate(struct FNAME *fnamelist, int nth, int aggregate_length)
 		}
 		displaycount++;
 
-		// paint_string は -1 -> 1 を設定
+		// paint_string は -1 -> paintStringLen を設定
 		if (fnamelist[i].uniqueend != -1) {
 			if (fnamelist[i].uniquebegin != -1) {
 				int len = fnamelist[i].uniqueend - fnamelist[i].uniquebegin + 1;
 				count_chklen[len]++;
-			} else {
-				// paintString を格納すると長さがわかる
-				count_chklen[paintStringLen]++;
 			}
 			hitcount++;
 		}
@@ -3063,7 +3078,8 @@ progressAlist(struct ALIST *cfg)
 	}
 
 	// -p 指定文字列で色付け
-	if (cfg->paint_string) {
+	if (cfg->paint_string && (cfg->format_unique == 0)) {
+		// -fu がある場合は、uniqueCheck() を行う
 		cfg->do_uniquecheck = 0;
 		cfg->deep_unique = 0;
 		cfg->beginning_word = 0;
@@ -3150,7 +3166,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 
 		int k = 0;
 		if (cfg.show_long) {
-			int digits[256] = {0};
+			int digits[UCHAR_MAX +1] = {0};
 
 			// is_file たちのそれぞれの最大桁数を記録する
 			for (int i=0; i<dirarg; i++) {
@@ -3284,7 +3300,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		fnamelist = p->fnamelist;
 
 		// 各 digis に対応するポインタを配列に格納
-		int digits[256] = {0};
+		int digits[UCHAR_MAX +1] = {0};
 		if (cfg.show_long) {
 			digits['i'] = p->inode_digits;
 			digits['h'] = p->nlink_digits;
@@ -3402,11 +3418,7 @@ main(int argc, char *argv[])
 
 		// --------------------------------------------------------------------------------
 		// Control Sequence Introducer
-		// https://en.wikipedia.org/wiki/ANSI_escape_code
-		// https://kmiya-culti.github.io/RLogin/ctrlcode.html			2.7.2 CSI
-
 		// 属性 太=1, (細=2), イタリック=3, 下線=4, 点滅=5, (速い点滅=6), 文字/背景の反転=7, (隠す=8), 取消=9, 2重下線=21, 上線=53
-
 		.color_txt = 
 		   // 8 色
 		   "base=37:normal=34:dir=36:fifo=33:socket=35:device=33:error=31:paint=32:"					// 文字色
@@ -3823,7 +3835,6 @@ main(int argc, char *argv[])
 			for (int j=0; j<p->nth; j++) {
 				if (strcmp(p->is_filename, fnamelist[j].name) != 0) {
 					fnamelist[j].showlist = SHOW_NONE;		// 指定されたファイル以外、非表示設定
-// 					fnamelist[j].sourcelist = -1;			// 検索候補からも除外
 				} else {
 					// 引数のファイル
 					count++;
@@ -3959,8 +3970,7 @@ main(int argc, char *argv[])
 				}
 
 				struct passwd *pw;
-				pw = getpwuid(fnamelist[j].sb.st_uid);					// owner
-				if (pw == NULL) {
+				if ((pw = getpwuid(fnamelist[j].sb.st_uid)) == NULL) {
 					perror("getpwuid");
 					printf(" =>Y%s\n", fnamelist[j].name);
 					exit(EXIT_FAILURE);
@@ -3980,8 +3990,7 @@ main(int argc, char *argv[])
 				}
 
 				struct group *gr;
-				gr = getgrgid(fnamelist[j].sb.st_gid);					// group
-				if (gr == NULL) {
+				if ((gr = getgrgid(fnamelist[j].sb.st_gid)) == NULL) {
 					perror("getgrgid");
 					printf(" =>Y%s\n", fnamelist[j].name);
 					exit(EXIT_FAILURE);
@@ -4021,7 +4030,6 @@ main(int argc, char *argv[])
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].name[0] == '.') {
 					fnamelist[j].showlist = SHOW_NONE;		// 非表示設定
-// 					fnamelist[j].sourcelist = -1;			// 検索候補からも除外
 				}
 			}
 		}
@@ -4032,7 +4040,6 @@ main(int argc, char *argv[])
 			for (int j=0; j<p->nth; j++) {
 				if (IS_DIRECTORY(fnamelist[j]) != 1) {
 					fnamelist[j].showlist = SHOW_NONE;
-// 					fnamelist[j].sourcelist = -1;		// 検索候補から除外
 				}
 			}
 		}
@@ -4042,7 +4049,6 @@ main(int argc, char *argv[])
 			for (int j=0; j<p->nth; j++) {
 				if (IS_DIRECTORY(fnamelist[j])) {
 					fnamelist[j].showlist = SHOW_NONE;
-// 					fnamelist[j].sourcelist = -1;		// 検索候補から除外
 				}
 			}
 		}
@@ -4149,21 +4155,6 @@ main(int argc, char *argv[])
 		}
 
 		// ================================================================================
-		// 指定文字列に着色する
-		if (cfg.paint_string) {
-			for (int j=0; j<p->nth; j++) {
-				if (fnamelist[j].showlist == SHOW_NONE) {
-					continue;
-				}
-
-				if (pickupString(fnamelist[j], paintString, cfg.formatListString, strcasestr) == 1) {
-					// hit した記録、aggregate_results でカウント
-					fnamelist[j].uniqueend = 1;
-				}
-			}
-		}
-
-		// --------------------------------------------------------------------------------
 		// unique 文字列に着色する
 		if (cfg.do_uniquecheck) {
 			if (cfg.beginning_word) {
@@ -4172,7 +4163,7 @@ main(int argc, char *argv[])
 			} else {
 				// 対象を分けて、uniqueCheckFirstWord() の次に uniqueCheck() を行う
 				// 今は、. から始まるファイル名と、そうでないファイル名が競合しないからこうしている
-				// 例えば、.bash_history[y] と R[Y]OMA、uniqueCheck() だけにすると、R[YO]MA に変わる
+				// 例えば、.bash_histor[y] と R[Y]OMA、uniqueCheck() だけにすると、R[YO]MA に変わる
 #if 1
 				// dotfile のみに uniqueCheckFirstWord()
 				for (int j=0; j<p->nth; j++) {
@@ -4210,7 +4201,7 @@ main(int argc, char *argv[])
 
 		// --------------------------------------------------------------------------------
 		// ユニーク文字列
-		// !! エスケープ文字列も表示、該当なしと、' ' の差がわからないから
+		// !! エスケープ文字列も表示、該当なしと、' ' の差がわからないから、printLong() の中で個別対応を考える
 		if (cfg.format_unique) {
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
@@ -4221,6 +4212,26 @@ main(int argc, char *argv[])
 					int len = fnamelist[j].uniqueend - fnamelist[j].uniquebegin + 1;
 					strncpy(fnamelist[j].unique, fnamelist[j].name + fnamelist[j].uniquebegin, len);
 					fnamelist[j].unique[len] = '\0';
+				}
+			}
+		}
+
+		// --------------------------------------------------------------------------------
+		// 指定文字列に着色する
+		if (cfg.paint_string) {
+			for (int j=0; j<p->nth; j++) {
+				fnamelist[j].uniquebegin = -1;
+				fnamelist[j].uniqueend = -1;
+
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				if (pickupString(fnamelist[j], paintString, cfg.formatListString, strcasestr) == 1) {
+					// hit した記録、aggregate_results でカウント
+					fnamelist[j].uniquebegin = 0;
+					fnamelist[j].uniqueend = cfg.aggregate_length;
+					fnamelist[j].uniqueend = paintStringLen -1;
 				}
 			}
 		}
@@ -4351,16 +4362,16 @@ main(int argc, char *argv[])
 				}
 
 				// 各文字に対応するポインタを配列に格納
-				char *info_pointers[256] = {NULL};
+				char *info_pointers[UCHAR_MAX +1] = {NULL};
 				info_pointers['i'] = info_pointers['I'] = fnamelist[j].inode;
 				info_pointers['h'] = info_pointers['H'] = fnamelist[j].nlink;
 				info_pointers['m'] = info_pointers['M'] = fnamelist[j].mode;
 				info_pointers['o'] = info_pointers['O'] = fnamelist[j].owner;
 				info_pointers['g'] = info_pointers['G'] = fnamelist[j].group;
-				info_pointers['S']                      = fnamelist[j].size;
-				info_pointers['s']                      = fnamelist[j].sizec;
-				info_pointers['C']                      = fnamelist[j].count;
-				info_pointers['c']                      = fnamelist[j].countc;
+				info_pointers['S'] =                      fnamelist[j].size;
+				info_pointers['s'] =                      fnamelist[j].sizec;
+				info_pointers['C'] =                      fnamelist[j].count;
+				info_pointers['c'] =                      fnamelist[j].countc;
 				info_pointers['d'] = info_pointers['D'] = fnamelist[j].date;
 				info_pointers['t'] = info_pointers['T'] = fnamelist[j].time;
 				info_pointers['w'] = info_pointers['W'] = fnamelist[j].week;

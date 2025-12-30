@@ -245,19 +245,14 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 
 ## v0.3.0 からの変更内容
 - add `-R` の追加，指定数字の文字列長さを paint 色で表示
-- add `-f` の項目追加（`|`, `,`, `S`, `C`, `u`, `U`, 'x', 'X'）
-- add `-w` の追加，英語表期の場合，月，曜日などを省略せずに表示
+- add `-f` の項目追加（`|`, `,`, `S`, `C`, `u`, `U`, `x`, `X`）
+- add `-w` の追加，英語表記の場合，月，曜日などを省略せずに表示
 - chg `-O` から `-S` へ変更，ソートを行わない
 - add `-O` の追加，ディレクトリを非表示
 - chg `main()` の initColor() のタイミング変更
 - chg `colorUsage()` の処理修正
 - fix `printAggregate()` の displaycount が 0 の時の処理修正
-- add `freeDENT()` の追加
-- fix `haveAfterdata()` のチェックを orderlist の最後までに修正
 - add `-X` の追加，拡張子の集計表示
 - add OpenMP への対応
-- add `-F` の追加，項目単位でソート（`-m`, `-z`, `-N` の廃止）
-  - add `rowSort()` の追加
-  - add `toggleFunction()` ソート関数の昇順/降順の切り替え
-  - chg `countEntry()` のカウント方法の変更
-  - chg `myAlphaSort()`, `mySizeSort()` の `-F` 対応
+- del `-m`, `-z`, `-N` の廃止（`-F` にリプレース）
+- add `-F` の追加，項目単位でソート（`p` を除く `-f` の全項目単位）
