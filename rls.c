@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "12/31"
-#define BTIME "06:32:55"
+#define BDATE "01/01"
+#define BTIME "02:51:46"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2025, 12/31 06:30"
+// my-last-update-time "2026, 01/01 02:51"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1052,7 +1052,7 @@ countMatchedString(const char *str)
 
 // -p 時の色分け文字列表示
 void
-printMatchedString(struct FNAME p, const char *str, struct ALIST cfg)
+printMatchedString(struct FNAME dummy, const char *str, struct ALIST cfg)
 {
 	// このファイル情報のどれにも該当していない pickupString() されていない
 // 	if (p.uniqueend == -1 || paintStringLen == 0) {
@@ -1101,6 +1101,10 @@ printMatchedString(struct FNAME p, const char *str, struct ALIST cfg)
 	printf("%s", orig_ptr);
 
 	printEscapeColor(reset);
+
+	// dummy
+	if (dummy.name == NULL) {
+	}
 }
 
 
@@ -1615,6 +1619,20 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 			continue;
 		}
 
+		// termlen より長いファイル名があるので、並べられない
+		if (data[i].print_length > cfg.termlen / 2) {
+			for (int i=0; i<n; i++) {
+				if (data[i].showlist != SHOW_SHORT) {
+					continue;
+				}
+				printName(data[i], data[i].name, cfg);
+				printKind(data[i], data[i].kind, cfg);
+				printf("\n");
+// 				debug printshort_count++;
+			}
+			return;
+		}
+
 		nth++;
 	}
 	debug printf(" nth:%d\n", nth);
@@ -1651,8 +1669,8 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 		int col = repeat;
 		int row = nth/col + 1;
 
-		// row の数が、termlen/3 以下になるように
-		if (row > cfg.termlen/3) {
+		// row の数が、termlen/2 以下になるように
+		if (row > cfg.termlen/2) {
 			continue;
 		}
 
@@ -1664,7 +1682,7 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 		int columnlist[row + 1];
 		memset(columnlist, -1, sizeof(columnlist));
 
-// 		// --------------------------------------------------------------------------------
+		// --------------------------------------------------------------------------------
 		// termlen に達するか、全部配置していく
 		int count = 0;
 		int maxlength = 0;
@@ -1786,20 +1804,6 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 		debug printf(" attempts count: %d\n", attempts);
 
 		return;
-	}
-
-
-	// --------------------------------------------------------------------------------
-	// termlen より長いファイル名がある
-	for (int i=0; i<n; i++) {
-		if (data[i].showlist != SHOW_SHORT) {
-			continue;
-		}
-		printName(data[i], data[i].name, cfg);
-		printKind(data[i], data[i].kind, cfg);
-		printf("\n");
-
-		debug printshort_count++;
 	}
 
 	debug printf("printShort: %d/%d\n", printshort_count, nth);
@@ -2481,7 +2485,7 @@ showUsage(char **argv)
 	printf(" "); printStr(label, "-X"); printf(": show eXtension results.\n");
 	printf(" "); printStr(label, "-r"); printf(": show aggregate Results.\n");
 	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \"paint\" color. (-Rnumber)\n");
-	printf("     -r = -R = -E = -i = -t > -w\n");
+	printf("     -r = -R = -X = -i = -t > -w\n");
 
 	printf("\n");
 	printStr(label, "Other options:\n");
@@ -3087,6 +3091,7 @@ progressAlist(struct ALIST *cfg)
 	}
 
 	// simple 表示は long にしない (ファイルの種類を問わず単色表示)
+	// !! 速度のの見直し、time ./a.out /mnt/c/Windows/WinSxS/ -s とかなら差は出る
 	if (cfg->show_simple) {
 		cfg->show_long = 0;
 		cfg->readable_date = 0;
@@ -4220,6 +4225,7 @@ main(int argc, char *argv[])
 		// 指定文字列に着色する
 		if (cfg.paint_string) {
 			for (int j=0; j<p->nth; j++) {
+				// printAggregate() で paint 以外をカウントしないように初期化
 				fnamelist[j].uniquebegin = -1;
 				fnamelist[j].uniqueend = -1;
 
