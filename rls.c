@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "01/01"
-#define BTIME "02:51:46"
+#define BDATE "01/03"
+#define BTIME "17:02:16"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 01/01 02:51"
+// my-last-update-time "2026, 01/03 09:56"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1619,20 +1619,6 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 			continue;
 		}
 
-		// termlen より長いファイル名があるので、並べられない
-		if (data[i].print_length > cfg.termlen / 2) {
-			for (int i=0; i<n; i++) {
-				if (data[i].showlist != SHOW_SHORT) {
-					continue;
-				}
-				printName(data[i], data[i].name, cfg);
-				printKind(data[i], data[i].kind, cfg);
-				printf("\n");
-// 				debug printshort_count++;
-			}
-			return;
-		}
-
 		nth++;
 	}
 	debug printf(" nth:%d\n", nth);
@@ -1668,11 +1654,6 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 		// 初期化
 		int col = repeat;
 		int row = nth/col + 1;
-
-		// row の数が、termlen/2 以下になるように
-		if (row > cfg.termlen/2) {
-			continue;
-		}
 
 		// 2 次元配列を確保
 		int rowcolumnlist[row][col];
@@ -1804,6 +1785,20 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 		debug printf(" attempts count: %d\n", attempts);
 
 		return;
+	}
+
+
+	// --------------------------------------------------------------------------------
+	// termlen より長いファイル名がある
+	for (int i=0; i<n; i++) {
+		if (data[i].showlist != SHOW_SHORT) {
+			continue;
+		}
+		printName(data[i], data[i].name, cfg);
+		printKind(data[i], data[i].kind, cfg);
+		printf("\n");
+
+		debug printshort_count++;
 	}
 
 	debug printf("printShort: %d/%d\n", printshort_count, nth);
@@ -2038,10 +2033,9 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 				}
 				break;
 
-			  // 個別対応
 			  case 'u': case 'U':
-				debug printf("%c:", cfg.formatListString[j]);
 				len = data[i].uniquel + count * cfg.tlen;
+				debug printf("%c:", cfg.formatListString[j]);
 // 				printf("\033[4m");
 // 				printf("\033[100m");
 				printMatchedString(data[i], data[i].info[j], cfg);
@@ -2073,7 +2067,9 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 					if (digits[(unsigned char) cfg.formatListString[j]]) {
 						printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
 					}
-					printf(" ");
+					if (cfg.formatListString[j] == 'l') {
+						printf(" ");
+					}
 				}
 				break;
 
@@ -2095,7 +2091,9 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 					if (digits[(unsigned char) cfg.formatListString[j]]) {
 						printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
 					}
-					printf(" ");
+					if (cfg.formatListString[j] == 'e') {
+						printf(" ");
+					}
 				}
 				break;
 
@@ -2408,7 +2406,7 @@ showUsage(char **argv)
 	printStr(label, "Listing format options:\n");
 	printf(" -s: Short listing format. (no kind, one color)\n");
 	printf(" -l: Long listing format.\n");
-	printf(" "); printStr(normal, "-f"); printf(": with -l, change Format orders. (default: -fmogcdPNkLE)\n");
+	printf(" "); printStr(normal, "-f"); printf(": with -l, change Format orders. (default: -fmogcdPNKLE)\n");
 	printf("      m:mode, o:owner, g:group, c:count, d:date, p:path, n:name, k:kind, l:linkname, e:errno,\n");
 	printf("      i:inode, h:hardlinks, s:size, t:time, w:week, u:uniqueword, x:extension.\n");
 #ifdef MD5
@@ -3418,7 +3416,7 @@ main(int argc, char *argv[])
 	// default 値の設定
 	struct ALIST cfg = {
 		.onlyPaintStr[0] = '\0',
-		.formatListString = "mogcdPNkLE",
+		.formatListString = "mogcdPNKLE",
 		.formatSortString = "",																			// -f の sort 指定
 
 		// --------------------------------------------------------------------------------
