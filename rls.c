@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "01/03"
-#define BTIME "17:02:16"
+#define BDATE "01/04"
+#define BTIME "17:50:56"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 01/03 09:56"
+// my-last-update-time "2026, 01/04 17:49"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -50,6 +50,7 @@
 
 // rls.fish の準備
 // countfunction.c の準備
+// MD5 への対応 (make md5)
 // OpenMP への対応
 
 
@@ -520,6 +521,7 @@ struct FNAME {
 
 	char *info[ListCountd];			// この構造体の文字列要素の先頭
 		char inode[DATALEN];				// inode
+		char inodec[DATALEN];				// inode の文字列、comma 表記
 		char nlink[DATALEN];				// hard links
 		char mode[DATALEN];					// mode bits
 		char owner[DATALEN];				// owner
@@ -545,6 +547,7 @@ struct FNAME {
 
 	// 各項目の長さ
 	int inodel;
+	int inodecl;
 	int nlinkl;
 	int model;
 	int ownerl;
@@ -1567,7 +1570,8 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 {
 	for (int i=0; orderlist[i] != '\0'; i++) {
 		switch (orderlist[i]) {
-		  case 'i': case 'I': if (func(p.inode,  string)) { return 1; } break;
+		  case 'I':           if (func(p.inode,  string)) { return 1; } break;
+		  case 'i':           if (func(p.inodec, string)) { return 1; } break;
 		  case 'h': case 'H': if (func(p.nlink,  string)) { return 1; } break;
 		  case 'm': case 'M': if (func(p.mode,   string)) { return 1; } break;
 		  case 'o': case 'O': if (func(p.owner,  string)) { return 1; } break;
@@ -1894,10 +1898,10 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 			// 左寄せ項目
 #ifdef MD5
 // 			if (strchr("mMoOkKgGtTwWIHDuUxX5", (unsigned char) cfg.formatListString[j]))
-			if (strchr("mMoOkKgGtTwWIHDxX5", (unsigned char) cfg.formatListString[j]))
+			if (strchr("mMoOkKgGtTwWHDxX5", (unsigned char) cfg.formatListString[j]))
 #else
 // 			if (strchr("mMoOkKgGtTwWIHDuUxX", (unsigned char) cfg.formatListString[j]))
-			if (strchr("mMoOkKgGtTwWIHDxX", (unsigned char) cfg.formatListString[j]))
+			if (strchr("mMoOkKgGtTwWHDxX", (unsigned char) cfg.formatListString[j]))
 #endif
 			{
 				switch ((unsigned char) cfg.formatListString[j]) {
@@ -1907,7 +1911,6 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 				  case 'g': case 'G': len = data[i].groupl  + count * cfg.tlen; break;
 				  case 't': case 'T': len = data[i].timel   + count * cfg.tlen; break;
 				  case 'w': case 'W': len = data[i].weekl   + count * cfg.tlen; break;
-				  case 'I':           len = data[i].inodel  + count * cfg.tlen; break;
 				  case 'H':           len = data[i].nlinkl  + count * cfg.tlen; break;
 				  case 'D':           len = data[i].datel   + count * cfg.tlen; break;
 // 				  case 'u': case 'U': len = data[i].uniquel + count * cfg.tlen; break;
@@ -1930,9 +1933,10 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 
 			// --------------------------------------------------------------------------------
 			// 右寄せ
-			if (strchr("isSh", (unsigned char) cfg.formatListString[j])) {
+			if (strchr("iIsSh", (unsigned char) cfg.formatListString[j])) {
 				switch (cfg.formatListString[j]) {
-					case 'i': len = data[i].inodel + count * cfg.tlen; break;
+					case 'i': len = data[i].inodecl+ count * cfg.tlen; break;
+					case 'I': len = data[i].inodel + count * cfg.tlen; break;
 					case 'h': len = data[i].nlinkl + count * cfg.tlen; break;
 					case 's': len = data[i].sizecl + count * cfg.tlen; break;
 					case 'S': len = data[i].sizel  + count * cfg.tlen; break;
@@ -2395,8 +2399,8 @@ showUsage(char **argv)
 	printf(" Color "); printStr(normal, "-xxx"); printf(" option is specified separately from the other options.\n");
 
 	printf("\n");
-	printf(" If multiple options are specified:\n");
-	printf("  The last option is overwritten: -c, -p, -P, -f, -TB, -TE, -R, -F.\n");
+	printf(" If multiple identical options are specified:\n");
+	printf("  Overridden by the last option: -c, -p, -P, -f, -TB, -TE, -R, -F.\n");
 
 	printf("\n");
 	printf(" Options have priority. (Last line of each "); printStr(label, "options:"); printf(")\n");
@@ -2417,15 +2421,16 @@ showUsage(char **argv)
 	printf("      d:\"%%b %%e %%H:%%M\" or \"%%b %%e  %%Y\" format.\n");
 	printf("      p:with -l, argv is \"PATH/FILE\" format.\n");
 	printf("      s:size of DIRECTORY and FILE.\n");
-	printf("      c:if FILE, the size of FILE. Otherwise, number of directory entries. (without \".\" and \"..\")\n");
+	printf("      c:For DIRECTORY, the number of directory entries (without \".\" and \"..\"). Otherwise, size of FILE.\n");
 	printf("      x:word after the last dot, dot is not the beginning character of the filename.\n");
-	printf("      S, C:no comma output.\n");
-	printf("      Upper case is padding off. (Same length: no change in appearance (m, k, t, w, 5))\n");
+	printf("      S, C, I:no comma output.\n");
+	printf("      Upper case is padding off. (Same length: no change in appearance (m, t, w, 5))\n");
 	printf("     -s > -l = -f > default short listing (include file status)\n");
 
 	printf("\n");
 	printStr(label, "Sort options:\n");
 	printf(" "); printStr(normal, "-F"); printf(": change the sort order. (default: -Fn)\n");
+	printf("      even if the -f option is not specified, the output will still be sorted.\n");
 	printf("      item is 1st, 2nd, 3rd, ..., sort order item.\n");
 	printf("      duplicates of the same item is a Reverse sort instruction. (-Fnss: 1st:name, 2nd:reverse size sort)\n");
 	printf("       alphabet: m:mode, o:owner, g:group, n:name, k:kind, l:linkname, e:errno, w:week, u:uniqueword, x:extension.\n");
@@ -2434,7 +2439,8 @@ showUsage(char **argv)
 #endif
 	printf("       size:     i:inode, h:hardlinks, s:size, c:count.\n");
 	printf("       mtime:    d:date, t:time.\n");
-	printf("      path (p) is not sort order item.\n");
+	printf("      ---\n");
+	printf("      without sort order item. (p:path, [, ], |, ',':specified character)\n");
 	printf(" -S: no Sort order.\n");
 	printf("     -S > -F\n");
 
@@ -2480,10 +2486,10 @@ showUsage(char **argv)
 	printf(" -t: with -l, human-readable daTe. (-f with date)\n");
 	printf(" -i: with -l, human-readable sIze. (-f with count, size, hardlinks)\n");
 	printf(" -w: with -l, day of the week, month Without abbreviation. (-f with week, date (month))\n");
-	printf(" "); printStr(label, "-X"); printf(": show eXtension results.\n");
-	printf(" "); printStr(label, "-r"); printf(": show aggregate Results.\n");
-	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \"paint\" color. (-Rnumber)\n");
-	printf("     -r = -R = -X = -i = -t > -w\n");
+	printf(" "); printStr(label,  "-x"); printf(": show eXtension results.\n");
+	printf(" "); printStr(label,  "-r"); printf(": show aggregate Results.\n");
+	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \""); printStr(paint,  "paint"); printf("\" color. (-Rnumber)\n");
+	printf("     -r = -R = -x = -i = -t > -w\n");
 
 	printf("\n");
 	printStr(label, "Other options:\n");
@@ -2538,6 +2544,7 @@ struct DENT {
 
 	// インデント用、文字列の最大桁数
 	int inode_digits;
+	int inodec_digits;
 	int nlink_digits;
 	int mode_digits;
 	int owner_digits;
@@ -2721,6 +2728,7 @@ fnameLength(struct FNAME *p)
 
 	// 固定長の項目も含め、lstat() が失敗した時は "-" になる
 	p->inodel  = strlen(p->inode);
+	p->inodecl = strlen(p->inodec);
 	p->nlinkl  = strlen(p->nlink);
 	p->model   = strlen(p->mode);	// 固定長
 	p->ownerl  = strlen(p->owner);
@@ -2945,7 +2953,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 					case 'u': cfg->deep_unique++;       break;	// unique チェックを最後まで行う
 					case 'b': cfg->beginning_word++;    break;	// uniqueCheckFirstWord() のみ
 					case 'e': cfg->do_emacs++;          break;	// emacs 系ファイル名対応
-					case 'X': cfg->do_extension++;      break;	// 拡張子
+					case 'x': cfg->do_extension++;      break;	// 拡張子
 
 					case 'a': cfg->show_dotfile++;      break;	// '.' から始まるファイルを表示
 					case 'o': cfg->only_directory++;    break;	// ディレクトリのみ表示
@@ -3182,13 +3190,14 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 				}
 
 				// --------------------------------------------------------------------------------
-				digits['i'] = MAX(p->inode_digits,  digits['I']);		// inode
-				digits['h'] = MAX(p->nlink_digits,  digits['H']);		// hard link
+				digits['I'] = MAX(p->inode_digits,  digits['I']);		// inode
+				digits['i'] = MAX(p->inodec_digits, digits['i']);		// inode、camma 表記
+				digits['h'] = MAX(p->nlink_digits,  digits['h']);		// hard link
 				digits['m'] = MAX(p->mode_digits,   digits['m']);		// mode
 				digits['o'] = MAX(p->owner_digits,  digits['o']);		// owner
 				digits['g'] = MAX(p->group_digits,  digits['g']);		// group
 				digits['w'] = MAX(p->week_digits,   digits['w']);		// 曜日
-				digits['t'] = MAX(p->time_digits,   digits['T']);		// 日付
+				digits['t'] = MAX(p->time_digits,   digits['t']);		// 日付
 				digits['S'] = MAX(p->size_digits,   digits['S']);		// 最大ファイルサイズ
 				digits['s'] = MAX(p->sizec_digits,  digits['s']);		// 最大ファイルサイズ、comma 表記
 				digits['C'] = MAX(p->count_digits,  digits['C']);		// 最大エントリー数の桁数
@@ -3200,7 +3209,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 				digits['k'] = MAX(p->kind_digits,   digits['k']);		// 種類の桁数
 				digits['l'] = MAX(p->linkname_digits,  digits['l']);	// linkname
 				digits['e'] = MAX(p->errnostr_digits,  digits['e']);	// errnostr
-				digits['x'] = MAX(p->extension_digits, digits['X']);	// 拡張子
+				digits['x'] = MAX(p->extension_digits, digits['x']);	// 拡張子
 #ifdef MD5
 				digits['5'] = MAX(p->md5_digits,    digits['5']);		// md5
 #endif
@@ -3305,7 +3314,8 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		// 各 digis に対応するポインタを配列に格納
 		int digits[UCHAR_MAX +1] = {0};
 		if (cfg.show_long) {
-			digits['i'] = p->inode_digits;
+			digits['I'] = p->inode_digits;
+			digits['i'] = p->inodec_digits;
 			digits['h'] = p->nlink_digits;
 			digits['m'] = p->mode_digits;
 			digits['o'] = p->owner_digits;
@@ -3772,6 +3782,7 @@ main(int argc, char *argv[])
 
 				if (cfg.show_long) {
 					strcpy(fnamelist[j].inode,  "-");
+					strcpy(fnamelist[j].inodec, "-");
 					strcpy(fnamelist[j].nlink,  "-");
 					strcpy(fnamelist[j].mode,   "-");
 					strcpy(fnamelist[j].owner,  "-");
@@ -3948,7 +3959,8 @@ main(int argc, char *argv[])
 					strcpy(fnamelist[j].countc, fnamelist[j].sizec);
 				}
 
-				makeSize(fnamelist[j].inode, fnamelist[j].sb.st_ino);
+				sprintf(fnamelist[j].inode, "%ld", fnamelist[j].sb.st_ino);
+				makeSize(fnamelist[j].inodec, fnamelist[j].sb.st_ino);
 				makeSize(fnamelist[j].nlink, fnamelist[j].sb.st_nlink);
 
 				// ----------------------------------------
@@ -4296,6 +4308,7 @@ main(int argc, char *argv[])
 				p->name_digits =  MAX(p->name_digits, countMatchedString(fnamelist[j].name) * cfg.tlen + fnamelist[j].print_length);
 
 				p->inode_digits  = MAX(p->inode_digits,  countMatchedString(fnamelist[j].inode)  * cfg.tlen + fnamelist[j].inodel);
+				p->inodec_digits = MAX(p->inodec_digits, countMatchedString(fnamelist[j].inodec) * cfg.tlen + fnamelist[j].inodecl);
 				p->nlink_digits  = MAX(p->nlink_digits,  countMatchedString(fnamelist[j].nlink)  * cfg.tlen + fnamelist[j].nlinkl);
 				p->mode_digits   = MAX(p->mode_digits,   countMatchedString(fnamelist[j].mode)   * cfg.tlen + fnamelist[j].model);
 				p->owner_digits  = MAX(p->owner_digits,  countMatchedString(fnamelist[j].owner)  * cfg.tlen + fnamelist[j].ownerl);
@@ -4367,7 +4380,8 @@ main(int argc, char *argv[])
 
 				// 各文字に対応するポインタを配列に格納
 				char *info_pointers[UCHAR_MAX +1] = {NULL};
-				info_pointers['i'] = info_pointers['I'] = fnamelist[j].inode;
+				info_pointers['I'] =                      fnamelist[j].inode;
+				info_pointers['i'] =                      fnamelist[j].inodec;
 				info_pointers['h'] = info_pointers['H'] = fnamelist[j].nlink;
 				info_pointers['m'] = info_pointers['M'] = fnamelist[j].mode;
 				info_pointers['o'] = info_pointers['O'] = fnamelist[j].owner;
