@@ -31,8 +31,8 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "01/04"
-#define BTIME "17:50:56"
+#define BDATE "01/09"
+#define BTIME "22:14:59"
 
 #define RELTYPE "[CURRENT]"
 
@@ -68,6 +68,7 @@
 #include <pwd.h>
 #include <locale.h>
 #include <errno.h>
+#include <limits.h>
 
 #ifdef MD5
 #include <openssl/evp.h>
@@ -130,7 +131,6 @@
 
 
 #ifdef MYTOLOWER
-	#include <limits.h>
 	// - を _ に変更する
 	const char *upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ-";
 	const char *lower = "abcdefghijklmnopqrstuvwxyz_";
@@ -536,6 +536,7 @@ struct FNAME {
 		char path[FNAME_LENGTH];			// 絶対パスで指定されたパス名
 		char unique[FNAME_LENGTH];			// ユニーク文字列
 		char *name;							// 表示用ファイル名
+		char lowername[FNAME_LENGTH];		// 比較用
 		char kind[2];						// 種類
 		char linkname[FNAME_LENGTH];		// link 名
 		char errnostr[FNAME_LENGTH + 8];	// lstat() のエラー
@@ -574,7 +575,6 @@ struct FNAME {
 #endif
 
 	int date_f;						// makeDate() の difftime() が未来
-	char *lowername;				// 比較用
 	int uniquebegin;				// unique の開始
 	int uniqueend;					// unique の終了、paint_string で該当した場合 1 を代入、aggregate でカウント
 	CLIST color;					// 表示色
@@ -1146,23 +1146,16 @@ addFNamelist(struct FNAME *p, char *name)
 	p->md5[0] = '\0';
 #endif
 
-	p->length = strlen(p->name);
-// 	p->lowername = strdup(p->name);
-	p->lowername = (char *) malloc(sizeof(char) * (p->length + 1));
-	if (p->lowername == NULL) {
-		perror("malloc");
-		printf(" =>size:%zu\n", sizeof(char) * (p->length + 1));
-		exit(EXIT_FAILURE);
-	}
-	// 比較用に小文字化
-	for (int i=0; i<p->length; i++) {
+	// 比較用に小文字化、長さも計測
+	p->length = 0;
+	while (p->name[p->length]) {
 #ifndef MYTOLOWER
-		if (p->name[i] == '-') {			// '-' と '_' が同じ扱いなので、'_' に統一
-			p->lowername[i] = '_';
-			continue;
-		}
+		if (p->name[p->length] == '-') {			// '-' と '_' が同じ扱いなので、'_' に統一
+			p->lowername[p->length] = '_';
+		} else
 #endif
-		p->lowername[i] = tolower(p->name[i]);
+		p->lowername[p->length] = tolower(p->name[p->length]);
+		p->length++;
 	}
 	p->lowername[p->length] = '\0';
 // 	debug printf("addFNamelist: %s\n", p->lowername);
@@ -2762,9 +2755,6 @@ freeDENT(struct DENT *dent, int dirarg)
 
 	for (int i=0; i<dirarg; i++) {
 		if (dent[i].fnamelist) {
-			for (int j=0; j<dent[i].nth; j++) {
-				free(dent[i].fnamelist[j].lowername);
-			}
 			if (dent[i].nth) {
 				free(dent[i].fnamelist);
 // 				dent[i].fnamelist = NULL;
@@ -3265,7 +3255,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 					// 必要な項目のコピー
 					data[count].name = fnamelist[j].name;
 					strcpy(data[count].kind, fnamelist[j].kind);
-					data[count].lowername = fnamelist[j].lowername;
+					strcpy(data[count].lowername, fnamelist[j].lowername);
 
 					data[count].showlist = fnamelist[j].showlist;
 					data[count].uniquebegin = fnamelist[j].uniquebegin;
