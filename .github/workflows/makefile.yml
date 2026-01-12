@@ -68,6 +68,7 @@ jobs:
 
     - name: Create ZIP
       run: |
+        cp ./README_english.md ./current-build
         zip -r current-build.zip current-build
 
     - name: Upload artifact
