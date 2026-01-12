@@ -257,3 +257,4 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - del `-m`, `-z`, `-N` の廃止（`-F` にリプレース）
 - add `-F` の追加，項目単位でソート（`p` を除く `-f` の全項目単位）
 - chg printLong() の `l`, `e` のパディングの変更
+- del haveAfterdata() の削除

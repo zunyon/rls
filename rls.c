@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "01/09"
-#define BTIME "22:14:59"
+#define BDATE "01/11"
+#define BTIME "11:16:49"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 01/04 17:49"
+// my-last-update-time "2026, 01/11 10:50"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1803,34 +1803,6 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 }
 
 
-// -f 文字列で、今より後ろに表示する文字列があるか
-int
-haveAfterdata(struct FNAME *p, const char orderlist[], int i)
-{
-// 	debug printStr(label, "haveAfterdata:\n");
-// 	debug printf("p->info:%s, orderlist:[%s], i:%d\n", p->info[i+1], orderlist, i);
-
-	if (orderlist[i + 1] == '\0') {
-		return 0;
-	}
-
-	// 最後まで確認する
-	for (int j=i + 1; orderlist[j] != '\0'; j++) {
-		if (p->info[j] == NULL) {
-			continue;
-		}
-		if (p->info[j][0] == '\0') {
-			continue;
-		}
-
-		// 表示する文字列があった
-		return 1;
-	}
-
-	return 0;
-}
-
-
 void
 printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 {
@@ -1864,21 +1836,28 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 
 		// --------------------------------------------------------------------------------
 		// formatListString[k] 番目と、&fnamelist[j].xxx でデータが続くか確認して、haveAfterdataStr[k] に 0, 1 を入れる
-		char haveAfterdataStr[ListCountd + 1] = "";
-
 // 		printf("%s: ", cfg.formatListString);
+		char haveAfterdataStr[ListCountd + 1] = "";
 		int flen = strlen(cfg.formatListString);
-		for (int j=0; j<flen; j++) {
-			haveAfterdataStr[j] = haveAfterdata(&data[i], cfg.formatListString, j);
 
-			// 途中の 0 以降は、最後まで 0
-			if (haveAfterdataStr[j] == 0) {
-// 				printf("%2d:(%c) ", j, cfg.formatListString[j]);
-				for (; cfg.formatListString[j] != '\0'; j++) {
-					haveAfterdataStr[j] = 0;
-				}
+		for (int j=flen-1; j!=0; j--) {
+			if (data[i].info[j] == NULL) {
+				haveAfterdataStr[j] = 0;
+				continue;
 			}
+			if (data[i].info[j][0] == '\0') {
+				haveAfterdataStr[j] = 0;
+				continue;
+			}
+			memset(haveAfterdataStr, 1, j);
+			break;
 		}
+
+// 		printf("Str:");
+// 		for (int i=0; cfg.formatListString[i] != '\0'; i++) {
+// 			printf("%d", haveAfterdataStr[i]);
+// 		}
+// 		printf(" ");
 
 		// --------------------------------------------------------------------------------
 		for (int j=0; cfg.formatListString[j] != '\0'; j++) {
