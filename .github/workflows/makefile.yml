@@ -28,6 +28,7 @@ jobs:
         echo "----------"
         $CC --version
         $MAKE --version
+        mkdir current-build
 
     - name: run rls debug
       run: |
@@ -38,6 +39,7 @@ jobs:
       run: |
         $MAKE clean md5
         ./rls -always -fmogcdw5NkPle -alr
+        cp ./rls ./current-build/rls
 
     - name: make, ldd
       run: |
@@ -63,6 +65,17 @@ jobs:
         ./rls -TB\[ -TE\]
         echo "----------"
         ./rls -always
+
+    - name: Create ZIP
+      run: |
+        zip -r current-build.zip current-build
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: current-build
+        path: current-build.zip
+
 
   ## --------------------------------------------------
   ## md5 がダメそうなので一旦コンパイルだけ
