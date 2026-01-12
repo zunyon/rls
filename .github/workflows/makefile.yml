@@ -108,6 +108,7 @@ jobs:
         echo "----------"
         $CC --version
         $MAKE --version
+        mkdir current-build-macos
 
 #    - name: run rls debug
 #      run: |
@@ -120,6 +121,7 @@ jobs:
         export OPENSSL_DIR=$(brew --prefix openssl@3)
         gcc -I$OPENSSL_DIR/include -L$OPENSSL_DIR/lib -DMD5 rls.c -lssl -lcrypto -o rls
         ./rls -always -fmogcdw5NkPle -alr
+        cp ./rls ./current-build-macos/rls
 
     - name: make, ldd
       run: |
@@ -145,3 +147,14 @@ jobs:
         ./rls -TB\[ -TE\]
         echo "----------"
         ./rls -always
+
+    - name: Create ZIP
+      run: |
+        cp ./README_english.md ./current-build-macos
+        zip -r current-build-macos.zip current-build-macos
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: current-build
+        path: current-build-macos.zip
