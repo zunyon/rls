@@ -28,7 +28,7 @@ jobs:
         echo "----------"
         $CC --version
         $MAKE --version
-        mkdir current-build
+        mkdir current-build-ubuntu
 
     - name: run rls debug
       run: |
@@ -39,7 +39,7 @@ jobs:
       run: |
         $MAKE clean md5
         ./rls -always -fmogcdw5NkPle -alr
-        cp ./rls ./current-build/rls
+        cp ./rls ./current-build-ubuntu/rls
 
     - name: make, ldd
       run: |
@@ -68,14 +68,14 @@ jobs:
 
     - name: Create ZIP
       run: |
-        cp ./README_english.md ./current-build
-        zip -r current-build.zip current-build
+        cp ./README_english.md ./current-build-ubuntu
+        zip -r current-build-ubuntu.zip current-build-ubuntu
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: current-build
-        path: current-build.zip
+        name: current-build-ubuntu
+        path: current-build-ubuntu.zip
 
 
   ## --------------------------------------------------
