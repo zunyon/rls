@@ -156,5 +156,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: current-build
+        name: current-build-macos
         path: current-build-macos.zip
