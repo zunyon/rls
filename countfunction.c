@@ -116,6 +116,18 @@ countstrchr(const char *s, int c)
 }
 
 
+int count_memcmp;
+int
+countmemcmp(const void *s1, const void *s2, size_t n)
+{
+	debug printf("countmemcmp:\n");
+// 	debug printf(" %s, %s, %ld\n", s1, s2, n);
+
+	count_memcmp++;
+	return memcmp(s1, s2, n);
+}
+
+
 int count_malloc;
 void *
 countmalloc(size_t size)
@@ -321,11 +333,14 @@ showCountFunc(void)
 	printf(" strlen:  %7d\n", count_strlen);
 	printf(" strstr:  %7d\n", count_strstr);
 	printf(" strcmp:  %7d\n", count_strcmp);
-	printf(" strncmp: %7d\n", count_strncmp);
 	printf(" strcat:  %7d\n", count_strcat);
 	printf(" strcpy:  %7d\n", count_strcpy);
 	printf(" strncpy: %7d\n", count_strncpy);
 	printf(" strchr:  %7d\n", count_strchr);
+
+	printf("\n");
+	printf(" strncmp: %7d\n", count_strncmp);
+	printf(" memcmp:  %7d\n", count_memcmp);
 
 	printf("\n");
 	printf(" calloc:  %7d\n", count_calloc);
@@ -363,6 +378,7 @@ main(void)
 	assert(countstrcmp(str, str2) == strcmp(str, str2));
 	assert(countstrncmp(str, str2, 5) == strncmp(str, str2, 5));
 
+	assert(countmemcmp(str, str2, 5) == memcmp(str, str2, 5));
 	{
 		char tmp1[32] = "tmp";
 		char tmp2[32] = "tmp";

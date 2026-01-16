@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "01/11"
-#define BTIME "11:16:49"
+#define BDATE "01/17"
+#define BTIME "08:34:07"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 01/11 10:50"
+// my-last-update-time "2026, 01/17 08:30"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -128,6 +128,10 @@
 #define MYTOLOWER
 #define MYSTRCASESTR	// 標準に無い、GNU strcasestr() の代わりに実装
 #define MYROUND			// round() の -lm が不要になるように実装
+
+// 速いかな ?
+#undef strncmp
+#define strncmp memcmp
 
 
 #ifdef MYTOLOWER
@@ -233,7 +237,7 @@ void
 addDuplist(struct DLIST *p, char *word, int len, int number)
 {
 	struct DLIST *prev = NULL;
-	char ret = 0;
+	int ret = 0;
 
 	// 該当箇所まで移動
 	while (p) {
@@ -262,11 +266,10 @@ int
 searchDuplist(struct DLIST *p, char *word, int len, int number)
 {
 	while (p) {
-		char ret;
+		int ret;
 
 		if (p->length == len) {
 			ret = strncmp(word, p->dupword, len);
-
 			// 見つかった
 			if (ret == 0) {
 
@@ -504,7 +507,6 @@ initColor(int default_color, char *argcolor)
 
 		printf("\n");
 		colorUsage();
-
 		exit(EXIT_FAILURE);
 	}
 
@@ -593,6 +595,7 @@ struct ALIST {
 #ifdef MD5
 	int format_md5;
 #endif
+	int format_mode;
 	int format_unique;
 	int format_extension;
 	int format_owner;
@@ -2558,6 +2561,7 @@ debug_showArgvswitch(struct ALIST cfg)
 #ifdef MD5
 	showSwitch(format_md5);
 #endif
+	showSwitch(format_mode);
 	showSwitch(format_unique);
 	showSwitch(format_extension);
 
@@ -2973,6 +2977,7 @@ progressAlist(struct ALIST *cfg)
 			// md5 を使用する
 			case '5':           cfg->format_md5++; break;
 #endif
+			case 'm': case 'M': cfg->format_mode++; break;
 			case 'u': case 'U': cfg->format_unique++; break;
 			case 'o': case 'O': cfg->format_owner++;  break;
 			case 'g': case 'G': cfg->format_group++;  break;
@@ -3009,10 +3014,10 @@ progressAlist(struct ALIST *cfg)
 		  case '5': cfg->format_md5++; toggleFunction(&cfg->md5_sortfunc, myAlphaSort, myAlphaSortRev); break;
 #endif
 		  case 'n': toggleFunction(&cfg->name_sortfunc, myAlphaSort, myAlphaSortRev); break;
-		  case 'm': toggleFunction(&cfg->mode_sortfunc, myAlphaSort, myAlphaSortRev); break;
 		  case 'k': toggleFunction(&cfg->kind_sortfunc, myAlphaSort, myAlphaSortRev); break;
 		  case 'e': toggleFunction(&cfg->errnostr_sortfunc, myAlphaSort, myAlphaSortRev); break;
 		  case 'l': cfg->format_link++; toggleFunction(&cfg->linkname_sortfunc, myAlphaSort, myAlphaSortRev); break;
+		  case 'm': cfg->format_mode++; toggleFunction(&cfg->mode_sortfunc, myAlphaSort, myAlphaSortRev); break;
 
 		  case 'u': cfg->format_unique++; toggleFunction(&cfg->unique_sortfunc, myAlphaSort, myAlphaSortRev); break;
 		  case 'o': cfg->format_owner++;  toggleFunction(&cfg->owner_sortfunc,  myAlphaSort, myAlphaSortRev); break;
@@ -3125,7 +3130,7 @@ progressAlist(struct ALIST *cfg)
 		cfg->argv_color = 0;
 		cfg->default_color = 0;
 
-		// -TB, -TE と併用で無ければ、色をつけないから uniqueCheck(), uniqueCheckFirstWord() を飛ばす
+		// -TB, -TE と併用で無ければ、色をつけないから uniqueCheck() を行わない
 		// -TB, -TE が指定されていたら、uniqueCheck() は行う
 		// -fu も同様
 		if (cfg->lbegin == 0 && cfg->format_unique == 0) {
@@ -3405,21 +3410,20 @@ main(int argc, char *argv[])
 		   // 8 色
 		   "base=37:normal=34:dir=36:fifo=33:socket=35:device=33:error=31:paint=32:"					// 文字色
 // 		   "base=100:"																					// 背景色
-// 		   "paint=95:paint=5:"	// 点滅させるためには、明るい色を指定する必要あり
 
 		   // 256 色、3000 は fore, 4000 は back
 // 		   "base=3007:normal=3012:dir=3014:fifo=3011:socket=3009:device=3011:error=3009:paint=3032"		// 文字色
 
 // 		   "normal=1:dir=1:socket=1:device=1:label=1:error=1:paint=1:"									// 属性
+// 		   "paint=95:paint=5:"	// 点滅させるためには、明るい色を指定する必要あり
+
 		   "reset=0"
 		   ,
 		// --------------------------------------------------------------------------------
 
 		.termlen = 0,
 		.termhei = 0,
-
 		.aggregate_length = 0,
-
 		.do_uniquecheck = 1,												// uniqueCheck(), uniqueCheckFirstWord() を実行する
 
 		// 各項目の sort 順
@@ -3631,7 +3635,7 @@ main(int argc, char *argv[])
 				strcpy(p->is_filename, strrchr(dirarglist[i], '/') + 1);
 				dirarglist[i][strlen(dirarglist[i]) - strlen(p->is_filename)] = '\0';
 			} else {
-				// カレントディレクトリっぽい
+				// カレントディレクトリと推測
 				strcpy(p->is_filename, dirarglist[i]);
 				strcpy(dirarglist[i], "./");
 			}
@@ -3649,8 +3653,6 @@ main(int argc, char *argv[])
 		if (chdir(dirarglist[i]) != 0) {
 // 			perror("chdir");
 			debug printf("chdir: %s [%s]\n", strerror(errno), dirarglist[i]);
-// 			printf("\n");
-
 			continue;
 		}
 
@@ -3699,81 +3701,79 @@ main(int argc, char *argv[])
 				continue;
 			}
 
-			// --------------------------------------------------------------------------------
-			// printShort() なら十分
-			if (cfg.show_long == 0) {
-// 				fnamelist[j].kind[0] = '\0';
-				fnamelist[j].kind[1] = '\0';
+			if (cfg.format_size || cfg.format_date || cfg.format_mode) {
+				fnamelist[j].isstat = (lstat(direntlist[j]->d_name, &fnamelist[j].sb) == 0) ? 1 : -1;
+				if (fnamelist[j].isstat == -1) {
+					// lstat() が失敗した時の処理 (-l /mnt/c/)
+					// 失敗のエラーメッセージを errnostr に格納
+					strcpy(fnamelist[j].errnostr, strerror(errno));
+					fnamelist[j].color = error;
 
-				switch (direntlist[j]->d_type) {
-				  // !! DT_REG には Permission denied のファイルも含まれる
-				  case DT_DIR:  fnamelist[j].kind[0] = '/'; fnamelist[j].color = dir; fnamelist[j].mode[0] = 'd'; break;
-				  case DT_FIFO: fnamelist[j].kind[0] = '|'; fnamelist[j].color = fifo;   break;
-				  case DT_SOCK: fnamelist[j].kind[0] = '='; fnamelist[j].color = socket; break;
-				  case DT_LNK: {fnamelist[j].kind[0] = '@'; fnamelist[j].mode[0] = 'l'; 
-					  // symlink 先のファイル名
-					  ssize_t rlen = readlink(fnamelist[j].name, fnamelist[j].linkname, sizeof(fnamelist[j].linkname) - 1);
-					  if (rlen == -1) {
-						  fnamelist[j].color = error;
-						  fnamelist[j].linkname[0] = '\0';
-						  break;
-					  }
-					  fnamelist[j].linkname[rlen] = '\0';
-
-					  struct stat sb;
-					  // link 先の sb を取得、link 先がディレクトリか
-					  if (lstat(fnamelist[j].linkname, &sb) == -1) {
-						  // データが取れなかったから異常
-						  fnamelist[j].color = error;
-					  } else {
-						  // ディレクトリだったら / を追記
-						  if ((sb.st_mode & S_IFMT) == S_IFDIR) {
-							  strcat(fnamelist[j].linkname, "/");
-							  fnamelist[j].color = dir;
-							  fnamelist[j].kind[0] = '/';
-						  }
-					  }
-
-					  break;
-				  }
-				}
-
-				continue;
-			}
-
-			fnamelist[j].isstat = (lstat(direntlist[j]->d_name, &fnamelist[j].sb) == 0) ? 1 : -1;
-			if (fnamelist[j].isstat == -1) {
-				// lstat() が失敗した時の処理 (-l /mnt/c/)
-
-				// 失敗のエラーメッセージを errnostr に格納
-				strcpy(fnamelist[j].errnostr, strerror(errno));
-				fnamelist[j].color = error;
-
-				if (cfg.show_long) {
-					strcpy(fnamelist[j].inode,  "-");
-					strcpy(fnamelist[j].inodec, "-");
-					strcpy(fnamelist[j].nlink,  "-");
-					strcpy(fnamelist[j].mode,   "-");
-					strcpy(fnamelist[j].owner,  "-");
-					strcpy(fnamelist[j].group,  "-");
-					strcpy(fnamelist[j].size,   "-");
-					strcpy(fnamelist[j].sizec,  "-");
-					strcpy(fnamelist[j].count,  "-");
-					strcpy(fnamelist[j].countc, "-");
-					strcpy(fnamelist[j].date,   "-");
-					strcpy(fnamelist[j].time,   "-");
-					strcpy(fnamelist[j].week,   "-");
+					if (cfg.show_long) {
+						strcpy(fnamelist[j].inode,  "-");
+						strcpy(fnamelist[j].inodec, "-");
+						strcpy(fnamelist[j].nlink,  "-");
+						strcpy(fnamelist[j].mode,   "-");
+						strcpy(fnamelist[j].owner,  "-");
+						strcpy(fnamelist[j].group,  "-");
+						strcpy(fnamelist[j].size,   "-");
+						strcpy(fnamelist[j].sizec,  "-");
+						strcpy(fnamelist[j].count,  "-");
+						strcpy(fnamelist[j].countc, "-");
+						strcpy(fnamelist[j].date,   "-");
+						strcpy(fnamelist[j].time,   "-");
+						strcpy(fnamelist[j].week,   "-");
 #ifdef MD5
-					strcpy(fnamelist[j].md5,    "-");
+						strcpy(fnamelist[j].md5,    "-");
 #endif
-					fnamelist[j].showlist = SHOW_LONG;
+						fnamelist[j].showlist = SHOW_LONG;
+					}
+					continue;
 				}
+				// only_directory の IS_DIRECTORY() で使用
+				makeMode(&fnamelist[j], cfg);
 
-				continue;
+			} else {
+
+				// --------------------------------------------------------------------------------
+			// printShort() なら DT_XXX で十分
+// 				if (cfg.show_long == 0) {
+// 					fnamelist[j].kind[0] = '\0';
+					fnamelist[j].kind[1] = '\0';
+
+					switch (direntlist[j]->d_type) {
+					  // !! DT_REG には Permission denied のファイルも含まれる
+					  case DT_DIR:  fnamelist[j].kind[0] = '/'; fnamelist[j].color = dir; fnamelist[j].mode[0] = 'd'; break;
+					  case DT_FIFO: fnamelist[j].kind[0] = '|'; fnamelist[j].color = fifo;   break;
+					  case DT_SOCK: fnamelist[j].kind[0] = '='; fnamelist[j].color = socket; break;
+					  case DT_LNK: {fnamelist[j].kind[0] = '@'; fnamelist[j].mode[0] = 'l'; 
+						  // symlink 先のファイル名
+						  ssize_t rlen = readlink(fnamelist[j].name, fnamelist[j].linkname, sizeof(fnamelist[j].linkname) - 1);
+						  if (rlen == -1) {
+							  fnamelist[j].color = error;
+							  fnamelist[j].linkname[0] = '\0';
+							  break;
+						  }
+						  fnamelist[j].linkname[rlen] = '\0';
+
+						  struct stat sb;
+						  // link 先の sb を取得、link 先がディレクトリか
+						  if (lstat(fnamelist[j].linkname, &sb) == -1) {
+							  // データが取れなかったから異常
+							  fnamelist[j].color = error;
+						  } else {
+							  // ディレクトリだったら / を追記
+							  if ((sb.st_mode & S_IFMT) == S_IFDIR) {
+								  strcat(fnamelist[j].linkname, "/");
+								  fnamelist[j].color = dir;
+								  fnamelist[j].kind[0] = '/';
+							  }
+						  }
+// 						  break;
+					  }
+					}
+// 				}
 			}
-
-			// only_directory の IS_DIRECTORY() で使用
-			makeMode(&fnamelist[j], cfg);
 		}
 
 		// --------------------------------------------------------------------------------
@@ -3990,7 +3990,7 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				// 最後の . 以降
+				// 最後の '.' 以降
 				char *extension = strrchr(fnamelist[j].name, '.');
 				if (extension) {
 					if (extension != fnamelist[j].name) {
@@ -4013,7 +4013,7 @@ main(int argc, char *argv[])
 		if (cfg.show_dotfile == 0) {
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].name[0] == '.') {
-					fnamelist[j].showlist = SHOW_NONE;		// 非表示設定
+					fnamelist[j].showlist = SHOW_NONE;
 				}
 			}
 		}
@@ -4069,7 +4069,7 @@ main(int argc, char *argv[])
 		}
 
 		// ================================================================================
-		// 対象は、emacs やアーカイバのタイプ (画像や音楽ファイル、3D ファイルも)
+		// Elisp タイプのファイル名 (アーカイバのタイプ画像や音楽ファイル、3D ファイルも)
 		if (cfg.do_emacs) {
 			debug printStr(label, "emacs:\n");
 
@@ -4087,7 +4087,7 @@ main(int argc, char *argv[])
 
 			for (int j=1; j<p->nth; j++) {
 				// 拡張子対応、.el, .elc, .zip, .xxx 等
-				// 2 回以上おなじ拡張子がある場合、uniqueCheck() の対象にならないように、拡張子を登録する
+				// 2 回以上おなじ拡張子がある場合、uniqueCheck() の対象から外すため、拡張子を登録する
 				char *extension = fnamelist[j].extension;
 				if (extension) {
 					extension++;
@@ -4103,7 +4103,7 @@ main(int argc, char *argv[])
 				}
 
 				// --------------------------------------------------------------------------------
-				// 2 つの名称を比較して、どの程度同じか判断する、、、、.el, .elc なら、[j] の方がファイル名が長いはず
+				// ファイル名がどの程度同じか判断する、、、、.el, .elc なら、[j] の方がファイル名が長いはず
 				float m = matchPercent(fnamelist[j - 1], fnamelist[j]);
 
 				debug printf(" %.2f: %s\n", m, fnamelist[j].name);
@@ -4113,8 +4113,8 @@ main(int argc, char *argv[])
 					fnamelist[j].sourcelist = 1;
 				} else {
 					fnamelist[j].sourcelist = -1;
-// 長い方に色付け、unique になる確率が上がる
 #if 1
+					// 長い方に色付け、unique になる確率が上がる
 					// 同じグループと判断して、paint 色にする
 					fnamelist[j].color = paint;
 
@@ -4124,7 +4124,7 @@ main(int argc, char *argv[])
 						fnamelist[j].sourcelist = 1;
 					}
 #else
-// 最初の方に色付け
+					// 最初の方に色付け
 					if (fnamelist[j].length > fnamelist[j - 1].length) {
 						fnamelist[j - 1].color = paint;
 					}
@@ -4146,7 +4146,7 @@ main(int argc, char *argv[])
 				runUniqueCheck(fnamelist, p->nth, p->duplist, uniqueCheckFirstWord, cfg.deep_unique);
 			} else {
 				// 対象を分けて、uniqueCheckFirstWord() の次に uniqueCheck() を行う
-				// 今は、. から始まるファイル名と、そうでないファイル名が競合しないからこうしている
+				// 今は、'.' から始まるファイル名と、そうでないファイル名が競合しないからこうしている
 				// 例えば、.bash_histor[y] と R[Y]OMA、uniqueCheck() だけにすると、R[YO]MA に変わる
 #if 1
 				// dotfile のみに uniqueCheckFirstWord()
@@ -4303,7 +4303,6 @@ main(int argc, char *argv[])
 
 		// ================================================================================
 		// 全データに対して行う処理
-
 		// 表示用にアルファベット順でソートする
 		if (strlen(cfg.formatSortString) == 0 && cfg.no_sort == 0) {
 			int (*sortfunc)(const void *, const void *);
