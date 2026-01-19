@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "01/17"
-#define BTIME "08:34:07"
+#define BDATE "01/19"
+#define BTIME "22:14:47"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 01/17 08:30"
+// my-last-update-time "2026, 01/19 22:11"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -372,7 +372,6 @@ colorUsage(void)
 
 
 // 設定は、256 色 (5 で決め打ち、true color (2) の実装はしていない)
-// !! argcolor が指定された時に内容が確認できない
 void
 initColor(int default_color, char *argcolor)
 {
@@ -1457,8 +1456,7 @@ uniqueCheckFirstWord(struct FNAME *p, int j, int len, struct DLIST *duplist)
 void
 uniqueCheckEmacs(struct FNAME *p, int j, int len, struct DLIST *duplist)
 {
-	// --------------------------------------------------------------------------------
-	// uniqueCheckEmacs 固有、これ以外は uniqueCheck()
+	// uniqueCheckEmacs 固有
 	char ename[FNAME_LENGTH];
 	strcpy(ename, p[j].lowername);
 
@@ -1475,37 +1473,7 @@ uniqueCheckEmacs(struct FNAME *p, int j, int len, struct DLIST *duplist)
 	}
 	// --------------------------------------------------------------------------------
 
-	int l = strlen(ename) - len;
-
-	if (l == 0) {
-// 		searchDuplist(duplist, p[j].lowername, len, -1);
-		if (searchDuplist(duplist, ename, len, -1) == 0) {
-			addDuplist(duplist, ename, len, -1);
-		}
-		return;
-	}
-
-	// 1 文字目から、len 文字ずつ最後まで繰り返す
-	for (int i=0; i<=l; i++) {
-		char *tmp = ename + i;
-		int brk = 0;
-
-		for (int k=0; k<len; k++) {
-			// 漢字が含まれている || '()' だとエスケープできないから飛ばす、tolower() 後の文字列で
-			if (isprint((int) tmp[k]) == 0 || strchr(SKIP_LIST, tmp[k])) {
-				brk = 1;
-				break;
-			}
-		}
-		if (brk) {
-			addDuplist(duplist, tmp, len, -1);
-			continue;
-		}
-
-		if (searchDuplist(duplist, tmp, len, j) == 0) {
-			addDuplist(duplist, tmp, len, j);
-		}
-	}
+	uniqueCheck(p, j, len, duplist);
 }
 
 
@@ -2775,6 +2743,8 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 {
 	debug printStr(label, "initAlist:\n");
 
+	int errc = 0;
+
 	for (int i=1; i<argc; i++) {
 		int len = strlen(argv[i]);
 
@@ -2813,7 +2783,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 		// 引数の後に文字列指定
 		// 文字指定 -TB
 		if (strncmp(argv[i], "-TB", 3) == 0) {
-			if (len == 3) { argverr[i] = error; continue; }
+			if (len == 3) { argverr[i] = error; errc++; continue; }
 
 			strcpy(cfg->textbegin, argv[i] + 3);
 			cfg->lbegin = len - 3;
@@ -2822,7 +2792,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 		}
 		// 文字指定 -TE
 		if (strncmp(argv[i], "-TE", 3) == 0) {
-			if (len == 3) { argverr[i] = error; continue; }
+			if (len == 3) { argverr[i] = error; errc++; continue; }
 
 			strcpy(cfg->textend, argv[i] + 3);
 			cfg->lend = len - 3;
@@ -2832,7 +2802,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 
 		// 表示順指定
 		if (strncmp(argv[i], "-f", 2) == 0) {
-			if (len == 2) { argverr[i] = error; continue; }
+			if (len == 2) { argverr[i] = error; errc++; continue; }
 
 			cfg->format_list++;
 			if (len - 2 > ListCountd) {
@@ -2846,7 +2816,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 
 		// 表示順の sort 指定
 		if (strncmp(argv[i], "-F", 2) == 0) {
-			if (len == 2) { argverr[i] = error; continue; }
+			if (len == 2) { argverr[i] = error; errc++; continue; }
 
 			if (len - 2 > ListCountd) {
 				len = ListCountd + 2;
@@ -2859,7 +2829,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 
 		// 色指定
 		if (strncmp(argv[i], "-c", 2) == 0) {
-			if (len == 2) { argverr[i] = error; continue; }
+			if (len == 2) { argverr[i] = error; errc++; continue; }
 
 			cfg->argv_color++;
 			// 後の指定が優先 (上書き) される
@@ -2870,7 +2840,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 
 		// 着色文字列指定
 		if (strncmp(argv[i], "-p", 2) == 0) {
-			if (len == 2) { argverr[i] = error; continue; }
+			if (len == 2) { argverr[i] = error; errc++; continue; }
 
 			cfg->paint_string++;
 			// 後の指定が優先 (上書き) される
@@ -2890,7 +2860,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 
 		// 該当ファイル指定
 		if (strncmp(argv[i], "-P", 2) == 0) {
-			if (len == 2) { argverr[i] = error; continue; }
+			if (len == 2) { argverr[i] = error; errc++; continue; }
 
 			cfg->only_paint_string++;
 			if (len - 2 > FNAME_LENGTH) {
@@ -2903,10 +2873,10 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 
 		// aggregate の該当長さに paint 色付け
 		if (strncmp(argv[i], "-R", 2) == 0) {
-			if (len == 2) { argverr[i] = error; continue; }
+			if (len == 2) { argverr[i] = error; errc++; continue; }
 
 			cfg->aggregate_length = atoi(argv[i] + 2);
-			if (cfg->aggregate_length <= 0) { argverr[i] = error; continue; }
+			if (cfg->aggregate_length <= 0) { argverr[i] = error; errc++; continue; }
 			debug printf("aggregate length:%d\n", cfg->aggregate_length);
 			continue;
 		}
@@ -2915,7 +2885,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 		// '-' から始まるのはオプション、、、パス名の場合は、"./-xxx" などにして
 		if (argv[i][0] == '-') {
 			// スイッチが何も指定されていない "-" の時
-			if (len == 1) { argverr[i] = error; continue; }
+			if (len == 1) { argverr[i] = error; errc++; continue; }
 
 			// 1 文字引数
 			for (int j=1; j<len; j++) {
@@ -2948,6 +2918,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 					default: {
 						// 上記以外の "-x" ではヘルプ表示
 						argverr[i] = error;
+						errc++;
 					}
 					break;
 				}
@@ -2960,7 +2931,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 		}
 	}
 
-	return 0;
+	return errc;
 }
 
 
@@ -3114,6 +3085,9 @@ progressAlist(struct ALIST *cfg)
 #ifdef MD5
 		cfg->format_md5 = 0;
 #endif
+		cfg->format_mode = 0;
+		cfg->format_size = 0;
+		cfg->format_date = 0;
 		cfg->format_unique = 0;
 		cfg->format_owner = 0;
 		cfg->format_group = 0;
@@ -3470,7 +3444,8 @@ main(int argc, char *argv[])
 
 	// ================================================================================
 	// 引数の処理
-	initAlist(argc, argv, &cfg, argverr);
+	int errc = 0;
+	errc = initAlist(argc, argv, &cfg, argverr);
 	for (int i=1; i<argc; i++) {
 		if (cfg.dirarg[i] == 1) {
 			strcpy(dirarglist[dirarg], argv[i]);
@@ -3540,28 +3515,28 @@ main(int argc, char *argv[])
 	}
 
 	// ================================================================================
-	// 引数にエラーがあった
-	for (int i=0; i<argc; i++) {
-		if (argverr[i] == error) {
-			showUsage(argv);
+	// 引数を表示
+	if (cfg.show_help || errc) {
+		showUsage(argv);
 
-			// 引数表示
+		// 引数にエラーがあった
+		if (argc > 2 || errc) {
 			printf("\n");
-			printf("Include Unknown or Missing Option.\n");
+			printStr(label, "Argument Vector:\n");
+
 			for (int j=0; j<argc; j++) {
 				printf(" ");
 				printStr(argverr[j], argv[j]);
 			}
 			printf("\n");
-			exit(EXIT_FAILURE);
+			if (errc) {
+				printf(" Include Unknown or Missing Option.");
+			}
 		}
-	}
-
-	if (cfg.show_help) {
-		showUsage(argv);
 		exit(EXIT_SUCCESS);
 	}
 
+	// Version 表示
 	if (cfg.show_version) {
 		showVersion(argv);
 		exit(EXIT_SUCCESS);
@@ -3570,6 +3545,10 @@ main(int argc, char *argv[])
 	// 色を採用した後に表示
 	if (cfg.show_escape) {
 		showEscapeList();
+		if (cfg.argv_color) {
+			// argcolor の表示
+			printf("  argv color:      %s\n", cfg.color_txt);
+		}
 		exit(EXIT_SUCCESS);
 	}
 
@@ -3733,8 +3712,9 @@ main(int argc, char *argv[])
 				// only_directory の IS_DIRECTORY() で使用
 				makeMode(&fnamelist[j], cfg);
 
-			} else {
+			}
 
+			if (cfg.format_mode == 0) {
 				// --------------------------------------------------------------------------------
 			// printShort() なら DT_XXX で十分
 // 				if (cfg.show_long == 0) {
