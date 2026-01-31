@@ -6,7 +6,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/zunyon/rls)
 
 rls is a file listing command-line tool with a different design philosophy from ls.<br>
-rls is highlights the unique part of each filename for easier fish shell filename completion.
+rls highlights the unique part of each filename for easier fish shell filename completion.
 
 
 ## 概要
@@ -55,6 +55,7 @@ rls -Fxss -fxsn ~/project/src   # ファイルの種類（拡張子別），サ�
 - `-F` で，ソート順を変更，`-f` で指定する全項目がソート対象，第 1，第 2，第 3，... のように複数のソート条件を指定可能
 - `-TB`, `-TE` と `-n` で，ユニーク文字列を指定文字で囲って表示，色付け不可な端末でのユニーク文字列表記
 - `-e` で，elisp のような，拡張子だけが異なるファイル名が複数存在する "グループ" 向けユニーク文字列のハイライト
+- `-R` で，指定数字の文字列長さを paint 色で表示
 <br>
 
 
