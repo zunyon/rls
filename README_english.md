@@ -3,6 +3,7 @@
 [English README](README_english.md) | [日本語 README](README.md)
 
 [![CI](https://github.com/zunyon/rls/actions/workflows/makefile.yml/badge.svg)](https://github.com/zunyon/rls/actions/workflows/makefile.yml)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/zunyon/rls)
 
 rls is a file-listing command-line tool designed with a different philosophy from ls.  
 rls highlights the unique portion of each filename to make filename completion in the fish shell easier.
@@ -112,8 +113,8 @@ The program flow is roughly:
      - Unique substrings (`-b`, `-e`, `-u`, etc.)
      - Specified substrings (`-p`)
 3. Layout and sorting
-   - Sort entries (rows)
-   - Arrange columns (order)
+   - Sort entries (rows) (`-F`)
+   - Arrange columns (order) (`-f`)
    - Adjust output format
 4. Output to terminal
 
