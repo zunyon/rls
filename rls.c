@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "01/31"
-#define BTIME "09:18:51"
+#define BDATE "02/03"
+#define BTIME "23:17:52"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 01/31 08:15"
+// my-last-update-time "2026, 02/03 23:16"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -2048,9 +2048,7 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 					if (digits[(unsigned char) cfg.formatListString[j]]) {
 						printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
 					}
-// 					if (cfg.formatListString[j] == 'l') {
-						printf(" ");
-// 					}
+					printf(" ");
 				}
 				break;
 
@@ -2075,9 +2073,7 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 					if (digits[(unsigned char) cfg.formatListString[j]]) {
 						printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
 					}
-// 					if (cfg.formatListString[j] == 'e') {
-						printf(" ");
-// 					}
+					printf(" ");
 				}
 				break;
 
@@ -2772,25 +2768,59 @@ freeDENT(struct DENT *dent, int dirarg)
 
 // ================================================================================
 int
-initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
+initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 {
 	debug printStr(label, "initAlist:\n");
+
+	char argv[argc][ListCount * COLOR_TEXT + 1];
+	for (int i=0; i<argc; i++) {
+		int len = strlen(argv_[i]);
+
+		if (len < FNAME_LENGTH) {
+			strcpy(argv[i], argv_[i]);
+		} else {
+			if (argv[i][0] == '-' && argv[i][1] == 'c') {
+				// default_color_txt
+				if (len >= ListCount * COLOR_TEXT) {
+					strncpy(argv[i], argv_[i], ListCount * COLOR_TEXT);
+					argv[i][ListCount * COLOR_TEXT] = '\0';
+				} else {
+					strncpy(argv[i], argv_[i], FNAME_LENGTH);
+					argv[i][FNAME_LENGTH] = '\0';
+				}
+			} else {
+				strncpy(argv[i], argv_[i], FNAME_LENGTH);
+				argv[i][FNAME_LENGTH] = '\0';
+			}
+		}
+	}
 
 	int errc = 0;
 
 	for (int i=1; i<argc; i++) {
 		int len = strlen(argv[i]);
 
-		if (len >= FNAME_LENGTH) {
-			if (argv[i][0] == '-' && argv[i][1] == 'c') {
-				// default_color_txt
-				argv[i][ListCount * COLOR_TEXT - 1] = '\0';
-			} else {
-				argv[i][FNAME_LENGTH - 1] = '\0';
+		// --------------------------------------------------------------------------------
+		// -1 の実装、argv[1], argv[2] は固定
+		if (strcmp(argv[1], "-1") == 0) {
+			char buffer[1048576];
+			setvbuf(stdout, buffer, _IOFBF, sizeof(buffer));
+
+			struct dirent **namelist;
+			int r = scandir(argv[2], &namelist, NULL, NULL);
+			if (r == -1) {
+				exit(EXIT_FAILURE);
 			}
+
+			for (int i=0; i<r; i++) {
+				printf ("%s\n", namelist[i]->d_name);
+			}
+
+			fflush(stdout);
+			exit(EXIT_SUCCESS);
 		}
 
-		// --------------------------------------------------------------------------------
+		// ----------------------------------------
 		// 完全一致の引数
 		if (strcmp(argv[i], "-256") == 0) {
 			cfg->show_escape++;
@@ -3517,13 +3547,6 @@ main(int argc, char *argv[])
 	}
 
 	// --------------------------------------------------------------------------------
-// 	char buffer[65536];
-// 	char buffer[1048576];
-// 	setvbuf(stdout, buffer, _IOFBF, sizeof(buffer));
-// '\n' があると遅いみたい
-// 	setvbuf(stdout, NULL, _IONBF, 0);
-
-	// --------------------------------------------------------------------------------
 	// 出力先の確認
 	// terminal でない場合は無色、-always が指定された場合は color
 	if (isatty(fileno(stdout)) == 0 && cfg.output_escape == 0) {
@@ -3728,8 +3751,7 @@ main(int argc, char *argv[])
 		for (int j=0; j<p->nth; j++) {
 			// ファイル名の登録
 			addFNamelist(&fnamelist[j], direntlist[j]->d_name);
-
-			// !! path の登録
+			// path の登録
 			fnamelist[j].path = dirarglist[i];
 
 			// -s はファイル名しか使用しない
@@ -3744,6 +3766,7 @@ main(int argc, char *argv[])
 					// 失敗のエラーメッセージを errnostr に格納
 					strcpy(fnamelist[j].errnostr, strerror(errno));
 					fnamelist[j].color = error;
+
 					if (cfg.show_long) {
 						strcpy(fnamelist[j].inode,  "-");
 						strcpy(fnamelist[j].inodec, "-");
@@ -4104,7 +4127,7 @@ main(int argc, char *argv[])
 
 		// ================================================================================
 		// Elisp タイプのファイル名 (アーカイバのタイプ画像や音楽ファイル、3D ファイルも)
-		if (cfg.do_emacs) {
+		if (cfg.do_emacs && p->nth) {
 			debug printStr(label, "emacs:\n");
 
 			// グルーピングするために sort
@@ -4434,9 +4457,6 @@ main(int argc, char *argv[])
 	printf("\n");
 	showCountFunc();
 #endif
-
-	// setvbuf()
-// 	fflush(stdout);
 
 	return (EXIT_SUCCESS);
 }
