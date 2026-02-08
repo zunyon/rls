@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "02/03"
-#define BTIME "23:17:52"
+#define BDATE "02/08"
+#define BTIME "11:17:39"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 02/03 23:16"
+// my-last-update-time "2026, 02/08 11:00"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -209,9 +209,8 @@ freeDuplist(struct DLIST *node)
 struct DLIST *
 mallocDuplist(char *word, int len)
 {
-	struct DLIST *new;
-
-	if ((new = malloc(sizeof(struct DLIST))) == NULL) {
+	struct DLIST *new = malloc(sizeof(struct DLIST));
+	if (new == NULL) {
 		perror("malloc");
 		printf(" =>You have no memory. %zu\n", sizeof(struct DLIST));
 		exit(EXIT_FAILURE);
@@ -252,7 +251,7 @@ addDuplist(struct DLIST *p, char *word, int len, int number)
 		p = (ret < 0) ? p->left : p->right;
 	}
 
-	// 無かった方に新規登録
+	// 新規登録
 	struct DLIST *new_node = mallocDuplist(word, len);
 	new_node->fnamelistNumber = number;
 	new_node->count++;
@@ -284,7 +283,6 @@ searchDuplist(struct DLIST *p, char *word, int len, int number)
 
 				// 自分以外は重複と判断
 				if (number != p->fnamelistNumber) {
-// 				if (number - p->fnamelistNumber) {
 					p->fnamelistNumber = -1;
 					p->count++;
 				}
@@ -352,8 +350,8 @@ colorUsage(void)
 	printf(" %s environment: same as -c option format, same restrictions. (set -x %s)\n", ENVNAME, ENVNAME);
 	printf("  default setting: %s\n", default_color_txt);
 
-	char *from;
-	if ((from = getenv(ENVNAME)) != NULL) {
+	char *from = getenv(ENVNAME);
+	if (from) {
 		printf("  %s env:  %s\n", ENVNAME, from);
 	}
 
@@ -499,7 +497,7 @@ initColor(int default_color, char *argcolor)
 #endif
 
 	if (usage) {
-		// 変な name
+		// エラー
 		printStr(label, "initColor:\n");
 		printf("  item setting: %s\n", argcolor);
 		printf("  bad setting:  %s\n", p);
@@ -532,8 +530,10 @@ struct FNAME {
 		char count[DATALEN];				// ディレクトリに含まれているファイル数と、size の混合
 		char countc[DATALEN];				// ディレクトリに含まれているファイル数と、size の混合、comma 表記
 		char date[DATALEN];					// mtime 日付
+		char datelong[DATALEN];				// mtime 日付、省略なし
 		char time[DATALEN];					// 日時
 		char week[DATALEN];					// 曜日
+		char weeklong[DATALEN];				// 曜日、省略なし
 		char *path;							// 絶対パス/相対パスで指定されたパス名
 		char unique[FNAME_LENGTH];			// ユニーク文字列
 		char *name;							// 表示用ファイル名
@@ -559,8 +559,10 @@ struct FNAME {
 	int countl;
 	int countcl;
 	int datel;
+	int datelongl;
 	int timel;
 	int weekl;
+	int weeklongl;
 	int pathl;
 	int uniquel;
 	int extensionl;
@@ -623,7 +625,6 @@ struct ALIST {
 
 	int readable_date;
 	int readable_size;
-	int readable_week;
 	int aggregate_results;
 	int aggregate_length;
 
@@ -635,8 +636,6 @@ struct ALIST {
 	// text で囲む場合の文字列
 	char textbegin[DATALEN];
 	char textend[DATALEN];
-	int lbegin;
-	int lend;
 	int tlen;
 
 	char formatListString[ListCountd + 1];
@@ -730,7 +729,7 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 
 // --------------------------------------------------------------------------------
 void
-makeDate(struct FNAME *p, time_t lt, int readable_week)
+makeDate(struct FNAME *p, time_t lt)
 {
 	struct tm *t = localtime(&(p->sb.st_mtime));
 	double dtime = difftime(lt, p->sb.st_mtime);
@@ -741,15 +740,13 @@ makeDate(struct FNAME *p, time_t lt, int readable_week)
 	}
 
 	// 現時刻から半年前かチェック (秒でチェック、60 * 60 * 24 * 365 / 2 = 15768000)、前なら年表示
-	if (readable_week) {
-		// 省略表示しない %B, %A
-		strftime(p->date, DATALEN, (dtime < 15768000) ? "%B %e %H:%M" : "%B %e  %Y", t);
-		strftime(p->week, DATALEN, "%A", t);
-	} else {
-		// 3 文字の省略表示 %b, %a
-		strftime(p->date, DATALEN, (dtime < 15768000) ? "%b %e %H:%M" : "%b %e  %Y", t);
-		strftime(p->week, DATALEN, "%a", t);
-	}
+	// 省略なし %B, %A
+	strftime(p->datelong, DATALEN, (dtime < 15768000) ? "%B %e %H:%M" : "%B %e  %Y", t);
+	strftime(p->weeklong, DATALEN, "%A", t);
+
+	// 3 文字の省略表示 %b, %a
+	strftime(p->date, DATALEN, (dtime < 15768000) ? "%b %e %H:%M" : "%b %e  %Y", t);
+	strftime(p->week, DATALEN, "%a", t);
 
 	strftime(p->time, DATALEN, "%Y, %m/%d %H:%M:%S", t);
 }
@@ -850,8 +847,8 @@ countEntry(char *dname, char *path)
 		tmppath = fullpath;
 	}
 
-	DIR *dr;
-	if ((dr = opendir(tmppath)) == NULL) {
+	DIR *dr = opendir(tmppath);
+	if (dr == NULL) {
 		return -1;
 	}
 
@@ -861,10 +858,6 @@ countEntry(char *dname, char *path)
 	}
 	closedir(dr);
 
-	if (count == -1) {
-// 		debug printf(" scandir: %s: -1.\n", tmppath);
-		return -1;
-	}
 #ifdef COUNTFUNC
 	count_malloc += count;
 #endif
@@ -1028,7 +1021,8 @@ countMatchedString(const char *str)
 	const char *pos = name;
 	while ((pos = strstr(pos, paintString)) != NULL) {
 		ret++;
-		pos += (paintStringLen > 1) ? paintStringLen : 1; // 一致時のスキップ
+		// !!
+		pos += (paintStringLen > 0) ? paintStringLen : 1; // 一致時のスキップ
 	}
 
 	return ret;
@@ -1240,6 +1234,8 @@ typedef enum {
 	week_sortfunc = 'w',
 	date_sortfunc = 'd',
 	time_sortfunc = 't',
+	weeklong_sortfunc = 'W',
+	datelong_sortfunc = 'D',
 
 	size_sortfunc  = 's',
 	count_sortfunc = 'c',
@@ -1272,6 +1268,8 @@ sortfunclistinit(void)
 	sortfunclist[week_sortfunc] = myAlphaSortRev;
 	sortfunclist[date_sortfunc] = myMtimeSort;
 	sortfunclist[time_sortfunc] = myMtimeSort;
+	sortfunclist[weeklong_sortfunc] = myAlphaSortRev;
+	sortfunclist[datelong_sortfunc] = myMtimeSort;
 
 	sortfunclist[size_sortfunc]  = mySizeSortRev;
 	sortfunclist[count_sortfunc] = mySizeSortRev;
@@ -1594,13 +1592,15 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 		  case 's':           if (func(p.sizec,  string)) { return 1; } break;
 		  case 'C':           if (func(p.count,  string)) { return 1; } break;
 		  case 'c':           if (func(p.countc, string)) { return 1; } break;
-		  case 'd': case 'D': if (func(p.date,   string)) { return 1; } break;
+		  case 'd':           if (func(p.date,   string)) { return 1; } break;
 		  case 't': case 'T': if (func(p.time,   string)) { return 1; } break;
-		  case 'w': case 'W': if (func(p.week,   string)) { return 1; } break;
+		  case 'w':           if (func(p.week,   string)) { return 1; } break;
 		  case 'p': case 'P': if (func(p.path,   string)) { return 1; } break;
 		  case 'u': case 'U': if (func(p.unique, string)) { return 1; } break;
 		  case 'n': case 'N': if (func(p.name,   string)) { return 1; } break;
 		  case 'k': case 'K': if (func(p.kind,   string)) { return 1; } break;
+		  case 'D':           if (func(p.datelong, string)) { return 1; } break;
+		  case 'W':           if (func(p.weeklong, string)) { return 1; } break;
 		  case 'x': case 'X': if (func(p.extension,      string)) { return 1; } break;
 		  case 'l': case 'L': if (strcasestr(p.linkname, string)) { return 1; } break;
 		  case 'e': case 'E': if (strcasestr(p.errnostr, string)) { return 1; } break;
@@ -1874,9 +1874,9 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 			// --------------------------------------------------------------------------------
 			// 左寄せ項目
 #ifdef MD5
-#define STRCHR_STR "mMoOkKgGtTwWHDxX5"
+#define STRCHR_STR "mMoOkKgGtTwWHxX5"
 #else
-#define STRCHR_STR "mMoOkKgGtTwWHDxX"
+#define STRCHR_STR "mMoOkKgGtTwWHxX"
 #endif
 			if (strchr(STRCHR_STR, (unsigned char) cfg.formatListString[j])) {
 				switch ((unsigned char) cfg.formatListString[j]) {
@@ -1885,9 +1885,9 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 				  case 'k': case 'K': len = data[i].kindl   + count * cfg.tlen; break;
 				  case 'g': case 'G': len = data[i].groupl  + count * cfg.tlen; break;
 				  case 't': case 'T': len = data[i].timel   + count * cfg.tlen; break;
-				  case 'w': case 'W': len = data[i].weekl   + count * cfg.tlen; break;
+				  case 'w':           len = data[i].weekl   + count * cfg.tlen; break;
 				  case 'H':           len = data[i].nlinkl  + count * cfg.tlen; break;
-				  case 'D':           len = data[i].datel   + count * cfg.tlen; break;
+				  case 'W':           len = data[i].weeklongl  + count * cfg.tlen; break;
 				  case 'x': case 'X': len = data[i].extensionl + count * cfg.tlen; break;
 #ifdef MD5
 				  case '5':           len = data[i].md5l    + count * cfg.tlen; break;
@@ -1928,8 +1928,12 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 			// --------------------------------------------------------------------------------
 			// 特殊項目
 			switch (cfg.formatListString[j]) {
-			  case 'd':
-				len = data[i].datel + count * cfg.tlen;
+			  case 'd': case 'D':
+				if (cfg.formatListString[j] == 'd') {
+					len = data[i].datel + count * cfg.tlen;
+				} else {
+					len = data[i].datelongl + count * cfg.tlen;
+				}
 				// -t の時
 				if (digits[(unsigned char) cfg.formatListString[j]]) {
 					printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
@@ -2121,8 +2125,7 @@ printExtension(struct FNAME *fnamelist, int nth)
 {
 	debug printStr(label, "printExtension:\n");
 
-	struct DLIST *extensionduplist;
-	extensionduplist = mallocDuplist("", 0);
+	struct DLIST *extensionduplist = mallocDuplist("", 0);
 
 	for (int i=0; i<nth; i++) {
 		if (fnamelist[i].showlist == SHOW_NONE) {
@@ -2161,8 +2164,7 @@ printAggregate(struct FNAME *fnamelist, int nth, int aggregate_length)
 {
 	debug printStr(label, "printAggregate:\n");
 
-	int hitcount = 0;
-	int displaycount = 0;
+	int hitcount = 0, displaycount = 0;
 	int count_chklen[UNIQUE_LENGTH] = {0};
 
 	// 表示しないものを nth から引く
@@ -2310,7 +2312,7 @@ showVersion(char **argv)
 	printf("  default unique word:    for fish shell.\n");
 	printf("  beginning of file name: like tcsh shell. (-b)\n");
 	printf("  unique group name word: elisp like file name, same name and differet extension. (-e)\n");
-	printf("  without color:          enclosing string and no color. (-TB\\[ -TE\\] -n)\n");
+	printf("  without color:          enclosing string and no color. (-nn)\n");
 	printf(" Displays only files for which the specified string matches. (-P)\n");
 
 	printf("\n");
@@ -2377,7 +2379,7 @@ showUsage(char **argv)
 
 	printf("\n");
 	printf(" If multiple identical options are specified:\n");
-	printf("  Overridden by the last option: -c, -p, -P, -f, -TB, -TE, -R, -F.\n");
+	printf("  Overridden by the last option: -c, -p, -P, -f, -R, -F.\n");
 
 	printf("\n");
 	printf(" Options have priority. (Last line of each "); printStr(label, "options:"); printf(")\n");
@@ -2401,7 +2403,8 @@ showUsage(char **argv)
 	printf("      c:For DIRECTORY, the number of directory entries (without \".\" and \"..\"). Otherwise, size of FILE.\n");
 	printf("      x:word after the last dot, dot is not the beginning character of the filename.\n");
 	printf("      S, C, I:no comma output.\n");
-	printf("      Upper case is padding off. (Same length: no change in appearance (m, t, w, 5))\n");
+	printf("      Upper case is padding off. (Same length: no change in appearance (m, t, 5))\n");
+	printf("      W, D: without abbreviation.\n");
 	printf("     -s > -l = -f > default short listing (include file status)\n");
 
 	printf("\n");
@@ -2423,7 +2426,7 @@ showUsage(char **argv)
 
 	printf("\n");
 	printStr(label, "Color options:\n");
-	printf(" -n: No colors.\n");
+	printf(" -n: No colors. (-nn: nocolors and enclosing unique word string by [, ])\n");
 	printf(" -d: use Default colors.\n");
 	printf(" "); printStr(normal, "-c"); printf(": set Custom colors. (8: -cbase=37:normal=34:normal=1:..., 256: -cbase=3007:normal=3012:normal=1:...)\n");
 	printf("      "); printStr(base,   "base");   printf( ":   not unique string.\n");
@@ -2462,17 +2465,15 @@ showUsage(char **argv)
 	printStr(label, "Additional options:\n");
 	printf(" -t: with -l, human-readable daTe. (-f with date)\n");
 	printf(" -i: with -l, human-readable sIze. (-f with count, size, hardlinks)\n");
-	printf(" -w: with -l, day of the week, month Without abbreviation. (-f with week, date (month))\n");
 	printf(" "); printStr(label,  "-x"); printf(": show eXtension results.\n");
 	printf(" "); printStr(label,  "-r"); printf(": show aggregate Results.\n");
 	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \""); printStr(paint,  "paint"); printf("\" color. (-Rnumber)\n");
-	printf("     -r = -R = -x = -i = -t > -w\n");
+	printf("     -r = -R = -x = -i = -t\n");
 
 	printf("\n");
 	printStr(label, "Other options:\n");
 	printf(" -h, "); printStr(normal, "--help"); printf(":    show this message.\n");
 	printf(" -v, "); printStr(normal, "--version"); printf(": show Version.\n");
-	printf(" "); printStr(normal,"-TB"); printf(", "); printStr(normal, "-TE"); printf(":      enclosing unique word string. (-TB\\[ -TE\\])\n");
 	printf(" "); printStr(normal,"-always"); printf(":       output the escape sequence characters in redirect.\n");
 	printf(" "); printStr(normal,"-256"); printf(":          color text output.\n");
 }
@@ -2487,22 +2488,23 @@ getTerminalSize(unsigned short int *x, unsigned short int *y)
 
 	struct winsize ws;
 
-	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1) {
-// 		debug printf(" ERROR: width:%d, height:%d\n", ws.ws_col, ws.ws_row);
-// 		perror("ioctl");
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != -1) {
+		debug printf(" width:%d, height:%d\n", ws.ws_col, ws.ws_row);
+		*x = ws.ws_col;
+		*y = ws.ws_row;
 
-		// 取得できないので 120x35 とする
-		*x = 120;
-		*y = 35;
-		debug printf(" Assumption: width:%d, height:%d.\n", *x, *y);
-		return -1;
+		return 0;
 	}
 
-	debug printf(" width:%d, height:%d\n", ws.ws_col, ws.ws_row);
-	*x = ws.ws_col;
-	*y = ws.ws_row;
+// 	debug printf(" ERROR: width:%d, height:%d\n", ws.ws_col, ws.ws_row);
+// 	perror("ioctl");
 
-	return 0;
+	// 取得できないので 120x35 とする
+	*x = 120;
+	*y = 35;
+	debug printf(" Assumption: width:%d, height:%d.\n", *x, *y);
+
+	return -1;
 }
 
 
@@ -2533,8 +2535,10 @@ struct DENT {
 	int count_digits;
 	int countc_digits;
 	int date_digits;
+	int datelong_digits;
 	int time_digits;
 	int week_digits;
+	int weeklong_digits;
 	int path_digits;
 	int unique_digits;
 	int name_digits;
@@ -2589,7 +2593,6 @@ debug_showArgvswitch(struct ALIST cfg)
 
 	showSwitch(readable_date);
 	showSwitch(readable_size);
-	showSwitch(readable_week);
 	showSwitch(aggregate_results);
 	showSwitch(aggregate_length);
 
@@ -2653,9 +2656,12 @@ rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 	// sn など複数指定を行う、、、、reverse で処理するのが良さげ
 	for (int i=strlen(cfg.formatSortString) -1; i>=0; i--) {
 		debug printf(" [%c]\n", cfg.formatSortString[i]);
+
+		int c = cfg.formatSortString[i];
+
 		for (int j=0; j<nth; j++) {
 
-			switch (cfg.formatSortString[i]) {
+			switch (c) {
 #ifdef MD5
 			  case '5': fnamelist[j].sortc = fnamelist[j].md5;  break;
 #endif
@@ -2678,24 +2684,20 @@ rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 			  case 'd': fnamelist[j].sortc = fnamelist[j].date; break;
 			  case 't': fnamelist[j].sortc = fnamelist[j].date; break;
 			  case 'w': fnamelist[j].sortc = fnamelist[j].week; break;
+			  case 'D': fnamelist[j].sortc = fnamelist[j].datelong; break;
+			  case 'W': fnamelist[j].sortc = fnamelist[j].weeklong; break;
 
 			  // size
 			  case 'c': fnamelist[j].sortc = fnamelist[j].count; break;
 			  case 's': fnamelist[j].sortc = fnamelist[j].size;  break;
 			  case 'i': fnamelist[j].sortc = fnamelist[j].inode; break;
 			  case 'h': fnamelist[j].sortc = fnamelist[j].nlink; break;
-
-			default:
-// 				fnamelist[j].sortc = fnamelist[j].name;
-				break;
 			}
 		}
 
-		// ',' などはここ
-		if (sortfunclist[(int) cfg.formatSortString[i]] == NULL) {
-			continue;
+		if (sortfunclist[(int)c]) {
+			qsort(fnamelist, nth, sizeof(struct FNAME), sortfunclist[(int)c]);
 		}
-		qsort(fnamelist, nth, sizeof(struct FNAME), sortfunclist[(int) cfg.formatSortString[i]]);
 	}
 }
 
@@ -2721,6 +2723,8 @@ fnameLength(struct FNAME *p)
 	p->datel   = strlen(p->date);
 	p->timel   = strlen(p->time);	// 固定長
 	p->weekl   = strlen(p->week);	// 固定長
+	p->datelongl = strlen(p->datelong);
+	p->weeklongl = strlen(p->weeklong);
 #ifdef MD5
 	p->md5l    = strlen(p->md5);	// 固定長
 #endif
@@ -2844,24 +2848,6 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 
 		// --------------------------------------------------------------------------------
 		// 引数の後に文字列指定
-		// 文字指定 -TB
-		if (strncmp(argv[i], "-TB", 3) == 0) {
-			if (len == 3) { argverr[i] = error; errc++; continue; }
-
-			strcpy(cfg->textbegin, argv[i] + 3);
-			cfg->lbegin = len - 3;
-			cfg->tlen = cfg->lbegin + cfg->lend;
-			continue;
-		}
-		// 文字指定 -TE
-		if (strncmp(argv[i], "-TE", 3) == 0) {
-			if (len == 3) { argverr[i] = error; errc++; continue; }
-
-			strcpy(cfg->textend, argv[i] + 3);
-			cfg->lend = len - 3;
-			cfg->tlen = cfg->lbegin + cfg->lend;
-			continue;
-		}
 
 		// 表示順指定
 		if (strncmp(argv[i], "-f", 2) == 0) {
@@ -2972,7 +2958,6 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 
 					case 't': cfg->readable_date++;     break;	// human readable time
 					case 'i': cfg->readable_size++;     break;	// human readable size
-					case 'w': cfg->readable_week++;     break;	// human readable 省略しない曜日/月表示
 					case 'r': cfg->aggregate_results++; break;	// 集計結果表示
 
 					case 'h': cfg->show_help++;         break;	// help 表示
@@ -3060,10 +3045,12 @@ progressAlist(struct ALIST *cfg)
 		  case 'x': cfg->format_extension++; toggleFunction(&sortfunclist[extension_sortfunc], myAlphaSort, myAlphaSortRev); break;
 
 		  case 'w': cfg->format_date++; toggleFunction(&sortfunclist[week_sortfunc], myAlphaSort, myAlphaSortRev); break;
+		  case 'W': cfg->format_date++; toggleFunction(&sortfunclist[weeklong_sortfunc], myAlphaSort, myAlphaSortRev); break;
 
 			// makeDate() で処理
 		  case 'd': cfg->format_date++; toggleFunction(&sortfunclist[date_sortfunc], myMtimeSort, myMtimeSortRev); break;
 		  case 't': cfg->format_date++; toggleFunction(&sortfunclist[time_sortfunc], myMtimeSort, myMtimeSortRev); break;
+		  case 'D': cfg->format_date++; toggleFunction(&sortfunclist[datelong_sortfunc], myMtimeSort, myMtimeSortRev); break;
 
 		  // size, count
 		  case 's': cfg->format_size++; toggleFunction(&sortfunclist[size_sortfunc], mySizeSort, mySizeSortRev); break;
@@ -3081,7 +3068,7 @@ progressAlist(struct ALIST *cfg)
 
 	// human readable date/size/week は long 表示
 	// -f にその要素が無くても -l にはする
-	if ( cfg->readable_size || cfg->readable_date || cfg->readable_week ) {
+	if ( cfg->readable_size || cfg->readable_date) {
 		cfg->show_long++;
 	}
 
@@ -3111,32 +3098,13 @@ progressAlist(struct ALIST *cfg)
 		cfg->show_long = 0;
 		cfg->readable_date = 0;
 		cfg->readable_size = 0;
-		cfg->readable_week = 0;
 	}
 
 	// --------------------------------------------------------------------------------
-	// -TB, -TE の設定
-	// 片側の指定だけなら同じ文字列を使用
-	if (cfg->lbegin == 0) {
-		strcpy(cfg->textbegin, cfg->textend);
-		cfg->lbegin = cfg->lend;
-		cfg->tlen = cfg->lbegin + cfg->lend;
-	}
-
-	if (cfg->lend == 0) {
-		strcpy(cfg->textend, cfg->textbegin);
-		cfg->lend = cfg->lbegin;
-		cfg->tlen = cfg->lbegin + cfg->lend;
-	}
-
 #ifdef DEBUG
-	if (cfg->lbegin == 0 && cfg->lend == 0) {
-		strcpy(cfg->textbegin, "[");
-		strcpy(cfg->textend,   "]");
-		cfg->lbegin = strlen(cfg->textbegin);
-		cfg->lend   = strlen(cfg->textend);
-		cfg->tlen = cfg->lbegin + cfg->lend;
-	}
+	strcpy(cfg->textbegin, "[");
+	strcpy(cfg->textend,   "]");
+	cfg->tlen = 2;
 #endif
 
 	// --------------------------------------------------------------------------------
@@ -3168,10 +3136,16 @@ progressAlist(struct ALIST *cfg)
 		cfg->argv_color = 0;
 		cfg->default_color = 0;
 
-		// -TB, -TE と併用で無ければ、色をつけないから uniqueCheck() を行わない
-		// -TB, -TE が指定されていたら、uniqueCheck() は行う
+		// [, ] 固定
+		if (cfg->no_color > 1) {
+			strcpy(cfg->textbegin, "[");
+			strcpy(cfg->textend,   "]");
+			cfg->tlen = strlen(cfg->textbegin) + strlen(cfg->textend);
+			cfg->do_uniquecheck = 1;
+		}
+		// [, ] と併用で無ければ、色をつけないから uniqueCheck() を行わない
 		// -fu も同様
-		if (cfg->lbegin == 0 && cfg->format_unique == 0) {
+		if (cfg->tlen == 0 && cfg->format_unique == 0) {
 			cfg->do_uniquecheck = 0;
 			cfg->do_emacs = 0;
 		}
@@ -3242,11 +3216,13 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 				digits['s'] = MAX(p->sizec_digits,  digits['s']);		// 最大ファイルサイズ、comma 表記
 				digits['C'] = MAX(p->count_digits,  digits['C']);		// 最大エントリー数の桁数
 				digits['c'] = MAX(p->countc_digits, digits['c']);		// 最大エントリー数の桁数、comma 表記
-				digits['d'] = MAX(p->date_digits,   digits['d']);		// 日付の桁数
+				digits['d'] = MAX(p->date_digits,   digits['d']);		// 日付
 				digits['p'] = MAX(p->path_digits,   digits['p']);		// path
 				digits['u'] = MAX(p->unique_digits, digits['u']);		// ユニーク文字列
 				digits['n'] = MAX(p->name_digits,   digits['n']);		// 名前の桁数
 				digits['k'] = MAX(p->kind_digits,   digits['k']);		// 種類の桁数
+				digits['W'] = MAX(p->weeklong_digits, digits['W']);		// 曜日、省略なし
+				digits['D'] = MAX(p->datelong_digits, digits['D']);		// 日付、省略なし
 				digits['l'] = MAX(p->linkname_digits,  digits['l']);	// linkname
 				digits['e'] = MAX(p->errnostr_digits,  digits['e']);	// errnostr
 				digits['x'] = MAX(p->extension_digits, digits['x']);	// 拡張子
@@ -3365,8 +3341,10 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 			digits['C'] = p->count_digits;
 			digits['c'] = p->countc_digits;
 			digits['d'] = p->date_digits;
+			digits['D'] = p->datelong_digits;
 			digits['t'] = p->time_digits;
 			digits['w'] = p->week_digits;
+			digits['W'] = p->weeklong_digits;
 			digits['p'] = p->path_digits;
 			digits['u'] = p->unique_digits;
 			digits['n'] = p->name_digits;
@@ -3781,6 +3759,8 @@ main(int argc, char *argv[])
 						strcpy(fnamelist[j].date,   "-");
 						strcpy(fnamelist[j].time,   "-");
 						strcpy(fnamelist[j].week,   "-");
+						strcpy(fnamelist[j].datelong, "-");
+						strcpy(fnamelist[j].weeklong, "-");
 #ifdef MD5
 						strcpy(fnamelist[j].md5,    "-");
 #endif
@@ -3942,7 +3922,7 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				makeDate(&fnamelist[j], lt, cfg.readable_week);
+				makeDate(&fnamelist[j], lt);
 				// ----------------------------------------
 				// 時間を読みやすくする
 				if (cfg.readable_date) {
@@ -4348,6 +4328,8 @@ main(int argc, char *argv[])
 				p->week_digits   = MAX(p->week_digits,   countMatchedString(fnamelist[j].week)   * cfg.tlen + fnamelist[j].weekl);
 				p->kind_digits   = MAX(p->kind_digits,   countMatchedString(fnamelist[j].kind)   * cfg.tlen + fnamelist[j].kindl);
 				p->path_digits   = MAX(p->path_digits,   countMatchedString(fnamelist[j].path)   * cfg.tlen + fnamelist[j].pathl);
+				p->datelong_digits  = MAX(p->datelong_digits,  countMatchedString(fnamelist[j].datelong)  * cfg.tlen + fnamelist[j].datelongl);
+				p->weeklong_digits  = MAX(p->weeklong_digits,  countMatchedString(fnamelist[j].weeklong)  * cfg.tlen + fnamelist[j].weeklongl);
 				p->unique_digits    = MAX(p->unique_digits,    countMatchedString(fnamelist[j].unique)    * cfg.tlen + fnamelist[j].uniquel);
 				p->linkname_digits  = MAX(p->linkname_digits,  countMatchedString(fnamelist[j].linkname)  * cfg.tlen + fnamelist[j].linknamel);
 				p->errnostr_digits  = MAX(p->errnostr_digits,  countMatchedString(fnamelist[j].errnostr)  * cfg.tlen + fnamelist[j].errnostrl);
@@ -4416,9 +4398,11 @@ main(int argc, char *argv[])
 				info_pointers['s'] =                      fnamelist[j].sizec;
 				info_pointers['C'] =                      fnamelist[j].count;
 				info_pointers['c'] =                      fnamelist[j].countc;
-				info_pointers['d'] = info_pointers['D'] = fnamelist[j].date;
+				info_pointers['d'] =                      fnamelist[j].date;
+				info_pointers['D'] =                      fnamelist[j].datelong;
 				info_pointers['t'] = info_pointers['T'] = fnamelist[j].time;
-				info_pointers['w'] = info_pointers['W'] = fnamelist[j].week;
+				info_pointers['w'] =                      fnamelist[j].week;
+				info_pointers['W'] =                      fnamelist[j].weeklong;
 				info_pointers['p'] = info_pointers['P'] = fnamelist[j].path;
 				info_pointers['u'] = info_pointers['U'] = fnamelist[j].unique;
 				info_pointers['n'] = info_pointers['N'] = fnamelist[j].name;
