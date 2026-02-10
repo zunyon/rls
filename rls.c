@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "02/08"
-#define BTIME "11:17:39"
+#define BDATE "02/10"
+#define BTIME "21:24:06"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 02/08 11:00"
+// my-last-update-time "2026, 02/09 12:34"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -271,16 +271,6 @@ searchDuplist(struct DLIST *p, char *word, int len, int number)
 			ret = strncmp(word, p->dupword, len);
 			// 見つかった
 			if (ret == 0) {
-
-#if 0
-				printf("[");
-				for (int i=0; i<len; i++) {
-					printf("%c", word[i]);
-				}
-				printf(" number:%d, fnamelistNumber:%d ", number, p->fnamelistNumber);
-				printf("]%d: dup\n", len);
-#endif
-
 				// 自分以外は重複と判断
 				if (number != p->fnamelistNumber) {
 					p->fnamelistNumber = -1;
@@ -610,7 +600,6 @@ struct ALIST {
 	int beginning_word;
 	int do_emacs;
 	int paint_string;
-	int do_extension;
 
 	int show_dotfile;
 	int only_directory;
@@ -630,7 +619,6 @@ struct ALIST {
 
 	int show_help;
 	int show_version;
-	int show_escape;
 	int output_escape;
 
 	// text で囲む場合の文字列
@@ -830,8 +818,7 @@ makeReadableSize(char *numstr)
 
 
 // --------------------------------------------------------------------------------
-// 指定ディレクトリに含まれているエントリー数を返す
-// -fc のディレクトリ内のエントリー数
+// -fc 指定ディレクトリに含まれているエントリー数を返す
 int
 countEntry(char *dname, char *path)
 {
@@ -932,7 +919,7 @@ char paintString[FNAME_LENGTH];
 int paintStringLen;
 
 
-// -fn 表示、unique 文字列の色わけ表示
+// -fn unique 文字列の色わけ表示
 void
 printUnique(struct FNAME p, const char *dummy, struct ALIST cfg)
 {
@@ -997,7 +984,7 @@ printUnique(struct FNAME p, const char *dummy, struct ALIST cfg)
 }
 
 
-// -p 時、対象文字列に何回該当したか、、、"aaaaaa" の場合 "aa" は 3 回該当の仕様
+// -p 対象文字列に何回該当したか、、、"aaaaaa" の場合 "aa" は 3 回該当の仕様
 int
 countMatchedString(const char *str)
 {
@@ -1105,10 +1092,6 @@ printKind(struct FNAME p, const char *str, struct ALIST cfg)
 void
 addFNamelist(struct FNAME *p, char *name)
 {
-// 	p->size[0] = '\0';
-// 	p->sizec[0] = '\0';
-// 	p->count[0] = '\0';
-// 	p->countc[0] = '\0';
 	p->unique[0] = '\0';
 	p->name = name;		// namelist[i] をそのまま使用
 	p->kind[0] = '\0'; p->kind[1] = '\0';
@@ -1139,9 +1122,7 @@ addFNamelist(struct FNAME *p, char *name)
 	p->uniqueend   = -1;
 	p->color = normal;			// -s の時の色でもある
 
-	// uniqueCheck(), uniqueCheckFirstWord() 候補
-	p->sourcelist = 1;
-	// 全表示候補
+	p->sourcelist = 1;			// uniqueCheck(), uniqueCheckFirstWord() 候補
 	p->showlist = SHOW_SHORT;	// デフォルトは printShort()
 }
 
@@ -1206,10 +1187,7 @@ myMtimeSortRev(const void *a, const void *b)
 }
 
 // --------------------------------------------------------------------------------
-// !!
 typedef int (*sortfunc)(const void *, const void *);
-
-// int (*sortfunclist[256])(const void *, const void *);
 sortfunc sortfunclist[UCHAR_MAX];
 
 void
@@ -1243,8 +1221,7 @@ typedef enum {
 	nlink_sortfunc = 'h',
 
 	name_sortfunc = 'n',
-	// !! path はみんな同じだから、実質動作しない、rowSort() で、name に
-	path_sortfunc = 'p',
+	path_sortfunc = 'p',		// path はみんな同じだから実質動作しない、rowSort() で name に
 
 	SortListCount
 } SORTLIST;
@@ -1324,20 +1301,8 @@ refrectDuplist(struct DLIST *node, struct FNAME *p)
 		int oend = p[j].uniqueend;
 
 		char *found = strstr(p[j].lowername, node->dupword);
-// 		int nbeg = p[j].length - strlen(found);
 		int nbeg = found - p[j].lowername;
 		int nend = nbeg + node->length -1;
-
-#if 0
-		printf("<%s>[%s]", p[j].lowername, node->dupword);
-		printf(", num:%d", j);
-// 		printf(", O:[%d-%d=%d, %d], N:[%d-%d=%d, %d]", oend, obeg, oend - obeg, olen, nend, nbeg, nend - nbeg, nend - nbeg +1);
-		printf(" [");
-		for (int i=nbeg; i<=nend; i++) {
-			printf("%c", p[j].lowername[i]);
-		}
-		printf("]");
-#endif
 
 		// 最初 unique の登録
 		if (obeg == -1) {
@@ -1360,15 +1325,6 @@ refrectDuplist(struct DLIST *node, struct FNAME *p)
 				}
 			}
 		}
-
-#if 0
-		printf(",[");
-		for (int i=p[j].uniquebegin; i<=p[j].uniqueend; i++) {
-			printf("%c", p[j].lowername[i]);
-		}
-		printf("]\n");
-#endif
-
 	}
 
 	refrectDuplist(node->right, p);
@@ -1442,7 +1398,6 @@ uniqueCheck(struct FNAME *p, int j, int len, struct DLIST *duplist)
 	int l = p[j].length - len;
 
 	if (l == 0) {
-// 		searchDuplist(duplist, p[j].lowername, len, -1);
 		if (searchDuplist(duplist, p[j].lowername, len, -1) == 0) {
 			addDuplist(duplist, p[j].lowername, len, -1);
 		}
@@ -1479,7 +1434,6 @@ uniqueCheckFirstWord(struct FNAME *p, int j, int len, struct DLIST *duplist)
 	char *tmp = p[j].lowername;
 
 	if (p[j].length == len) {
-// 		searchDuplist(duplist, p[j].lowername, len, -1);
 		if (searchDuplist(duplist, p[j].lowername, len, -1) == 0) {
 			addDuplist(duplist, p[j].lowername, len, -1);
 		}
@@ -1909,11 +1863,11 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 			// 右寄せ
 			if (strchr("iIsSh", (unsigned char) cfg.formatListString[j])) {
 				switch (cfg.formatListString[j]) {
-					case 'i': len = data[i].inodecl+ count * cfg.tlen; break;
-					case 'I': len = data[i].inodel + count * cfg.tlen; break;
-					case 'h': len = data[i].nlinkl + count * cfg.tlen; break;
-					case 's': len = data[i].sizecl + count * cfg.tlen; break;
-					case 'S': len = data[i].sizel  + count * cfg.tlen; break;
+					case 'i': len = data[i].inodecl + count * cfg.tlen; break;
+					case 'I': len = data[i].inodel  + count * cfg.tlen; break;
+					case 'h': len = data[i].nlinkl  + count * cfg.tlen; break;
+					case 's': len = data[i].sizecl  + count * cfg.tlen; break;
+					case 'S': len = data[i].sizel   + count * cfg.tlen; break;
 				}
 
 				printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
@@ -2214,95 +2168,6 @@ printAggregate(struct FNAME *fnamelist, int nth, int aggregate_length)
 
 
 // ================================================================================
-// 256 color、-256 |less すると、表示できる色が変わる、/bin/ls --color |less と比べる
-void
-showEscapeList(void)
-{
-	printStr(label, "Show Escape List:\n");
-
-	printf(" 8 color:\n");
-	printf(" standard colors/high-intensity colors\n");
-
-	for (int i=30; i<38; i++) {
-		printf("\033[%dm", i);
-		printf("%5d", i);
-		printf("\033[0m");
-
-		printf("\033[%dm", i + 10);
-		printf("%5d", i + 10);
-		printf("\033[0m");
-	}
-	printf("\n");
-
-	for (int i=90; i<98; i++) {
-		printf("\033[%dm", i);
-		printf("%5d", i);
-		printf("\033[0m");
-
-		printf("\033[%dm", i + 10);
-		printf("%5d", i + 10);
-		printf("\033[0m");
-	}
-	printf("\n\n");
-
-	// --------------------------------------------------------------------------------
-	int j;
-	printf(" 256 color:\n");
-	j=1;
-	for (int i=0; i<16; i++) {
-		printf("\033[38;5;%dm", i);
-		printf("%5d", 3000 + i);
-		printf("\033[0m");
-
-		printf("\033[48;5;%dm", i);
-		printf("%5d", 4000 + i);
-		printf("\033[0m");
-
-		if (j++ % 8 == 0) {
-			printf("\n");
-		}
-	}
-	printf("\n");
-
-	// --------------------------------------------------------------------------------
-	// ここの fg/bg は上と混ぜられない
-	j=1;
-	for (int i=16; i<232; i++) {
-		printf("\033[38;5;%dm", i);
-		printf("%5d", 3000 + i);
-		printf("\033[0m");
-
-		printf("\033[48;5;%dm", i);
-		printf("%5d", 4000 + i);
-		printf("\033[0m");
-
-		if (j++ % 6 == 0) {
-			printf("\n");
-		}
-	}
-	printf("\n");
-
-	// --------------------------------------------------------------------------------
-	// fg/bg では、bg が優先される
-	printf(" grayscale colors:\n");
-	j=1;
-	for (int i=232; i<256; i++) {
-		printf("\033[38;5;%dm", i);
-		printf("%5d", 3000 + i);
-		printf("\033[0m");
-
-		printf("\033[48;5;%dm", i);
-		printf("%5d", 4000 + i);
-		printf("\033[0m");
-
-		if (j++ % 6 == 0) {
-			printf("\n");
-		}
-	}
-	printf("\n");
-}
-
-
 void
 showVersion(char **argv)
 {
@@ -2441,7 +2306,7 @@ showUsage(char **argv)
 	printf("      ---\n");
 	printf("      8 colors:   Control Sequence Introducer. (Depends on terminal implementation)\n");
 	printf("      256 colors: fore:30xx, back:40xx.\n");
-	printf("      8 colors and 256 colors cannot be specified at the same time. (-256)\n");
+	printf("      8 colors and 256 colors cannot be specified at the same time.\n");
 	printf("      %s environment: same as -c option format, same restrictions.\n", ENVNAME);
 	printf("     -n > -c > -d > %s env color > default color\n", ENVNAME);
 
@@ -2465,17 +2330,15 @@ showUsage(char **argv)
 	printStr(label, "Additional options:\n");
 	printf(" -t: with -l, human-readable daTe. (-f with date)\n");
 	printf(" -i: with -l, human-readable sIze. (-f with count, size, hardlinks)\n");
-	printf(" "); printStr(label,  "-x"); printf(": show eXtension results.\n");
-	printf(" "); printStr(label,  "-r"); printf(": show aggregate Results.\n");
+	printf(" "); printStr(label,  "-r"); printf(": show aggregate Results. (with extension results, if you use)\n");
 	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \""); printStr(paint,  "paint"); printf("\" color. (-Rnumber)\n");
-	printf("     -r = -R = -x = -i = -t\n");
+	printf("     -r = -R = -i = -t\n");
 
 	printf("\n");
 	printStr(label, "Other options:\n");
 	printf(" -h, "); printStr(normal, "--help"); printf(":    show this message.\n");
 	printf(" -v, "); printStr(normal, "--version"); printf(": show Version.\n");
 	printf(" "); printStr(normal,"-always"); printf(":       output the escape sequence characters in redirect.\n");
-	printf(" "); printStr(normal,"-256"); printf(":          color text output.\n");
 }
 
 
@@ -2577,7 +2440,6 @@ debug_showArgvswitch(struct ALIST cfg)
 	showSwitch(beginning_word);
 	showSwitch(do_emacs);
 	showSwitch(paint_string);
-	showSwitch(do_extension);
 
 	showSwitch(do_uniquecheck);
 	showSwitch(show_dotfile);
@@ -2598,7 +2460,6 @@ debug_showArgvswitch(struct ALIST cfg)
 
 	showSwitch(show_help);
 	showSwitch(show_version);
-	showSwitch(show_escape);
 	showSwitch(output_escape);
 }
 #endif
@@ -2666,7 +2527,7 @@ rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 			  case '5': fnamelist[j].sortc = fnamelist[j].md5;  break;
 #endif
 			  case 'n': fnamelist[j].sortc = fnamelist[j].name; break;
-			  // !! path を name として扱うか
+			  // path を name として扱う
 // 			  case 'p': fnamelist[j].sortc = fnamelist[j].path; break;
 			  case 'p': fnamelist[j].sortc = fnamelist[j].name; break;
 			  case 'k': fnamelist[j].sortc = fnamelist[j].kind; break;
@@ -2818,19 +2679,16 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 
 			for (int i=0; i<r; i++) {
 				printf ("%s\n", namelist[i]->d_name);
+				free(namelist[i]);
 			}
-
+			free(namelist);
 			fflush(stdout);
+
 			exit(EXIT_SUCCESS);
 		}
 
 		// ----------------------------------------
 		// 完全一致の引数
-		if (strcmp(argv[i], "-256") == 0) {
-			cfg->show_escape++;
-			continue;
-		}
-
 		if (strcmp(argv[i], "--help") == 0) {
 			cfg->show_help++;
 			continue;
@@ -2848,7 +2706,6 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 
 		// --------------------------------------------------------------------------------
 		// 引数の後に文字列指定
-
 		// 表示順指定
 		if (strncmp(argv[i], "-f", 2) == 0) {
 			if (len == 2) { argverr[i] = error; errc++; continue; }
@@ -2945,7 +2802,6 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 					case 'u': cfg->deep_unique++;       break;	// unique チェックを最後まで行う
 					case 'b': cfg->beginning_word++;    break;	// uniqueCheckFirstWord() のみ
 					case 'e': cfg->do_emacs++;          break;	// emacs 系ファイル名対応
-					case 'x': cfg->do_extension++;      break;	// 拡張子
 
 					case 'a': cfg->show_dotfile++;      break;	// '.' から始まるファイルを表示
 					case 'o': cfg->only_directory++;    break;	// ディレクトリのみ表示
@@ -2996,7 +2852,7 @@ progressAlist(struct ALIST *cfg)
 			// md5 を使用する
 			case '5':           cfg->format_md5++; break;
 #endif
-			case 'm': case 'M': cfg->format_mode++; break;
+			case 'm': case 'M': cfg->format_mode++;   break;
 			case 'u': case 'U': cfg->format_unique++; break;
 			case 'o': case 'O': cfg->format_owner++;  break;
 			case 'g': case 'G': cfg->format_group++;  break;
@@ -3053,7 +2909,7 @@ progressAlist(struct ALIST *cfg)
 		  case 'D': cfg->format_date++; toggleFunction(&sortfunclist[datelong_sortfunc], myMtimeSort, myMtimeSortRev); break;
 
 		  // size, count
-		  case 's': cfg->format_size++; toggleFunction(&sortfunclist[size_sortfunc], mySizeSort, mySizeSortRev); break;
+		  case 's': cfg->format_size++; toggleFunction(&sortfunclist[size_sortfunc],  mySizeSort, mySizeSortRev); break;
 		  case 'c': cfg->format_size++; toggleFunction(&sortfunclist[count_sortfunc], mySizeSort, mySizeSortRev); break;
 		  case 'i': cfg->format_size++; toggleFunction(&sortfunclist[inode_sortfunc], mySizeSort, mySizeSortRev); break;
 		  case 'h': cfg->format_size++; toggleFunction(&sortfunclist[nlink_sortfunc], mySizeSort, mySizeSortRev); break;
@@ -3066,7 +2922,7 @@ progressAlist(struct ALIST *cfg)
 		cfg->show_long++;
 	}
 
-	// human readable date/size/week は long 表示
+	// human readable date/size は long 表示
 	// -f にその要素が無くても -l にはする
 	if ( cfg->readable_size || cfg->readable_date) {
 		cfg->show_long++;
@@ -3093,7 +2949,6 @@ progressAlist(struct ALIST *cfg)
 	}
 
 	// simple 表示は long にしない (ファイルの種類を問わず単色表示)
-	// !! 速度のの見直し、time ./a.out /mnt/c/Windows/WinSxS/ -s とかなら差は出る
 	if (cfg->show_simple) {
 		cfg->show_long = 0;
 		cfg->readable_date = 0;
@@ -3108,7 +2963,7 @@ progressAlist(struct ALIST *cfg)
 #endif
 
 	// --------------------------------------------------------------------------------
-	// -l が指定されなかったら、-f も基本的に無し
+	// -l が指定されなかったら、-f も無し
 	// pickupString() 向けに操作
 	if (cfg->show_long == 0) {
 		cfg->formatListString[0] = 'n';
@@ -3373,9 +3228,6 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		// 集計表示
 		if (cfg.aggregate_results) {
 			printAggregate(p->fnamelistall, p->nthall, cfg.aggregate_length);
-		}
-
-		if (cfg.do_extension) {
 			printExtension(p->fnamelistall, p->nthall);
 		}
 
@@ -3587,23 +3439,20 @@ main(int argc, char *argv[])
 				printf(" Include Unknown or Missing Option.\n");			// 引数にエラー
 			}
 		}
+
+// 		printf("\n");
+// 		// 色を採用した後に表示
+// 		colorUsage();
+// 		if (cfg.argv_color) {
+// 			// argcolor の表示
+// 			printf("  argv color:      %s\n", cfg.color_txt);
+// 		}
 		exit(EXIT_SUCCESS);
 	}
 
 	// Version 表示
 	if (cfg.show_version) {
 		showVersion(argv);
-		exit(EXIT_SUCCESS);
-	}
-
-	// 色を採用した後に表示
-	if (cfg.show_escape) {
-		showEscapeList();
-		colorUsage();
-		if (cfg.argv_color) {
-			// argcolor の表示
-			printf("  argv color:      %s\n", cfg.color_txt);
-		}
 		exit(EXIT_SUCCESS);
 	}
 
@@ -4021,7 +3870,7 @@ main(int argc, char *argv[])
 		}
 
 		// --------------------------------------------------------------------------------
-		if (cfg.format_extension || cfg.do_extension || cfg.do_emacs) {
+		if (cfg.format_extension || cfg.do_emacs || cfg.aggregate_results) {
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;

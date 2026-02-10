@@ -42,7 +42,7 @@ init 2025, 08/07 04:54:55 root -rwxrwxrwx
 
 他にはこんな感じになります。
 ```shell
-rls -fcn -Fcc /usr/             # ディレクトリエントリ数順
+rls -o -fcn -Fcc /usr/          # ディレクトリエントリ数順
 rls -fCsn -Fss /tmp/            # ファイルサイズの大きい順
 rls -fcNLE -Fee /mnt/           # エラーのあるファイルの確認（-f に c, s, d, w, m など lstat() を行う項目が必要）
 rls -Fxss -fxsn ~/project/src   # ファイルの種類（拡張子別），サイズ順
@@ -108,6 +108,9 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - Makefile
   - MD5 message digest<br>
     `make md5` を行うと `-f` で `5` が使用できるようになります。
+- showEscapeList.c
+  - Control Sequence Introducer 表示<br>
+    元 `-256` オプションです。cc showEscapeList.c でコンパイルできます。
 </details>
 
 
@@ -290,15 +293,17 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 ## v0.3.0 からの変更内容
 - add `-R` の追加，指定数字の文字列長さを paint 色で表示
 - add `-f` の項目追加（`|`, `,`, `S`, `C`, `u`, `U`, `x`, `X`, `I`, `D`, `W`）
+- add `-fp` path の意味変更
 - add `-fDW` 英語表記の場合，月，曜日などを省略せずに表示
 - chg `-O` から `-S` へ変更，ソートを行わない
 - add `-O` の追加，ディレクトリを非表示
 - chg `main()` の initColor() のタイミング変更
 - chg `colorUsage()` の処理修正
 - fix `printAggregate()` の displaycount が 0 の時の処理修正
-- add `-x` の追加，拡張子の集計表示
 - add OpenMP への対応
 - del `-m`, `-z`, `-N` の廃止（`-F` にリプレース）
 - add `-F` の追加，項目単位でソート（`-f` の殆どの項目，`p` は `n` として， `|`, `,`, は無視）
 - chg `printLong()` のパディングの変更
 - del `-TB`, `-TE` の廃止（`-nn` に統合，囲む文字列は `[` と `]` 固定）
+- del `-256` の廃止
+- chg `-r` に拡張子の集計表示を追加
