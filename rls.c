@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "02/10"
-#define BTIME "21:24:06"
+#define BDATE "02/15"
+#define BTIME "17:14:41"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 02/09 12:34"
+// my-last-update-time "2026, 02/15 17:09"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -52,6 +52,8 @@
 // countfunction.c の準備
 // MD5 への対応 (make md5)
 // OpenMP への対応
+// git への対応 (make git)
+// 分類分け対応（-j -fj）
 
 
 // ================================================================================
@@ -74,6 +76,11 @@
 #include <openssl/evp.h>
 #endif
 
+#ifdef GIT
+#include <git2.h>
+#endif
+
+
 // ================================================================================
 #define FNAME_LENGTH 256				// ファイル/ディレクトリ名
 #define DATALEN 32						// mode, date, owner, group など
@@ -87,9 +94,9 @@
 
 #define ListCountd FNAME_LENGTH			// info に属させる項目数、-f の最大文字数
 
-#define SHOW_NONE   0					// struct FNAME の showlist、表示しない
-#define SHOW_SHORT  1					// struct FNAME の showlist、printShort()
-#define SHOW_LONG   2					// struct FNAME の showlist、printLong()
+#define SHOW_NONE   0					// 表示しない
+#define SHOW_SHORT  1					// printShort()
+#define SHOW_LONG   2					// printLong()
 
 #define SEP ','							// makeSize() のセパレート文字
 
@@ -522,6 +529,7 @@ struct FNAME {
 		char date[DATALEN];					// mtime 日付
 		char datelong[DATALEN];				// mtime 日付、省略なし
 		char time[DATALEN];					// 日時
+		char timereadable[DATALEN];			// 日時 human-readable
 		char week[DATALEN];					// 曜日
 		char weeklong[DATALEN];				// 曜日、省略なし
 		char *path;							// 絶対パス/相対パスで指定されたパス名
@@ -532,8 +540,12 @@ struct FNAME {
 		char linkname[FNAME_LENGTH];		// link 名
 		char errnostr[FNAME_LENGTH + 8];	// lstat() のエラー
 		char extension[FNAME_LENGTH];		// 拡張子
+		char jot[FNAME_LENGTH];				// 分類分け
 #ifdef MD5
 		char md5[33];						// 16 文字 * 2 バイト + '\0'
+#endif
+#ifdef GIT
+		char git[3];						// git ステータス
 #endif
 	char *sortc;
 
@@ -551,11 +563,13 @@ struct FNAME {
 	int datel;
 	int datelongl;
 	int timel;
+	int timereadablel;
 	int weekl;
 	int weeklongl;
 	int pathl;
 	int uniquel;
 	int extensionl;
+	int jotl;
 
 	int print_length;				// 表示時のファイル名の長さ、全角考慮 wcStrlen()
 	int length;						// ファイル名の長さ strlen()
@@ -565,6 +579,9 @@ struct FNAME {
 	int errnostrl;
 #ifdef MD5
 	int md5l;
+#endif
+#ifdef GIT
+	int gitl;
 #endif
 
 	int date_f;						// makeDate() の difftime() が未来
@@ -586,9 +603,13 @@ struct ALIST {
 #ifdef MD5
 	int format_md5;
 #endif
+#ifdef GIT
+	int format_git;
+#endif
 	int format_mode;
 	int format_unique;
 	int format_extension;
+	int format_jot;
 	int format_owner;
 	int format_group;
 	int format_date;
@@ -612,7 +633,6 @@ struct ALIST {
 
 	int no_sort;
 
-	int readable_date;
 	int readable_size;
 	int aggregate_results;
 	int aggregate_length;
@@ -628,6 +648,7 @@ struct ALIST {
 
 	char formatListString[ListCountd + 1];
 	char formatSortString[ListCountd + 1];
+	char jotString[FNAME_LENGTH];
 
 	char color_txt[sizeof(default_color_txt)];
 	char onlyPaintStr[FNAME_LENGTH + 1];
@@ -722,9 +743,10 @@ makeDate(struct FNAME *p, time_t lt)
 	struct tm *t = localtime(&(p->sb.st_mtime));
 	double dtime = difftime(lt, p->sb.st_mtime);
 
-	// 未来
+	// 未来、/proc, /sys
 	if (dtime < 0) {
 		p->date_f = 1;
+		dtime *= -1.0;
 	}
 
 	// 現時刻から半年前かチェック (秒でチェック、60 * 60 * 24 * 365 / 2 = 15768000)、前なら年表示
@@ -737,36 +759,23 @@ makeDate(struct FNAME *p, time_t lt)
 	strftime(p->week, DATALEN, "%a", t);
 
 	strftime(p->time, DATALEN, "%Y, %m/%d %H:%M:%S", t);
-}
 
-
-void
-makeReadableDate(struct FNAME *p, time_t lt)
-{
-	double delta = difftime(lt, p->sb.st_mtime);
-	// 未来、/proc, /sys
-	if (p->date_f) {
-		if (delta < 0) {
-			delta *= -1.0;
-		} else {
-			p->date_f = 0;
-		}
-	}
-
+	// --------------------------------------------------------------------------------
+	// readable time
 	do {
-// 		if (delta < 30) {          strcpy( p->date,    "just now"); break; }
-		if (delta < 60) {          sprintf(p->date,   "%dsec ago", (int) delta); break; }
-		if (delta < 3600) {        sprintf(p->date,   "%dmin ago", (int) delta / 60); break; }
-		if (delta < 3600*24) {     sprintf(p->date,  "%dhour ago", (int) delta / 3600); break; }
-// 		if (delta < 3600*24*2) {   strcpy( p->date,   "yesterday"); break; }
-		if (delta < 3600*24*7) {   sprintf(p->date,   "%dday ago", (int) delta / (3600*24)); break; }
-		if (delta < 3600*24*31) {  sprintf(p->date,  "%dweek ago", (int) delta / (3600*24*7)); break; }
-		if (delta < 3600*24*365) { sprintf(p->date, "%dmonth ago", (int) delta / (3600*24*31)); break; }
-		sprintf(p->date,  "%dyear ago", (int) delta / (3600*24*365));
+// 		if (dtime < 30) {          strcpy( p->timereadable,    "just now"); break; }
+		if (dtime < 60) {          sprintf(p->timereadable,   "%dsec ago", (int) dtime); break; }
+		if (dtime < 3600) {        sprintf(p->timereadable,   "%dmin ago", (int) dtime / 60); break; }
+		if (dtime < 3600*24) {     sprintf(p->timereadable,  "%dhour ago", (int) dtime / 3600); break; }
+// 		if (dtime < 3600*24*2) {   strcpy( p->timereadable,   "yesterday"); break; }
+		if (dtime < 3600*24*7) {   sprintf(p->timereadable,   "%dday ago", (int) dtime / (3600*24)); break; }
+		if (dtime < 3600*24*31) {  sprintf(p->timereadable,  "%dweek ago", (int) dtime / (3600*24*7)); break; }
+		if (dtime < 3600*24*365) { sprintf(p->timereadable, "%dmonth ago", (int) dtime / (3600*24*31)); break; }
+		sprintf(p->timereadable,  "%dyear ago", (int) dtime / (3600*24*365));
 	} while (0);
 
 	if (p->date_f) {
-		char *found = strchr(p->date, 'g');
+		char *found = strchr(p->timereadable, 'g');
 		found[0] = 'f';		// after に変更
 		found[1] = 't';
 	}
@@ -1098,10 +1107,14 @@ addFNamelist(struct FNAME *p, char *name)
 	p->linkname[0] = '\0';
 	p->errnostr[0] = '\0';
 	p->extension[0] = '\0';
+	p->jot[0] = '\0';
 	p->date_f = 0;
 
 #ifdef MD5
 	p->md5[0] = '\0';
+#endif
+#ifdef GIT
+	p->git[0] = '\0';
 #endif
 
 	// 比較用に小文字化、長さも計測
@@ -1200,18 +1213,23 @@ typedef enum {
 #ifdef MD5
 	md5_sortfunc = '5',
 #endif
+#ifdef GIT
+	git_sortfunc = '6',
+#endif
 	mode_sortfunc   = 'm',
 	kind_sortfunc   = 'k',
 	unique_sortfunc = 'u',
 	owner_sortfunc  = 'o',
 	group_sortfunc  = 'g',
 	extension_sortfunc = 'x',
+	jot_sortfunc = 'j',
 	linkname_sortfunc  = 'l',
 	errnostr_sortfunc  = 'e',
 
 	week_sortfunc = 'w',
 	date_sortfunc = 'd',
 	time_sortfunc = 't',
+	timereadable_sortfunc = 'T',
 	weeklong_sortfunc = 'W',
 	datelong_sortfunc = 'D',
 
@@ -1233,18 +1251,23 @@ sortfunclistinit(void)
 #ifdef MD5
 	sortfunclist[md5_sortfunc] = myAlphaSortRev;
 #endif
+#ifdef GIT
+	sortfunclist[git_sortfunc] = myAlphaSortRev;
+#endif
 	sortfunclist[mode_sortfunc] = myAlphaSortRev;
 	sortfunclist[kind_sortfunc] = myAlphaSortRev;
 	sortfunclist[unique_sortfunc] = myAlphaSortRev;
 	sortfunclist[owner_sortfunc]  = myAlphaSortRev;
 	sortfunclist[group_sortfunc]  = myAlphaSortRev;
 	sortfunclist[extension_sortfunc] = myAlphaSortRev;
+	sortfunclist[jot_sortfunc] = myAlphaSortRev;
 	sortfunclist[linkname_sortfunc]  = myAlphaSortRev;
 	sortfunclist[errnostr_sortfunc]  = myAlphaSortRev;
 
 	sortfunclist[week_sortfunc] = myAlphaSortRev;
 	sortfunclist[date_sortfunc] = myMtimeSort;
 	sortfunclist[time_sortfunc] = myMtimeSort;
+	sortfunclist[timereadable_sortfunc] = myMtimeSort;
 	sortfunclist[weeklong_sortfunc] = myAlphaSortRev;
 	sortfunclist[datelong_sortfunc] = myMtimeSort;
 
@@ -1547,7 +1570,8 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 		  case 'C':           if (func(p.count,  string)) { return 1; } break;
 		  case 'c':           if (func(p.countc, string)) { return 1; } break;
 		  case 'd':           if (func(p.date,   string)) { return 1; } break;
-		  case 't': case 'T': if (func(p.time,   string)) { return 1; } break;
+		  case 't':           if (func(p.time,   string)) { return 1; } break;
+		  case 'T':           if (func(p.timereadable, string)) { return 1; } break;
 		  case 'w':           if (func(p.week,   string)) { return 1; } break;
 		  case 'p': case 'P': if (func(p.path,   string)) { return 1; } break;
 		  case 'u': case 'U': if (func(p.unique, string)) { return 1; } break;
@@ -1556,10 +1580,14 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 		  case 'D':           if (func(p.datelong, string)) { return 1; } break;
 		  case 'W':           if (func(p.weeklong, string)) { return 1; } break;
 		  case 'x': case 'X': if (func(p.extension,      string)) { return 1; } break;
+		  case 'j': case 'J': if (func(p.jot,    string)) { return 1; } break;
 		  case 'l': case 'L': if (strcasestr(p.linkname, string)) { return 1; } break;
 		  case 'e': case 'E': if (strcasestr(p.errnostr, string)) { return 1; } break;
 #ifdef MD5
-		  case '5':           if (func(p.md5,    string)) { return 1; } break;
+		  case '5':           if (func(p.md5, string)) { return 1; } break;
+#endif
+#ifdef GIT
+		  case '6':           if (func(p.git, string)) { return 1; } break;
 #endif
 		}
 	}
@@ -1827,24 +1855,35 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 
 			// --------------------------------------------------------------------------------
 			// 左寄せ項目
+#define BASE "mMoOkKgGwWHxXjJ"
+#define MD5_STR ""
+#define GIT_STR ""
 #ifdef MD5
-#define STRCHR_STR "mMoOkKgGtTwWHxX5"
-#else
-#define STRCHR_STR "mMoOkKgGtTwWHxX"
+	#undef MD5_STR
+	#define MD5_STR "5"
 #endif
+#ifdef GIT
+	#undef GIT_STR
+	#define GIT_STR "6"
+#endif
+#define STRCHR_STR BASE MD5_STR GIT_STR
+
 			if (strchr(STRCHR_STR, (unsigned char) cfg.formatListString[j])) {
 				switch ((unsigned char) cfg.formatListString[j]) {
 				  case 'm': case 'M': len = data[i].model   + count * cfg.tlen; break;
 				  case 'o': case 'O': len = data[i].ownerl  + count * cfg.tlen; break;
 				  case 'k': case 'K': len = data[i].kindl   + count * cfg.tlen; break;
 				  case 'g': case 'G': len = data[i].groupl  + count * cfg.tlen; break;
-				  case 't': case 'T': len = data[i].timel   + count * cfg.tlen; break;
 				  case 'w':           len = data[i].weekl   + count * cfg.tlen; break;
 				  case 'H':           len = data[i].nlinkl  + count * cfg.tlen; break;
 				  case 'W':           len = data[i].weeklongl  + count * cfg.tlen; break;
 				  case 'x': case 'X': len = data[i].extensionl + count * cfg.tlen; break;
+				  case 'j': case 'J': len = data[i].jotl    + count * cfg.tlen; break;
 #ifdef MD5
-				  case '5':           len = data[i].md5l    + count * cfg.tlen; break;
+				  case '5':           len = data[i].md5l + count * cfg.tlen; break;
+#endif
+#ifdef GIT
+				  case '6':           len = data[i].gitl + count * cfg.tlen; break;
 #endif
 				}
 
@@ -1883,12 +1922,12 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 			// 特殊項目
 			switch (cfg.formatListString[j]) {
 			  case 'd': case 'D':
-				if (cfg.formatListString[j] == 'd') {
-					len = data[i].datel + count * cfg.tlen;
-				} else {
-					len = data[i].datelongl + count * cfg.tlen;
-				}
-				// -t の時
+			  case 't': case 'T':
+				if (cfg.formatListString[j] == 'd') { len = data[i].datel         + count * cfg.tlen; }
+				if (cfg.formatListString[j] == 'D') { len = data[i].datelongl     + count * cfg.tlen; }
+				if (cfg.formatListString[j] == 't') { len = data[i].timel         + count * cfg.tlen; }
+				if (cfg.formatListString[j] == 'T') { len = data[i].timereadablel + count * cfg.tlen; }
+
 				if (digits[(unsigned char) cfg.formatListString[j]]) {
 					printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
 				}
@@ -2198,10 +2237,17 @@ showVersion(char **argv)
 	printf("\n");
 	printf(" Version: %s %s", VERSION, RELTYPE);
 
+	#ifdef OMP
+		printStr(label, " [OpenMP]");
+	#endif
 	#ifdef MD5
 		printStr(label, " [MD5]");
 	#endif
-	#ifdef DEBUG
+	#ifdef GIT
+		printStr(label, " [GIT]");
+	#endif
+
+#ifdef DEBUG
 		printStr(label, " [DEBUG]");
 	#endif
 	#ifdef COUNTFUNC
@@ -2209,9 +2255,6 @@ showVersion(char **argv)
 	#endif
 	#ifdef PROFILE
 		printStr(label, " [PROFILE]");
-	#endif
-	#ifdef OMP
-		printStr(label, " [OpenMP]");
 	#endif
 
 	printf("\n");
@@ -2244,7 +2287,7 @@ showUsage(char **argv)
 
 	printf("\n");
 	printf(" If multiple identical options are specified:\n");
-	printf("  Overridden by the last option: -c, -p, -P, -f, -R, -F.\n");
+	printf("  Overridden by the last option: -c, -p, -P, -f, -R, -F, -j.\n");
 
 	printf("\n");
 	printf(" Options have priority. (Last line of each "); printStr(label, "options:"); printf(")\n");
@@ -2256,21 +2299,27 @@ showUsage(char **argv)
 	printf(" -l: Long listing format.\n");
 	printf(" "); printStr(normal, "-f"); printf(": with -l, change Format orders. (default: -fmogcdNKLE)\n");
 	printf("      m:mode, o:owner, g:group, c:count, d:date, p:path, n:name, k:kind, l:linkname, e:errno,\n");
-	printf("      i:inode, h:hardlinks, s:size, t:time, w:week, u:uniqueword, x:extension.\n");
+	printf("      i:inode, h:hardlinks, s:size, t:time, w:week, u:uniqueword, x:extension, j:jot.\n");
 #ifdef MD5
-	printf("      5:MD5 message digest.\n");
+	printf("      5:MD5 message digest. (build option)\n");
+#endif
+#ifdef GIT
+	printf("      6:git status. (build option)\n");
 #endif
 	printf("      [, ], |, ',':specified character is displayed.\n");
 	printf("      ---\n");
 	printf("      d:\"%%b %%e %%H:%%M\" or \"%%b %%e  %%Y\" format.\n");
-	printf("      p:with -l, argv is \"PATH/FILE\" format. (if include PATH in argument vector)\n");
 	printf("      s:size of DIRECTORY and FILE.\n");
 	printf("      c:For DIRECTORY, the number of directory entries (without \".\" and \"..\"). Otherwise, size of FILE.\n");
 	printf("      x:word after the last dot, dot is not the beginning character of the filename.\n");
 	printf("      S, C, I:no comma output.\n");
-	printf("      Upper case is padding off. (Same length: no change in appearance (m, t, 5))\n");
 	printf("      W, D: without abbreviation.\n");
-	printf("     -s > -l = -f > default short listing (include file status)\n");
+	printf("      T: human-readable time.\n");
+	printf("      Upper case is padding off. (Same length: no change in appearance (m, t, 5))\n");
+	printf(" "); printStr(normal, "-j"); printf(": set jot whith format order items. (xMovie=mov,avi,mp4:xPrj=c,h,md:xGraph=png,gif,jpg:mRun=rwx,r-x,--x)\n");
+	printf("      check format order item extension  jot label  matched string mov or avi or mp4.\n");
+	printf("      xMovie=mov,avi,mp4 =>    x         Movie                    =mov,avi,mp4.\n");
+	printf("     -s > -j > -l = -f > default short listing (include file status)\n");
 
 	printf("\n");
 	printStr(label, "Sort options:\n");
@@ -2278,9 +2327,13 @@ showUsage(char **argv)
 	printf("      even if the -f option is not specified, the output will still be sorted.\n");
 	printf("      item is 1st, 2nd, 3rd, ..., sort order item.\n");
 	printf("      duplicates of the same item is a Reverse sort instruction. (-Fnss: 1st:name, 2nd:reverse size sort)\n");
-	printf("       alphabet: m:mode, o:owner, g:group, n:name, k:kind, l:linkname, e:errno, w:week, u:uniqueword, x:extension.\n");
+	printf("       alphabet: m:mode, o:owner, g:group, n:name, k:kind, l:linkname, e:errno, w:week, u:uniqueword,\n");
+	printf("                 x:extension, j:jot.\n");
 #ifdef MD5
-	printf("                 5:MD5 message digest.\n");
+	printf("                 5:MD5 message digest. (build option)\n");
+#endif
+#ifdef GIT
+	printf("                 6:git status. (build option)\n");
 #endif
 	printf("       size:     i:inode, h:hardlinks, s:size, c:count.\n");
 	printf("       mtime:    d:date, t:time.\n");
@@ -2328,11 +2381,10 @@ showUsage(char **argv)
 
 	printf("\n");
 	printStr(label, "Additional options:\n");
-	printf(" -t: with -l, human-readable daTe. (-f with date)\n");
 	printf(" -i: with -l, human-readable sIze. (-f with count, size, hardlinks)\n");
 	printf(" "); printStr(label,  "-r"); printf(": show aggregate Results. (with extension results, if you use)\n");
 	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \""); printStr(paint,  "paint"); printf("\" color. (-Rnumber)\n");
-	printf("     -r = -R = -i = -t\n");
+	printf("     -r = -R = -i\n");
 
 	printf("\n");
 	printStr(label, "Other options:\n");
@@ -2400,6 +2452,7 @@ struct DENT {
 	int date_digits;
 	int datelong_digits;
 	int time_digits;
+	int timereadable_digits;
 	int week_digits;
 	int weeklong_digits;
 	int path_digits;
@@ -2409,8 +2462,12 @@ struct DENT {
 	int linkname_digits;
 	int errnostr_digits;
 	int extension_digits;
+	int jot_digits;
 #ifdef MD5
 	int md5_digits;
+#endif
+#ifdef GIT
+	int git_digits;
 #endif
 
 	// 重複リスト
@@ -2432,9 +2489,13 @@ debug_showArgvswitch(struct ALIST cfg)
 #ifdef MD5
 	showSwitch(format_md5);
 #endif
+#ifdef GIT
+	showSwitch(format_git);
+#endif
 	showSwitch(format_mode);
 	showSwitch(format_unique);
 	showSwitch(format_extension);
+	showSwitch(format_jot);
 
 	showSwitch(deep_unique);
 	showSwitch(beginning_word);
@@ -2453,7 +2514,6 @@ debug_showArgvswitch(struct ALIST cfg)
 
 	showSwitch(no_sort);
 
-	showSwitch(readable_date);
 	showSwitch(readable_size);
 	showSwitch(aggregate_results);
 	showSwitch(aggregate_length);
@@ -2526,6 +2586,9 @@ rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 #ifdef MD5
 			  case '5': fnamelist[j].sortc = fnamelist[j].md5;  break;
 #endif
+#ifdef GIT
+			  case '6': fnamelist[j].sortc = fnamelist[j].git; break;
+#endif
 			  case 'n': fnamelist[j].sortc = fnamelist[j].name; break;
 			  // path を name として扱う
 // 			  case 'p': fnamelist[j].sortc = fnamelist[j].path; break;
@@ -2536,6 +2599,7 @@ rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 
 			  case 'u': fnamelist[j].sortc = fnamelist[j].unique; break;
 			  case 'x': fnamelist[j].sortc = fnamelist[j].extension; break;
+			  case 'j': fnamelist[j].sortc = fnamelist[j].jot; break;
 
 			  case 'm': fnamelist[j].sortc = fnamelist[j].mode;  break;
 			  case 'o': fnamelist[j].sortc = fnamelist[j].owner; break;
@@ -2583,11 +2647,15 @@ fnameLength(struct FNAME *p)
 	p->countcl = strlen(p->countc);
 	p->datel   = strlen(p->date);
 	p->timel   = strlen(p->time);	// 固定長
+	p->timereadablel = strlen(p->timereadable);
 	p->weekl   = strlen(p->week);	// 固定長
 	p->datelongl = strlen(p->datelong);
 	p->weeklongl = strlen(p->weeklong);
 #ifdef MD5
-	p->md5l    = strlen(p->md5);	// 固定長
+	p->md5l = strlen(p->md5);
+#endif
+#ifdef GIT
+	p->gitl = strlen(p->git);
 #endif
 
 	// lstat() が失敗しても、"-" にならない
@@ -2597,6 +2665,7 @@ fnameLength(struct FNAME *p)
 	p->linknamel  = strlen(p->linkname);
 	p->errnostrl  = strlen(p->errnostr);
 	p->extensionl = strlen(p->extension);
+	p->jotl = strlen(p->jot);
 }
 
 
@@ -2744,6 +2813,15 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 			continue;
 		}
 
+		// jot
+		if (strncmp(argv[i], "-j", 2) == 0) {
+			if (len == 2) { argverr[i] = error; errc++; continue; }
+
+			strcpy(cfg->jotString, argv[i] + 2);
+			debug printf("jot string:[%s]\n", cfg->jotString);
+			continue;
+		}
+
 		// 着色文字列指定
 		if (strncmp(argv[i], "-p", 2) == 0) {
 			if (len == 2) { argverr[i] = error; errc++; continue; }
@@ -2812,7 +2890,6 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 
 					case 'S': cfg->no_sort++;           break;	// ソート無し
 
-					case 't': cfg->readable_date++;     break;	// human readable time
 					case 'i': cfg->readable_size++;     break;	// human readable size
 					case 'r': cfg->aggregate_results++; break;	// 集計結果表示
 
@@ -2839,6 +2916,43 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 }
 
 
+// 他のオプションから -fxxx の内容を有効にする
+void
+formatOption(struct ALIST *cfg, int c)
+{
+	debug printStr(label, "formatOption:\n");
+
+	switch (c) {
+#ifdef MD5
+		// md5 を使用する
+		case '5':           cfg->format_md5++; break;
+#endif
+#ifdef GIT
+		case '6':           cfg->format_git++; break;
+#endif
+		case 'm': case 'M': cfg->format_mode++;   break;
+		case 'u': case 'U': cfg->format_unique++; break;
+		case 'o': case 'O': cfg->format_owner++;  break;
+		case 'g': case 'G': cfg->format_group++;  break;
+		case 'x': case 'X': cfg->format_extension++; break;
+		case 'j': case 'J': cfg->format_jot++;    break;
+
+		// makeDate() で処理
+		case 'd': case 'D': cfg->format_date++; break;
+		case 'w': case 'W': cfg->format_date++; break;
+		case 't': case 'T': cfg->format_date++; break;
+
+		// size, count
+		case 's': case 'S': cfg->format_size++; break;
+		case 'c': case 'C': cfg->format_size++; break;
+		case 'i': case 'I': cfg->format_size++; break;
+		case 'h': case 'H': cfg->format_size++; break;
+
+		case 'l': case 'L': cfg->format_link++; break;
+	}
+}
+
+
 // 各引数の依存関係の処理を行う
 void
 progressAlist(struct ALIST *cfg)
@@ -2847,30 +2961,7 @@ progressAlist(struct ALIST *cfg)
 
 	// -f で行う内容を決定
 	for (int i=0; cfg->formatListString[i] != '\0'; i++) {
-		switch (cfg->formatListString[i]) {
-#ifdef MD5
-			// md5 を使用する
-			case '5':           cfg->format_md5++; break;
-#endif
-			case 'm': case 'M': cfg->format_mode++;   break;
-			case 'u': case 'U': cfg->format_unique++; break;
-			case 'o': case 'O': cfg->format_owner++;  break;
-			case 'g': case 'G': cfg->format_group++;  break;
-			case 'x': case 'X': cfg->format_extension++; break;
-
-			// makeDate() で処理
-			case 'd': case 'D': cfg->format_date++; break;
-			case 'w': case 'W': cfg->format_date++; break;
-			case 't': case 'T': cfg->format_date++; break;
-
-			// size, count
-			case 's': case 'S': cfg->format_size++; break;
-			case 'c': case 'C': cfg->format_size++; break;
-			case 'i': case 'I': cfg->format_size++; break;
-			case 'h': case 'H': cfg->format_size++; break;
-
-			case 'l': case 'L': cfg->format_link++; break;
-		}
+		formatOption(cfg, cfg->formatListString[i]);
 	}
 
 	// --------------------------------------------------------------------------------
@@ -2883,37 +2974,65 @@ progressAlist(struct ALIST *cfg)
 	// --------------------------------------------------------------------------------
 	// -F の sort で行う内容を決定
 	for (int i=0; cfg->formatSortString[i] != '\0'; i++) {
+		// -f で行う内容を決定
+		formatOption(cfg, cfg->formatListString[i]);
+
 		switch (cfg->formatSortString[i]) {
 #ifdef MD5
 		  // md5 を使用する
-		  case '5': cfg->format_md5++; toggleFunction(&sortfunclist[md5_sortfunc], myAlphaSort, myAlphaSortRev); break;
+		  case '5': toggleFunction(&sortfunclist[md5_sortfunc], myAlphaSort, myAlphaSortRev); break;
+#endif
+#ifdef GIT
+		  case '6': toggleFunction(&sortfunclist[git_sortfunc], myAlphaSort, myAlphaSortRev); break;
 #endif
 		  case 'n': toggleFunction(&sortfunclist[name_sortfunc], myAlphaSort, myAlphaSortRev); break;
 		  case 'p': toggleFunction(&sortfunclist[path_sortfunc], myAlphaSort, myAlphaSortRev); break;
 		  case 'k': toggleFunction(&sortfunclist[kind_sortfunc], myAlphaSort, myAlphaSortRev); break;
 		  case 'e': toggleFunction(&sortfunclist[errnostr_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'l': cfg->format_link++; toggleFunction(&sortfunclist[linkname_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'm': cfg->format_mode++; toggleFunction(&sortfunclist[mode_sortfunc], myAlphaSort, myAlphaSortRev); break;
+		  case 'l': toggleFunction(&sortfunclist[linkname_sortfunc], myAlphaSort, myAlphaSortRev); break;
+		  case 'm': toggleFunction(&sortfunclist[mode_sortfunc], myAlphaSort, myAlphaSortRev); break;
 
-		  case 'u': cfg->format_unique++; toggleFunction(&sortfunclist[unique_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'o': cfg->format_owner++;  toggleFunction(&sortfunclist[owner_sortfunc],  myAlphaSort, myAlphaSortRev); break;
-		  case 'g': cfg->format_group++;  toggleFunction(&sortfunclist[group_sortfunc],  myAlphaSort, myAlphaSortRev); break;
-		  case 'x': cfg->format_extension++; toggleFunction(&sortfunclist[extension_sortfunc], myAlphaSort, myAlphaSortRev); break;
+		  case 'u': toggleFunction(&sortfunclist[unique_sortfunc], myAlphaSort, myAlphaSortRev); break;
+		  case 'o': toggleFunction(&sortfunclist[owner_sortfunc],  myAlphaSort, myAlphaSortRev); break;
+		  case 'g': toggleFunction(&sortfunclist[group_sortfunc],  myAlphaSort, myAlphaSortRev); break;
+		  case 'x': toggleFunction(&sortfunclist[extension_sortfunc], myAlphaSort, myAlphaSortRev); break;
+		  case 'j': toggleFunction(&sortfunclist[jot_sortfunc], myAlphaSort, myAlphaSortRev); break;
 
-		  case 'w': cfg->format_date++; toggleFunction(&sortfunclist[week_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'W': cfg->format_date++; toggleFunction(&sortfunclist[weeklong_sortfunc], myAlphaSort, myAlphaSortRev); break;
+		  case 'w': toggleFunction(&sortfunclist[week_sortfunc], myAlphaSort, myAlphaSortRev); break;
+		  case 'W': toggleFunction(&sortfunclist[weeklong_sortfunc], myAlphaSort, myAlphaSortRev); break;
 
 			// makeDate() で処理
-		  case 'd': cfg->format_date++; toggleFunction(&sortfunclist[date_sortfunc], myMtimeSort, myMtimeSortRev); break;
-		  case 't': cfg->format_date++; toggleFunction(&sortfunclist[time_sortfunc], myMtimeSort, myMtimeSortRev); break;
-		  case 'D': cfg->format_date++; toggleFunction(&sortfunclist[datelong_sortfunc], myMtimeSort, myMtimeSortRev); break;
+		  case 't': toggleFunction(&sortfunclist[time_sortfunc], myMtimeSort, myMtimeSortRev); break;
+		  case 'T': toggleFunction(&sortfunclist[timereadable_sortfunc], myMtimeSort, myMtimeSortRev); break;
+		  case 'd': toggleFunction(&sortfunclist[date_sortfunc], myMtimeSort, myMtimeSortRev); break;
+		  case 'D': toggleFunction(&sortfunclist[datelong_sortfunc], myMtimeSort, myMtimeSortRev); break;
 
 		  // size, count
-		  case 's': cfg->format_size++; toggleFunction(&sortfunclist[size_sortfunc],  mySizeSort, mySizeSortRev); break;
-		  case 'c': cfg->format_size++; toggleFunction(&sortfunclist[count_sortfunc], mySizeSort, mySizeSortRev); break;
-		  case 'i': cfg->format_size++; toggleFunction(&sortfunclist[inode_sortfunc], mySizeSort, mySizeSortRev); break;
-		  case 'h': cfg->format_size++; toggleFunction(&sortfunclist[nlink_sortfunc], mySizeSort, mySizeSortRev); break;
+		  case 's': toggleFunction(&sortfunclist[size_sortfunc],  mySizeSort, mySizeSortRev); break;
+		  case 'c': toggleFunction(&sortfunclist[count_sortfunc], mySizeSort, mySizeSortRev); break;
+		  case 'i': toggleFunction(&sortfunclist[inode_sortfunc], mySizeSort, mySizeSortRev); break;
+		  case 'h': toggleFunction(&sortfunclist[nlink_sortfunc], mySizeSort, mySizeSortRev); break;
 		}
+	}
+
+	// --------------------------------------------------------------------------------
+	// jot -j の sort で行う内容を決定
+	char string[FNAME_LENGTH];
+	strcpy(string, cfg->jotString);
+	int strl = strlen(cfg->jotString);
+	char *str = string;
+
+	str = strtok(string, ":");
+	while(str != NULL) {
+		char jot[strl];
+		char values[strl];
+
+		if (sscanf(str +1, "%[^=]=%s", jot, values) != 2) {
+			break;
+		}
+		// -F の sort で行う内容を決定
+		formatOption(cfg, str[0]);
+		str = strtok(NULL, ":");
 	}
 
 	// ================================================================================
@@ -2922,9 +3041,9 @@ progressAlist(struct ALIST *cfg)
 		cfg->show_long++;
 	}
 
-	// human readable date/size は long 表示
+	// human readable size は long 表示
 	// -f にその要素が無くても -l にはする
-	if ( cfg->readable_size || cfg->readable_date) {
+	if ( cfg->readable_size) {
 		cfg->show_long++;
 	}
 
@@ -2951,7 +3070,6 @@ progressAlist(struct ALIST *cfg)
 	// simple 表示は long にしない (ファイルの種類を問わず単色表示)
 	if (cfg->show_simple) {
 		cfg->show_long = 0;
-		cfg->readable_date = 0;
 		cfg->readable_size = 0;
 	}
 
@@ -2972,6 +3090,9 @@ progressAlist(struct ALIST *cfg)
 #ifdef MD5
 		cfg->format_md5 = 0;
 #endif
+#ifdef GIT
+		cfg->format_git = 0;
+#endif
 		cfg->format_mode = 0;
 		cfg->format_size = 0;
 		cfg->format_date = 0;
@@ -2979,6 +3100,7 @@ progressAlist(struct ALIST *cfg)
 		cfg->format_owner = 0;
 		cfg->format_group = 0;
 		cfg->format_extension = 0;
+		cfg->format_jot = 0;
 	}
 
 	// 引数の色指定
@@ -3067,6 +3189,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 				digits['g'] = MAX(p->group_digits,  digits['g']);		// group
 				digits['w'] = MAX(p->week_digits,   digits['w']);		// 曜日
 				digits['t'] = MAX(p->time_digits,   digits['t']);		// 日付
+				digits['T'] = MAX(p->timereadable_digits, digits['T']);	// 日付 human-readable
 				digits['S'] = MAX(p->size_digits,   digits['S']);		// 最大ファイルサイズ
 				digits['s'] = MAX(p->sizec_digits,  digits['s']);		// 最大ファイルサイズ、comma 表記
 				digits['C'] = MAX(p->count_digits,  digits['C']);		// 最大エントリー数の桁数
@@ -3081,8 +3204,12 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 				digits['l'] = MAX(p->linkname_digits,  digits['l']);	// linkname
 				digits['e'] = MAX(p->errnostr_digits,  digits['e']);	// errnostr
 				digits['x'] = MAX(p->extension_digits, digits['x']);	// 拡張子
+				digits['j'] = MAX(p->jot_digits, digits['j']);			// 分類分け
 #ifdef MD5
 				digits['5'] = MAX(p->md5_digits,    digits['5']);		// md5
+#endif
+#ifdef GIT
+				digits['6'] = MAX(p->git_digits,    digits['6']);		// git
 #endif
 			}
 
@@ -3198,6 +3325,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 			digits['d'] = p->date_digits;
 			digits['D'] = p->datelong_digits;
 			digits['t'] = p->time_digits;
+			digits['T'] = p->timereadable_digits;
 			digits['w'] = p->week_digits;
 			digits['W'] = p->weeklong_digits;
 			digits['p'] = p->path_digits;
@@ -3207,8 +3335,12 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 			digits['l'] = p->linkname_digits;
 			digits['e'] = p->errnostr_digits;
 			digits['x'] = p->extension_digits;
+			digits['j'] = p->jot_digits;
 #ifdef MD5
 			digits['5'] = p->md5_digits;
+#endif
+#ifdef GIT
+			digits['6'] = p->git_digits;
 #endif
 		}
 
@@ -3248,6 +3380,104 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		p->fnamelist = p->fnamelistall;
 	}
 }
+
+
+#ifdef GIT
+char *
+getGitStatusStr(unsigned int flags)
+{
+	// /usr/include/git2/status.h
+	if (flags & GIT_STATUS_INDEX_NEW)        return "A ";
+	if (flags & GIT_STATUS_INDEX_MODIFIED)   return "M ";
+	if (flags & GIT_STATUS_INDEX_DELETED)    return "D ";
+	if (flags & GIT_STATUS_INDEX_RENAMED)    return "R ";
+	if (flags & GIT_STATUS_INDEX_TYPECHANGE) return "T ";
+
+	if (flags & GIT_STATUS_WT_NEW)           return "??";
+	if (flags & GIT_STATUS_WT_MODIFIED)      return " M";
+	if (flags & GIT_STATUS_WT_DELETED)       return " D";
+	if (flags & GIT_STATUS_WT_TYPECHANGE)    return " T";
+	if (flags & GIT_STATUS_WT_RENAMED)       return " R";
+// 	if (flags & GIT_STATUS_WT_UNREADABLE)    return " *";
+
+	if (flags & GIT_STATUS_IGNORED)          return "!!";
+	if (flags & GIT_STATUS_CONFLICTED)       return "**";
+	return "  ";
+}
+
+int
+makeGit(struct DENT *p)
+{
+	struct FNAME *fnamelist;
+	fnamelist = p->fnamelist;
+
+	int found = 0;
+
+	// .git があるか
+	for (int j=0; j<p->nth; j++) {
+		if (strcmp(fnamelist[j].name, ".git")) {
+			continue;
+		}
+		found = 1;
+		break;
+	}
+
+	if (found == 0) {
+		for (int j=0; j<p->nth; j++) {
+			if (fnamelist[j].showlist == SHOW_NONE) {
+				continue;
+			}
+			fnamelist[j].git[0] = '-';
+			fnamelist[j].git[1] = '\0';
+		}
+		return 0;
+	}
+
+	// --------------------------------------------------------------------------------
+	// git のステータス取得処理
+	git_libgit2_init();
+
+	git_repository *repo = NULL;
+	if (git_repository_open_ext(&repo, p->path, 0, NULL) != 0) {
+		return -1;
+	}
+
+	const char *workdir = git_repository_workdir(repo);
+	if (!workdir) {
+		git_repository_free(repo);
+		return -1;
+	}
+
+	// realpath
+	char abs_path[PATH_MAX];
+	if (realpath(p->path, abs_path) == NULL) {
+		git_repository_free(repo);
+		return -1;
+	}
+
+	char abs_workdir[PATH_MAX];
+	if (realpath(workdir, abs_workdir) == NULL) {
+		git_repository_free(repo);
+		return -1;
+	}
+
+	for (int j=0; j<p->nth; j++) {
+		if (p->fnamelist[j].showlist == SHOW_NONE) {
+			continue;
+		}
+
+		unsigned int flags = 0;
+		if (git_status_file(&flags, repo, p->fnamelist[j].name) == 0) {
+			strcpy(p->fnamelist[j].git, getGitStatusStr(flags));
+		}
+	}
+
+	git_repository_free(repo);
+	git_libgit2_shutdown();
+
+	return 0;
+}
+#endif
 
 
 // --------------------------------------------------------------------------------
@@ -3332,6 +3562,7 @@ main(int argc, char *argv[])
 		.termhei = 0,
 		.aggregate_length = 0,
 		.do_uniquecheck = 1,												// uniqueCheck(), uniqueCheckFirstWord() を実行する
+// 		.jotString = "xrls prj=c,h,md:xMovie=mov,avi,mp4:xText=txt:nText=Makefile:xGraph=gif,jpg,jpeg,bmp:ICORE=26177172834116508"
 	};
 
 	for (int i = 0; i < ListCount; i++) {
@@ -3607,11 +3838,15 @@ main(int argc, char *argv[])
 						strcpy(fnamelist[j].countc, "-");
 						strcpy(fnamelist[j].date,   "-");
 						strcpy(fnamelist[j].time,   "-");
+						strcpy(fnamelist[j].timereadable, "-");
 						strcpy(fnamelist[j].week,   "-");
 						strcpy(fnamelist[j].datelong, "-");
 						strcpy(fnamelist[j].weeklong, "-");
 #ifdef MD5
 						strcpy(fnamelist[j].md5,    "-");
+#endif
+#ifdef GIT
+						strcpy(fnamelist[j].git,    "-");
 #endif
 						fnamelist[j].showlist = SHOW_LONG;
 					}
@@ -3740,17 +3975,20 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				char *fname = fnamelist[j].name;
 				char fullpath[FNAME_LENGTH];
+				sprintf(fullpath, "%s%s", dirarglist[i], fnamelist[j].name);
 
-				if (chdir(dirarglist[i]) != 0) {
-					sprintf(fullpath, "%s%s", dirarglist[i], fnamelist[j].name);
-					fname = fullpath;
-				}
-
-				if (IS_DIRECTORY(fnamelist[j]) || (makeMD5(fname, fnamelist[j].md5) == -1)) {
+				if (IS_DIRECTORY(fnamelist[j]) || (makeMD5(fullpath, fnamelist[j].md5) == -1)) {
 					strcpy(fnamelist[j].md5,  "-");
 				}
+			}
+		}
+#endif
+
+#ifdef GIT
+		if (cfg.format_git) {
+			if (makeGit(p) == -1) {
+				debug printf("git error\n");
 			}
 		}
 #endif
@@ -3772,11 +4010,6 @@ main(int argc, char *argv[])
 				}
 
 				makeDate(&fnamelist[j], lt);
-				// ----------------------------------------
-				// 時間を読みやすくする
-				if (cfg.readable_date) {
-					makeReadableDate(&fnamelist[j], lt);
-				}
 			}
 		}
 
@@ -3892,6 +4125,59 @@ main(int argc, char *argv[])
 		printf("unique list: before\n");
 		debug_displayAllQsortdata(fnamelist, p->nth, cfg);
 #endif
+
+		// ================================================================================
+		// jot -j 対応
+		if (cfg.format_jot) {
+			debug printStr(label, "jot:\n");
+			debug printf("jotString:[%s]\n", cfg.jotString);
+			int strl = strlen(cfg.jotString);
+
+			for (int j=0; j<p->nth; j++) {
+				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+
+				char string[FNAME_LENGTH];
+				strcpy(string, cfg.jotString);
+				char *str = string;
+
+				char chk[2];
+				chk[1] = '\0';
+				str = strtok(string, ":");
+				while(str != NULL) {
+					char jot[strl];
+					char values[strl];
+
+					if (sscanf(str +1, "%[^=]=%s", jot, values) != 2) {
+						break;
+					}
+					chk[0] = str[0];
+					str = strtok(NULL, ":");
+
+					debug printf(" chk:[%s], jot:[%s], value[%s]\n", chk, jot, values);
+					{
+						char *saveptr2;
+						char *token = strtok_r(values, ",", &saveptr2);
+						// , は無かった
+						if (token == NULL) {
+// 							printf(" value:%s\n", values);
+							if (pickupString(fnamelist[j], values, chk, strstr) == 1) {
+								strcpy(fnamelist[j].jot, jot);
+							}
+						}
+						// , 対応
+						while (token != NULL) {
+// 							printf(" value:%s\n", token);
+							if (pickupString(fnamelist[j], token, chk, strstr) == 1) {
+								strcpy(fnamelist[j].jot, jot);
+							}
+							token = strtok_r(NULL, ",", &saveptr2);
+						}
+					}
+				}
+			}
+		}
 
 		// ================================================================================
 		// 表示しないデータを間引く
@@ -4174,6 +4460,7 @@ main(int argc, char *argv[])
 				p->countc_digits = MAX(p->countc_digits, countMatchedString(fnamelist[j].countc) * cfg.tlen + fnamelist[j].countcl);
 				p->date_digits   = MAX(p->date_digits,   countMatchedString(fnamelist[j].date)   * cfg.tlen + fnamelist[j].datel);
 				p->time_digits   = MAX(p->time_digits,   countMatchedString(fnamelist[j].time)   * cfg.tlen + fnamelist[j].timel);
+				p->timereadable_digits = MAX(p->timereadable_digits, countMatchedString(fnamelist[j].timereadable) * cfg.tlen + fnamelist[j].timereadablel);
 				p->week_digits   = MAX(p->week_digits,   countMatchedString(fnamelist[j].week)   * cfg.tlen + fnamelist[j].weekl);
 				p->kind_digits   = MAX(p->kind_digits,   countMatchedString(fnamelist[j].kind)   * cfg.tlen + fnamelist[j].kindl);
 				p->path_digits   = MAX(p->path_digits,   countMatchedString(fnamelist[j].path)   * cfg.tlen + fnamelist[j].pathl);
@@ -4183,8 +4470,12 @@ main(int argc, char *argv[])
 				p->linkname_digits  = MAX(p->linkname_digits,  countMatchedString(fnamelist[j].linkname)  * cfg.tlen + fnamelist[j].linknamel);
 				p->errnostr_digits  = MAX(p->errnostr_digits,  countMatchedString(fnamelist[j].errnostr)  * cfg.tlen + fnamelist[j].errnostrl);
 				p->extension_digits = MAX(p->extension_digits, countMatchedString(fnamelist[j].extension) * cfg.tlen + fnamelist[j].extensionl);
+				p->jot_digits       = MAX(p->jot_digits, countMatchedString(fnamelist[j].jot)    * cfg.tlen + fnamelist[j].jotl);
 #ifdef MD5
 				p->md5_digits    = MAX(p->md5_digits,    countMatchedString(fnamelist[j].md5)    * cfg.tlen + fnamelist[j].md5l);
+#endif
+#ifdef GIT
+				p->git_digits    = MAX(p->git_digits,    countMatchedString(fnamelist[j].git)    * cfg.tlen + fnamelist[j].gitl);
 #endif
 			}
 		}
@@ -4249,7 +4540,8 @@ main(int argc, char *argv[])
 				info_pointers['c'] =                      fnamelist[j].countc;
 				info_pointers['d'] =                      fnamelist[j].date;
 				info_pointers['D'] =                      fnamelist[j].datelong;
-				info_pointers['t'] = info_pointers['T'] = fnamelist[j].time;
+				info_pointers['t'] =                      fnamelist[j].time;
+				info_pointers['T'] =                      fnamelist[j].timereadable;
 				info_pointers['w'] =                      fnamelist[j].week;
 				info_pointers['W'] =                      fnamelist[j].weeklong;
 				info_pointers['p'] = info_pointers['P'] = fnamelist[j].path;
@@ -4259,8 +4551,12 @@ main(int argc, char *argv[])
 				info_pointers['l'] = info_pointers['L'] = fnamelist[j].linkname;
 				info_pointers['e'] = info_pointers['E'] = fnamelist[j].errnostr;
 				info_pointers['x'] = info_pointers['X'] = fnamelist[j].extension;
+				info_pointers['j'] = info_pointers['J'] = fnamelist[j].jot;
 #ifdef MD5
 				info_pointers['5'] =                      fnamelist[j].md5;
+#endif
+#ifdef GIT
+				info_pointers['6'] =                      fnamelist[j].git;
 #endif
 				// --------------------------------------------------------------------------------
 				info_pointers['['] = "[";

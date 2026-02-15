@@ -40,12 +40,13 @@ init 2025, 08/07 04:54:55 root -rwxrwxrwx
 -rwxrwxrwx , root , root , 2735264 , Aug  7 04:54 , Thu , /init
 ```
 
-他にはこんな感じになります。
+その他の使用例：
 ```shell
-rls -o -fcn -Fcc /usr/          # ディレクトリエントリ数順
-rls -fCsn -Fss /tmp/            # ファイルサイズの大きい順
-rls -fcNLE -Fee /mnt/           # エラーのあるファイルの確認（-f に c, s, d, w, m など lstat() を行う項目が必要）
-rls -Fxss -fxsn ~/project/src   # ファイルの種類（拡張子別），サイズ順
+rls -o -fcn -Fcc /usr/              # ディレクトリエントリ数順
+rls -fCsn -Fss /tmp/                # ファイルサイズの大きい順
+rls -fcNLE -Fee /mnt/               # エラーのあるファイルの確認（-f に c, s, d, w, m など lstat() を行う項目が必要）
+rls -Fxss -fxsn ~/project/src       # ファイルの種類（拡張子別），サイズ順
+rls -fmogcdjNKLE -jxSRC=c,h -PSRC   # ディレクトリにある拡張子が c,h のファイルだけ表示
 ```
 項目の種類については，ヘルプの `-f` を確認してください。
 <br>
@@ -55,6 +56,14 @@ rls -Fxss -fxsn ~/project/src   # ファイルの種類（拡張子別），サ�
 - `-F` で，ソート順を変更，`-f` で指定する全項目がソート対象，第 1，第 2，第 3，... のように複数のソート条件を指定可能
 - `-nn` で，ユニーク文字列を指定文字で囲って表示，色付け不可な端末でのユニーク文字列表記
 - `-e` で，elisp のような，拡張子だけが異なるファイル名が複数存在する "グループ" 向けユニーク文字列のハイライト
+<br><br>
+- `-j` で，`-fj` 向けファイルなどの分類分け，特定ファイルのラベル表示
+  - 異なる種類のファイルを同じ分類に分ける（png, jpg, gif や、mov, avi, mp4 などを 1 分類に分ける）
+  - 例えば `xImage=png,jpg,gif:xMovie=mp4,mov,avi:xAudio=mp3,wav` と指定した場合
+    - `-f` の拡張子 `x` から `png` もしくは `jpg` もしくは `gif` が該当した場合，`Image`と表示する
+    - `-f` の拡張子 `x` から `mp4` もしくは `mov` もしくは `avi` が該当した場合，`Movie`と表示する
+    - `-f` の拡張子 `x` から `mp3` もしくは `wav` が該当した場合，`Audio`と表示する
+  - 1　ファイルだけを完全に特定したい場合は，`i, I` で inode番号を指定してください（`INo Delete=123456789` など）
 <br>
 
 
@@ -97,7 +106,7 @@ rls -l          # Default details (Long format)
 ### `rls.c` 以外のファイルについて
 rls.fish, countfunction.c, countfunction.h などが含まれています。
 
-- countfuncion.c, countfunction.h
+- countfunction.c, countfunction.h
   - 標準的な関数への wrapper 関数<br>
     wrapper 関数はほぼ count しているだけなので，profile 時や，アルゴリズムの実装を試すときなどの指標になります。<br>
     また，opendir/readdir/closedir による scandir() の代替実装があるので，他の OS や開発環境などで参考になるかもしれません。<br>
@@ -292,7 +301,7 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 
 ## v0.3.0 からの変更内容
 - add `-R` の追加，指定数字の文字列長さを paint 色で表示
-- add `-f` の項目追加（`|`, `,`, `S`, `C`, `u`, `U`, `x`, `X`, `I`, `D`, `W`）
+- add `-f` の項目追加（`|`, `,`, `S`, `C`, `u`, `U`, `x`, `X`, `I`, `D`, `W`, `j`）
 - add `-fp` path の意味変更
 - add `-fDW` 英語表記の場合，月，曜日などを省略せずに表示
 - chg `-O` から `-S` へ変更，ソートを行わない
@@ -307,3 +316,6 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - del `-TB`, `-TE` の廃止（`-nn` に統合，囲む文字列は `[` と `]` 固定）
 - del `-256` の廃止
 - chg `-r` に拡張子の集計表示を追加
+- del `-t` の廃止（`-fT` にリプレース）
+- add git へ対応 (build )
+- add `-j` の追加，`-fj` 向けファイルなどの分類分け

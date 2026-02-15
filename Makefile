@@ -13,9 +13,11 @@ LDFLAGS   =
 
 DEBUG_OPT = -DDEBUG -g3 -O0 -Wall -Wextra
 COUNT_FLG = -DCOUNTFUNC
+OMP_OPT   = -DOMP -fopenmp
 MD5_OPT   = -DMD5
 MD5_LIBS  = -lssl -lcrypto
-OMP_OPT   = -DOMP -fopenmp
+GIT_OPT   = -DGIT
+GIT_LIBS  = -lgit2
 
 
 # ================================================================================
@@ -30,6 +32,11 @@ $(BIN): $(objects) $(headers)
 
 md5: $(sources) $(headers)
 	gcc $(CFLAGS) $(MD5_OPT) $^ -o $(BIN) $(LDFLAGS) $(MD5_LIBS)
+	strip $(BIN)
+
+
+git: $(sources) $(headers)
+	gcc $(CFLAGS) $(GIT_OPT) $^ -o $(BIN) $(LDFLAGS) $(GIT_LIBS)
 	strip $(BIN)
 
 
