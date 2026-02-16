@@ -58,11 +58,11 @@ jobs:
 
     - name: run rls
       run: |
-        ./rls -alr -TB\[ -TE\]
+        ./rls -alr -nn
         echo "----------"
         ./rls -alr -always
         echo "----------"
-        ./rls -TB\[ -TE\]
+        ./rls -nn
         echo "----------"
         ./rls -always
 
@@ -140,11 +140,11 @@ jobs:
 
     - name: run rls
       run: |
-        ./rls -alr -TB\[ -TE\]
+        ./rls -alr -nn
         echo "----------"
         ./rls -alr -always
         echo "----------"
-        ./rls -TB\[ -TE\]
+        ./rls -nn
         echo "----------"
         ./rls -always
 
