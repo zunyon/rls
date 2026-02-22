@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "02/15"
-#define BTIME "17:14:41"
+#define BDATE "02/22"
+#define BTIME "14:50:23"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 02/15 17:09"
+// my-last-update-time "2026, 02/22 14:49"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1200,15 +1200,6 @@ myMtimeSortRev(const void *a, const void *b)
 }
 
 // --------------------------------------------------------------------------------
-typedef int (*sortfunc)(const void *, const void *);
-sortfunc sortfunclist[UCHAR_MAX];
-
-void
-toggleFunction(sortfunc *target, sortfunc a, sortfunc b)
-{
-	*target = (*target == a) ? b : a;
-}
-
 typedef enum {
 #ifdef MD5
 	md5_sortfunc = '5',
@@ -1245,9 +1236,73 @@ typedef enum {
 } SORTLIST;
 
 
+
+typedef int (*sortfunc)(const void *, const void *);
+sortfunc sortfunclist[UCHAR_MAX +1];
+static sortfunc slist[UCHAR_MAX +1];
+static sortfunc srevlist[UCHAR_MAX +1];
+
+// #define toggleFunction(target) sortfunclist[(char) target] = (sortfunclist[(char) target] == slist[(char) target]) ? srevlist[(char) target] : slist[(char) target];
+void
+toggleFunction(int target)
+{
+	sortfunclist[target] = (sortfunclist[target] == slist[target]) ? srevlist[target] : slist[target];
+}
+// #define setSortFunc(c, a, b) slist[c] = a; srevlist[c] = b;
+void
+setSortFunc(int c, sortfunc a, sortfunc b)
+{
+	slist[c] = a;
+	srevlist[c] = b;
+
+// 	sortfunc comparefunc;
+// 	printf(" !!c(%c):   ", c);
+// 	if (comparefunc == NULL)           { printf("NULL\n");           }
+// 	if (comparefunc == myAlphaSort)    { printf("myAlphaSort\n");    }
+// 	if (comparefunc == myAlphaSortRev) { printf("myAlphaSortRev\n"); }
+// 	if (comparefunc == mySizeSort)     { printf("mySizeSort\n");     }
+// 	if (comparefunc == mySizeSortRev)  { printf("mySizeSortRev\n");  }
+// 	if (comparefunc == myMtimeSort)    { printf("myMtimeSort\n");    }
+// 	if (comparefunc == myMtimeSortRev) { printf("myMtimeSortRev\n"); }
+}
+
+
 void
 sortfunclistinit(void)
 {
+#ifdef MD5
+	setSortFunc(md5_sortfunc,			myAlphaSort, myAlphaSortRev);
+#endif
+#ifdef GIT
+	setSortFunc(git_sortfunc,			myAlphaSort, myAlphaSortRev);
+#endif
+	setSortFunc(mode_sortfunc,			myAlphaSort, myAlphaSortRev);
+	setSortFunc(kind_sortfunc,			myAlphaSort, myAlphaSortRev);
+	setSortFunc(unique_sortfunc,		myAlphaSort, myAlphaSortRev);
+	setSortFunc(owner_sortfunc,			myAlphaSort, myAlphaSortRev);
+	setSortFunc(group_sortfunc,			myAlphaSort, myAlphaSortRev);
+	setSortFunc(extension_sortfunc,		myAlphaSort, myAlphaSortRev);
+	setSortFunc(jot_sortfunc,			myAlphaSort, myAlphaSortRev);
+	setSortFunc(linkname_sortfunc,		myAlphaSort, myAlphaSortRev);
+	setSortFunc(errnostr_sortfunc,		myAlphaSort, myAlphaSortRev);
+
+	setSortFunc(week_sortfunc,			myAlphaSort, myAlphaSortRev);
+	setSortFunc(date_sortfunc,			myMtimeSort, myMtimeSortRev);
+	setSortFunc(time_sortfunc,			myMtimeSort, myMtimeSortRev);
+	setSortFunc(timereadable_sortfunc,	myMtimeSort, myMtimeSortRev);
+	setSortFunc(weeklong_sortfunc,		myAlphaSort, myAlphaSortRev);
+	setSortFunc(datelong_sortfunc,		myMtimeSort, myMtimeSortRev);
+
+	setSortFunc(size_sortfunc,			mySizeSort, mySizeSortRev);
+	setSortFunc(count_sortfunc,			mySizeSort, mySizeSortRev);
+	setSortFunc(inode_sortfunc,			mySizeSort, mySizeSortRev);
+	setSortFunc(nlink_sortfunc,			mySizeSort, mySizeSortRev);
+
+	setSortFunc(name_sortfunc,			myAlphaSort, myAlphaSortRev);
+	setSortFunc(name_sortfunc,			myAlphaSort, myAlphaSortRev);
+	setSortFunc(path_sortfunc,			myAlphaSort, myAlphaSortRev);
+
+
 #ifdef MD5
 	sortfunclist[md5_sortfunc] = myAlphaSortRev;
 #endif
@@ -1276,8 +1331,10 @@ sortfunclistinit(void)
 	sortfunclist[inode_sortfunc] = mySizeSortRev;
 	sortfunclist[nlink_sortfunc] = mySizeSortRev;
 
-	sortfunclist[name_sortfunc] = myAlphaSort;
 	sortfunclist[path_sortfunc] = myAlphaSort;
+
+	// デフォルト
+	sortfunclist[name_sortfunc] = myAlphaSort;
 }
 
 
@@ -2938,14 +2995,14 @@ formatOption(struct ALIST *cfg, int c)
 		case 'j': case 'J': cfg->format_jot++;    break;
 
 		// makeDate() で処理
-		case 'd': case 'D': cfg->format_date++; break;
-		case 'w': case 'W': cfg->format_date++; break;
+		case 'd': case 'D':
+		case 'w': case 'W':
 		case 't': case 'T': cfg->format_date++; break;
 
 		// size, count
-		case 's': case 'S': cfg->format_size++; break;
-		case 'c': case 'C': cfg->format_size++; break;
-		case 'i': case 'I': cfg->format_size++; break;
+		case 's': case 'S':
+		case 'c': case 'C':
+		case 'i': case 'I':
 		case 'h': case 'H': cfg->format_size++; break;
 
 		case 'l': case 'L': cfg->format_link++; break;
@@ -2973,46 +3030,14 @@ progressAlist(struct ALIST *cfg)
 
 	// --------------------------------------------------------------------------------
 	// -F の sort で行う内容を決定
+	if (cfg->formatSortString[0] != '\0' || cfg->show_long) {
+		sortfunclistinit();
+	}
+
 	for (int i=0; cfg->formatSortString[i] != '\0'; i++) {
 		// -f で行う内容を決定
 		formatOption(cfg, cfg->formatListString[i]);
-
-		switch (cfg->formatSortString[i]) {
-#ifdef MD5
-		  // md5 を使用する
-		  case '5': toggleFunction(&sortfunclist[md5_sortfunc], myAlphaSort, myAlphaSortRev); break;
-#endif
-#ifdef GIT
-		  case '6': toggleFunction(&sortfunclist[git_sortfunc], myAlphaSort, myAlphaSortRev); break;
-#endif
-		  case 'n': toggleFunction(&sortfunclist[name_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'p': toggleFunction(&sortfunclist[path_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'k': toggleFunction(&sortfunclist[kind_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'e': toggleFunction(&sortfunclist[errnostr_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'l': toggleFunction(&sortfunclist[linkname_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'm': toggleFunction(&sortfunclist[mode_sortfunc], myAlphaSort, myAlphaSortRev); break;
-
-		  case 'u': toggleFunction(&sortfunclist[unique_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'o': toggleFunction(&sortfunclist[owner_sortfunc],  myAlphaSort, myAlphaSortRev); break;
-		  case 'g': toggleFunction(&sortfunclist[group_sortfunc],  myAlphaSort, myAlphaSortRev); break;
-		  case 'x': toggleFunction(&sortfunclist[extension_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'j': toggleFunction(&sortfunclist[jot_sortfunc], myAlphaSort, myAlphaSortRev); break;
-
-		  case 'w': toggleFunction(&sortfunclist[week_sortfunc], myAlphaSort, myAlphaSortRev); break;
-		  case 'W': toggleFunction(&sortfunclist[weeklong_sortfunc], myAlphaSort, myAlphaSortRev); break;
-
-			// makeDate() で処理
-		  case 't': toggleFunction(&sortfunclist[time_sortfunc], myMtimeSort, myMtimeSortRev); break;
-		  case 'T': toggleFunction(&sortfunclist[timereadable_sortfunc], myMtimeSort, myMtimeSortRev); break;
-		  case 'd': toggleFunction(&sortfunclist[date_sortfunc], myMtimeSort, myMtimeSortRev); break;
-		  case 'D': toggleFunction(&sortfunclist[datelong_sortfunc], myMtimeSort, myMtimeSortRev); break;
-
-		  // size, count
-		  case 's': toggleFunction(&sortfunclist[size_sortfunc],  mySizeSort, mySizeSortRev); break;
-		  case 'c': toggleFunction(&sortfunclist[count_sortfunc], mySizeSort, mySizeSortRev); break;
-		  case 'i': toggleFunction(&sortfunclist[inode_sortfunc], mySizeSort, mySizeSortRev); break;
-		  case 'h': toggleFunction(&sortfunclist[nlink_sortfunc], mySizeSort, mySizeSortRev); break;
-		}
+		toggleFunction(cfg->formatSortString[i]);
 	}
 
 	// --------------------------------------------------------------------------------
@@ -3023,7 +3048,7 @@ progressAlist(struct ALIST *cfg)
 	char *str = string;
 
 	str = strtok(string, ":");
-	while(str != NULL) {
+	while (str != NULL) {
 		char jot[strl];
 		char values[strl];
 
@@ -3538,7 +3563,7 @@ main(int argc, char *argv[])
 	struct ALIST cfg = {
 		.onlyPaintStr[0] = '\0',
 		.formatListString = "mogcdNKLE",
-		.formatSortString = "",																			// -f の sort 指定
+		.formatSortString = "nn",																			// -f の sort 指定
 
 		// --------------------------------------------------------------------------------
 		// Control Sequence Introducer
@@ -3974,11 +3999,14 @@ main(int argc, char *argv[])
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
 				}
+				if (IS_DIRECTORY(fnamelist[j]) ) {
+					continue;
+				}
 
 				char fullpath[FNAME_LENGTH];
 				sprintf(fullpath, "%s%s", dirarglist[i], fnamelist[j].name);
 
-				if (IS_DIRECTORY(fnamelist[j]) || (makeMD5(fullpath, fnamelist[j].md5) == -1)) {
+				if (makeMD5(fullpath, fnamelist[j].md5) == -1) {
 					strcpy(fnamelist[j].md5,  "-");
 				}
 			}
@@ -4004,7 +4032,6 @@ main(int argc, char *argv[])
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
 				}
-
 				if (fnamelist[j].isstat == -1) {
 					continue;
 				}
@@ -4019,7 +4046,6 @@ main(int argc, char *argv[])
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
 				}
-
 				if (fnamelist[j].isstat == -1) {
 					continue;
 				}
@@ -4067,7 +4093,6 @@ main(int argc, char *argv[])
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
 				}
-
 				if (fnamelist[j].isstat == -1) {
 					continue;
 				}
@@ -4087,7 +4112,6 @@ main(int argc, char *argv[])
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
 				}
-
 				if (fnamelist[j].isstat == -1) {
 					continue;
 				}
@@ -4480,23 +4504,7 @@ main(int argc, char *argv[])
 			}
 		}
 
-		// ================================================================================
-		// 全データに対して行う処理
-		// 表示用にアルファベット順でソートする
-		if (strlen(cfg.formatSortString) == 0 && cfg.no_sort == 0) {
-			int (*sortfunc)(const void *, const void *);
-
-			sortfunclistinit();
-			strcpy(cfg.formatSortString, "n");
-			toggleFunction(&sortfunclist[name_sortfunc], myAlphaSort, myAlphaSortRev);
-			sortfunc = sortfunclist[name_sortfunc];
-			toggleFunction(&sortfunclist[name_sortfunc], myAlphaSort, myAlphaSortRev);
-
-			for (int j=0; j<p->nth; j++) {
-				fnamelist[j].sortc = fnamelist[j].name;
-			}
-			qsort(fnamelist, p->nth, sizeof(struct FNAME), sortfunc);
-		}
+		// --------------------------------------------------------------------------------
 		rowSort(fnamelist, p->nth, cfg);
 
 #ifdef DEBUG
