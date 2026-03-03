@@ -15,24 +15,6 @@ By combining the output of `rls` with `fish`'s filename completion feature, you 
 
 
 ### Highlighting Unique Strings
-
-# rls
-
-[English README](README_english.md) | [日本語 README](README.md)
-
-[![CI](https://github.com/zunyon/rls/actions/workflows/makefile.yml/badge.svg)](https://github.com/zunyon/rls/actions/workflows/makefile.yml)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/zunyon/rls)
-
-`rls` is a file-listing command-line utility whose design philosophy differs from `ls`.
-It highlights the minimal unique substring of each filename to make filename completion
-in the `fish` shell easier.
-
-## Overview
-`rls` lists files and directories while highlighting the substring of each name that is unique
-within its candidate set. Using `rls` together with `fish`'s filename completion reduces the amount
-of typing required.
-
-### Highlighting unique substrings
 `rls` highlights only the characters necessary for `fish` to complete a filename.
 For example, typing `n.c` and pressing `TAB` (e.g. `emacs n.c` then `TAB`) may complete to
 `countfunction.c` when the highlighted substring matches.
@@ -250,6 +232,10 @@ using the `paint` color.
 criteria differ. For example, `fish` tends to prefer filenames that begin with the typed characters.
 Use `-pxxx -r` to inspect candidate unique substrings.
 
+Furthermore, even if a filename and a directory name contain the same string, if the command is `cd`, the file will not be a completion target.
+This is very rational, but it is the result of configuring `fish` specifically for `cd` beforehand; executing another command that simply does `change directory` will not yield the same effect.
+Since `rls` determines the unique string purely from the filename, `a` would not be considered a unique string in the first place, and unique strings do not depend on the command being used.
+
 Also, `fish` treats `-` and `_` equivalently when matching; `rls` may display replacements dynamically
 to make typing easier.
 
@@ -306,11 +292,16 @@ Summary table:
 - del removed `-TB`, `-TE` (integrated into `-nn`; enclosure fixed to `[` and `]`)
 - del removed `-256`
 - chg added extension aggregation display to `-r`
+- del `-t`: removed (replaced by `-fT`)
+- add git support (build)
 - add `-j`: classification for `-fj` and related usages
+- chg changed `printLong()` display length processing
+- chg changed `-n`, `-n`: no color display
+- chg changed `-nn`: unique strings enclosed with `[` and `]`; `-nnX`: enclosed with `X` and `X`; `-nnXY`: enclosed with `X` and `Y`
+- add `--`: read from standard input
 
 ---
 
-Translator: GitHub Copilot
-Translation date: 2026-02-15
-Note: This is an English translation of `README.md` intended to follow the original Japanese
-content closely. If you find any literal or contextual issues, I will correct them.
+Translator: Antigravity
+Translation date: 2026-03-03T14:31:06+09:00
+Note: I have translated and synchronized this document with the latest Japanese README.md.

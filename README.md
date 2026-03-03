@@ -317,5 +317,9 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - del `-256` の廃止
 - chg `-r` に拡張子の集計表示を追加
 - del `-t` の廃止（`-fT` にリプレース）
-- add git へ対応 (build )
+- add git へ対応 (build)
 - add `-j` の追加，`-fj` 向けファイルなどの分類分け
+- chg printLong() の表示長さの処理変更
+- chg `-n` の変更，`-n`: 色なし表記
+- chg `-nn`: ユニーク文字列を '[' と ']' で囲う，`-nnX`: 'X' と 'X' で囲う，`-nnXY`: 'X' と 'Y' で囲う
+- add `--` 標準入力から読み込む
