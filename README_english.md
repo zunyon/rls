@@ -15,45 +15,32 @@ By combining the output of `rls` with `fish`'s filename completion feature, you 
 
 
 ### Highlighting Unique Strings
-`rls` highlights only the characters necessary for `fish` to complete a filename.
-For example, typing `n.c` and pressing `TAB` (e.g. `emacs n.c` then `TAB`) may complete to
-`countfunction.c` when the highlighted substring matches.
+`rls` highlights only the characters necessary for `fish` to complete a filename.<br>
+For example, typing `n.c` and pressing `TAB` (e.g. `emacs n.c` then `TAB`) may complete to `countfunction.c` when the highlighted substring matches.
 
 ![Unique filename completion demo](demo_rls.gif)
 
-If you type the highlighted substring, that file becomes the completion target. For the
-provided `rls.fish` completion script, typing just `.f` may be sufficient to match certain files.
+If you type the highlighted substring, that file becomes the completion target. For the provided `rls.fish` completion script, typing just `.f` may be sufficient to match certain files.
+
 
 ### Customizable column display
 You can fully control which fields are shown and their order using `-f`.
 
 Examples:
 
-```sh
-rls -fmogcdwPN /init   # mode owner group count date week PATH NAME
-```
-
-Output example:
+`rls -fmogcdwPN /init` displays mode owner group count date week PATH NAME in that order.
 
 ```sh
 -rwxrwxrwx root root 2,735,264 Aug  7 04:54 Thu /init
 ```
 
-```sh
-rls -fNtom /init       # NAME time owner mode
-```
-
-Output example:
+`rls -fNtom /init` displays NAME time owner mode in that order.
 
 ```sh
 init 2025, 08/07 04:54:55 root -rwxrwxrwx
 ```
 
-```sh
-rls -fm,o,g,C,d,w,PN /init  # CSV-like output
-```
-
-Output example:
+Also, `rls -fm,o,g,C,d,w,PN /init` produces CSV-like output.
 
 ```sh
 -rwxrwxrwx , root , root , 2735264 , Aug  7 04:54 , Thu , /init
@@ -64,29 +51,29 @@ Other usage examples:
 ```sh
 rls -o -fcn -Fcc /usr/              # sort by directory entry count
 rls -fCsn -Fss /tmp/                # sort by file size (largest first)
-rls -fcNLE -Fee /mnt/               # check files with errors (-f requires fields invoking lstat()
-                                     # such as c, s, d, w, m)
+rls -fcNLE -Fee /mnt/               # check files with errors (-f requires fields invoking lstat() such as c, s, d, w, m)
 rls -Fxss -fxsn ~/project/src       # file type by extension, then by size
-rls -fmogcdjNKLE -jxSRC=c,h -PSRC   # show files in directory whose extension is c or h
+rls -fmogcdjNKLE -JxSRC=c,h -PSRC   # show files in directory whose extension is c or h
+find *.c -print | rls --  alr       # apply -alr to find results
 ```
 
 See the help for `-f` for the full list of available fields.
 
+
 ## Notable options
 
-- `-p` : highlight a specified substring; fields selected with `-f` become highlight targets
-- `-F` : change sort order; fields specified with `-f` are sortable; multiple sort keys are supported
+- `-p`: highlight a specified substring; fields selected with `-f` become highlight targets
+- `-F`: change sort order; fields specified with `-f` are sortable; multiple sort keys are supported
 - `-nn`: show unique substring enclosed in characters (for terminals without color support)
-- `-e` : treat files that differ only by extension as a "group" and compute unique substrings per group
+- `-e`: treat files that differ only by extension as a "group" and compute unique substrings per group
+- `-J`: supports classification/labeling (used together with `-fj`):
+  - Group different file kinds into a single classification (e.g., `png,jpg,gif` as images)
+  - Example: `xImage=png,jpg,gif:xMovie=mp4,mov,avi:xAudio=mp3,wav`
+    - If `-f`'s extension field `x` matches `png|jpg|gif`, display `Image`.
+    - If it matches `mp4|mov|avi`, display `Movie`.
+    - If it matches `mp3|wav`, display `Audio`.
+  - To uniquely identify a single file, specify its inode with `i` or `I` (e.g. `INo Delete=123456789`).
 
-Additional: `-j` supports classification/labeling (used together with `-fj`):
-
-- Group different file kinds into a single classification (e.g., `png,jpg,gif` as images)
-- Example: `xImage=png,jpg,gif:xMovie=mp4,mov,avi:xAudio=mp3,wav`
-  - If `-f`'s extension field `x` matches `png|jpg|gif`, display `Image`.
-  - If it matches `mp4|mov|avi`, display `Movie`.
-  - If it matches `mp3|wav`, display `Audio`.
-- To uniquely identify a single file, specify its inode with `i` or `I` (e.g. `INo Delete=123456789`).
 
 ## Development / Runtime environment
 
@@ -104,150 +91,183 @@ cp rls /usr/local/bin/
 cp rls.fish ~/.config/fish/completions/
 
 # run
-rls
-rls -l
+rls             # Default details
+rls -l          # Default details (Long format)
 ```
 
 <details>
-<summary>Development environments where `make` and `rls` were tested</summary>
+<summary> Development environments where `make` and `rls` were tested </summary>
 
-These were tested on GitHub's `ubuntu-latest` and `macos-latest` runners.
+`ubuntu-latest` and `macos-latest` are GitHub environments.
 
-|            | Ubuntu  | wsl      | Other    | ubuntu-latest | macos-latest |
-|:----------:|:-------:|:--------:|:--------:|:-------------:|:------------:|
-| uname      | 6.15.0  | 6.6.87.2 | 6.12.25  | 6.14.0        | Darwin 24.6.0|
-| gcc        | 14.3.0  | 11.4.0   | 10.2.1   | 13.30         | 12.4.0       |
-| make       | 4.4.1   | 4.3      | 4.3      | 4.3           | 4.4.1        |
-| fish       | 4.0.2   | 3.3.1    | 3.1.2    | -             | -            |
-
+|     |Ubuntu|     wsl|  Other|ubuntu-latest| macos-latest|
+  ---:|  ---:|    ---:|   ---:|         ---:|         ---:|
+ uname|6.15.0|6.6.87.2|6.12.25|       6.14.0|Darwin 24.6.0|
+   gcc|14.3.0|  11.4.0| 10.2.1|        13.30|       12.4.0|
+  make| 4.4.1|     4.3|    4.3|          4.3|        4.4.1|
+  fish| 4.0.2|   3.3.1|  3.1.2|            -|            -|
 </details>
+
 
 <details>
-<summary>Files other than `rls.c`</summary>
+<summary> Files other than `rls.c` </summary>
 
-- `countfunction.c`, `countfunction.h`
-  - Wrapper functions around standard calls. They mainly count and are useful
-    for profiling or testing algorithm implementations. They also include an
-    alternative to `scandir()` implemented using `opendir`/`readdir`/`closedir`.
-    These are used by `make debug` and `make count`.
+### Files other than `rls.c`
 
-- `rls.fish`
-  - Completion script for `fish` (install to `~/.config/fish/completions/`).
+rls.fish, countfunction.c, countfunction.h, etc. are included.
 
-- `Makefile`
-  - Contains a target that builds an MD5 message digest; running `make md5` enables
-    the `5` field for `-f`.
+- countfunction.c, countfunction.h
+  - Wrapper functions for standard functions<br>
+    Wrapper functions mainly count, useful for profiling or testing algorithm implementations.<br>
+    Also includes an alternative implementation of scandir() using opendir/readdir/closedir, useful for other OS or development environments.<br>
+    Used by `make debug` or `make count`.
 
-- `showEscapeList.c`
-  - Displays Control Sequence Introducer examples (originally the `-256` option).
+- rls.fish
+  - .fish file for fish<br>
+    Place in ~/.config/fish/completions/. Main options are listed.
+
+- Makefile
+  - MD5 message digest<br>
+    `make md5` enables `5` for `-f`.
+  - git<br>
+    `make git` enables `6` for `-f`.
+
+- showEscapeList.c
+  - Control Sequence Introducer display<br>
+    Former `-256` option. Compile with cc showEscapeList.c.
 
 </details>
 
-### Example terminal environment used for completion demos
 
-- Windows Terminal using the `Tango Dark` color scheme
-- `RLS_COLORS` set to `base=37:normal=34:dir=36:fifo=33:socket=35:device=33:error=31:paint=32:normal=1:dir=1:socket=1:device=1:label=1:error=1:paint=1:reset=0`
+### Terminal environment for completion examples
 
-`rls` uses a 256-color implementation for color selection (fixed at mode 5; truecolor mode 2 is not implemented — see `initColor()`).
-Because SGR (Select Graphic Rendition) parameters are used, colors may differ when using other themes such as `Solarized Dark`.
+The above terminal environment is as follows.
+
+- Use `Tango Dark` color scheme in `Windows Terminal`
+- Set `RLS_COLORS` environment variable to `base=37:normal=34:dir=36:fifo=33:socket=35:device=33:error=31:paint=32:normal=1:dir=1:socket=1:device=1:label=1:error=1:paint=1:reset=0`
+
+<br>
+
+The color settings are the same as default colors, with emphasis (bright colors) set after `normal=1`.<br>
+`rls`'s color specification implementation is 256 colors. (Fixed at 5, true color (2) is not implemented. See `initColor()`)<br>
+Among them, SGR (Select Graphic Rendition) is specified, so with color schemes like `Solarized Dark`, colors may differ from `Tango Dark`.
+
+<br>
+
 
 ## How it works
 
-`rls` highlights unique substrings computed from the set of candidate entries. The algorithm is roughly:
+`rls` highlights unique strings computed from the set of candidate entries. The algorithm is roughly:
 
 - Candidate selection
-  - All files in the specified directory are considered candidates.
-  - Groups are formed from filename and extension when appropriate.
+  - All files in the specified directory are candidates
+  - Groups are formed from filename and extension
+
 - For all candidates
-  - Perform pattern matching starting from the first character of filenames.
-  - The substring that does not match other candidates is considered the unique substring.
-- Highlight and display the result.
+  - Pattern matching starting from the first character of filenames
+  - The substring that does not match other candidates is considered the unique substring
 
-If multiple unique-substring candidates exist for a filename, preference is given to the shorter substring
-and the one that appears earlier in the filename. Only one substring is highlighted per entry.
+- Highlight and display
 
-The program's stages:
+If multiple unique substring candidates exist for a filename, preference is given to the shorter substring and the one that appears earlier in the filename.<br>
+Only one substring is highlighted per entry.
+
+<br>
+
+The program is roughly divided into the following stages.
 
 ```mermaid
-flowchart LR
-  subgraph Stage 1:Preprocessing/Data Acquisition
-    A["Argument processing (initAlist)"]
-    B["File info acquisition (scandir/lstat)"]
-  end
-  A & B --> D
+	flowchart LR
+	subgraph Stage 1:Preprocessing/Data Acquisition
+		A["Argument processing<br>(initAlist)"]
+		B["File info acquisition<br>(scandir/lstat)"]
+	end
+	A & B --> D
 
-  subgraph Stage 2:Data Processing
-    D["Field formatting (dates, sizes, permissions)"]
-    E["Highlight computation (uniqueCheck / MatchedString)"]
-  end
-  D --> E
-  E --> G
+	subgraph Stage 2:Data Processing
+		D["Field formatting<br>(dates, sizes, permissions)"]
+		E["Highlight computation<br>(uniqueCheck/MatchedString)"]
+	end
+	D --> E
+	E --> G
 
-  subgraph Stage 3:Row/Column Processing
-    G["Row operations (rowSort / orderSort)"] --> H["Column operations (columns, padding)"]
-  end
-  H --> I & J
+	subgraph Stage 3:Row/Column Processing
+		G["Row operations<br>(rowSort/orderSort)"] --> H["Column operations<br>(columns, padding)"]
+	end
+	H --> I & J & K
 
-  subgraph Stage 4:Output Processing
-    I["Long format display (long format)"]
-    J["Short format display (short format)"]
-    K["Colorized output (printUnique / printMatched)"]
-  end
-  I & J --> K
+	subgraph Stage 4:Output Processing
+		I["Long format display<br>(long format)"]
+		J["Short format display<br>(short format)"]
+		K["JSON format display<br>(JSON format)"]
+		L["Colorized output<br>(printUnique/printMatched)"]
+	end
+	I & J & K --> L
 ```
 
-## Design rationale and background
 
-There are many file-listing programs; they typically present properties of individual files.
-For filename completion, however, information derived from differences between filenames in a directory
-is useful. `rls` computes these "differential" properties (which change as files are added/removed or renamed)
-and visualizes them as unique substrings.
+## For those interested in rls
 
-### Fixed information vs. color's value
+<details>
+<summary> Design philosophy and background </summary>
 
-Many programs use color to indicate fixed attributes (mode, extension, etc.). Over time users learn these
-color mappings, and their effectiveness for "distinction" or "attention" can diminish. Color can instead
-be used to add new, dynamic information without altering the base data. `rls` uses color to surface one
-piece of variable information — the unique substring — that aids completion.
+### Design philosophy and background
 
-## Behaviors that may seem odd at first
+rls computes not only information about each file itself but also the "difference" information between filenames within the same directory.<br>
+There are many programs that list files, and they generally handle only the information contained in each file.<br>
+However, filename completion requires "difference" information derived from other filenames in the directory, and information about the file alone is not sufficient.<br>
+In particular, for shells that provide partial‑match filename completion, the "difference" information produced by rls becomes the key to uniquely identifying a file.<br>
+This "difference" information is variable, as it changes whenever files are added, removed, or renamed.<br>
+Therefore, it must be recalculated each time before performing filename completion.<br>
+Since I have not seen existing programs that visualize this "difference" information, rls highlights it when displaying file lists.<br>
+In rls, this "difference" information is referred to as a unique string.
+
+### Fixed information and the value of color
+
+Generally, many programs that colorize file information use "color" to represent fixed information.<br>
+The purpose of coloring fixed information is often "distinction" or "attention": coloring the attribute itself to distinguish information, or coloring a specific location to draw attention to it.<br>
+For example, programs may colorize based on file attributes (such as mode or extension), or apply colors to fixed output formats and layouts.<br>
+Most file information is fixed and does not change, so as users become familiar with the tool through repeated use, the meaning of colors used for "distinction" or "attention" gradually diminishes.
+(Of course, there are situations where distinguishing or emphasizing fixed information is still useful.)<br>
+<br>
+Color can add new information without altering the original information displayed on the screen—without adding, modifying, or removing any of it.<br>
+For this reason, using color solely for distinguishing or emphasizing information that does not change is not necessarily effective.<br>
+In rls, one piece of variable information that users previously had to process mentally is instead presented using color.
+
+</details>
+
+
+<details>
+<summary> Behaviors that may seem odd at first </summary>
 
 ### `-c` option errors and redirection
 
-When redirecting output, `rls` may skip evaluating `-c` (color) settings by default, so configuration errors
-from `-c` are not written into redirected output. For example, `rls -ck=31` prints an error to the terminal,
-but `rls -ck=31 > log` will not record that error into `log`. Adding `-always` forces `-c` evaluation even
-during redirection, so errors are redirected as well.
+When redirecting output, `rls` may skip evaluating `-c` (color) settings by default, so configuration errors from `-c` are not written into redirected output. For example, `rls -ck=31` prints an error to the terminal, but `rls -ck=31 > log` will not record that error into `log`. Adding `--color=always` forces `-c` evaluation even during redirection, so errors are redirected as well.
 
 ### Filenames that are hard to treat as unique, and the `-e` option for groups
 
-If a directory contains files that differ only by extension (e.g., `file.el`, `file.txt`) `rls` will often
-not identify unique substrings for each file. The `-e` option groups such files and computes a single
-unique substring per group (useful for elisp, images, audio/video collections). Grouped entries are shown
-using the `paint` color.
+If a directory contains files that differ only by extension (e.g., `file.el`, `file.txt`), `rls` will often not identify unique substrings for each file. The `-e` option groups such files and computes a single unique substring per group (useful for elisp, images, audio/video collections). Grouped entries are displayed using the `paint` color.
 
 ### `rls` unique substrings vs. `fish` completion
 
-`rls`'s highlighted substring may differ from what `fish` chooses to complete because their selection
-criteria differ. For example, `fish` tends to prefer filenames that begin with the typed characters.
-Use `-pxxx -r` to inspect candidate unique substrings.
+`rls`'s highlighted substring may differ from what `fish` chooses to complete because their selection criteria differ. For example, `fish` tends to prefer filenames beginning with the typed characters. Use `-pxxx -r` to inspect candidate unique substrings.
 
-Furthermore, even if a filename and a directory name contain the same string, if the command is `cd`, the file will not be a completion target.
-This is very rational, but it is the result of configuring `fish` specifically for `cd` beforehand; executing another command that simply does `change directory` will not yield the same effect.
-Since `rls` determines the unique string purely from the filename, `a` would not be considered a unique string in the first place, and unique strings do not depend on the command being used.
+Furthermore, even if a filename and a directory name contain the same string, if the command is `cd`, the file will not be a completion target. This is a result of configuring `fish` specifically for `cd`; another command that changes directory will not have the same behavior. `rls` determines unique substrings purely from filenames, so `a` would not be considered unique in that case, and unique substrings do not depend on the command being used.
 
-Also, `fish` treats `-` and `_` equivalently when matching; `rls` may display replacements dynamically
-to make typing easier.
+Also, `fish` treats `-` and `_` equivalently when matching; `rls` may display replacements dynamically to make typing easier.
 
 ### Escape notation and character replacement
 
-Some characters in filenames (space, `(`, `-`, `&`, etc.) need escaping for shell completion. `rls`
-displays a leading backslash `\` before such characters so typing from the backslash makes completion work.
+Some filename characters (space, `(`, `-`, `&`, etc.) require escaping for shell completion. `rls` displays a leading backslash `\` before such characters so typing from the backslash enables completion.
 
-Because `fish` treats `-` and `_` as equivalent, `rls` may substitute one for the other when helpful. The
-displayed replacement is shown with the `paint` color. This substitution is disabled with `-n`.
+Because `fish` treats `-` and `_` as equivalent, `rls` may substitute one for the other when helpful. The displayed replacement is shown using the `paint` color. This substitution is disabled with `-n`.
 
-## Performance hints
+</details>
+
+<details>
+<summary> Performance hints </summary>
+
+### Performance hints
 
 If a directory contains many files, computation and display time increases. To speed up output:
 
@@ -264,6 +284,8 @@ Summary table:
 | `rls -sn`     | OFF     | OFF       | Short format | Fastest short listing |
 | `rls -fn -n`  | OFF     | OFF       | Long format  | Minimal filename-only long listing |
 
+</details>
+
 ---
 
 ## License
@@ -276,32 +298,26 @@ Summary table:
 
 ## Changes since v0.3.0
 
-- add `-R`: display specified string length in `paint` color
-- add new `-f` items: `|`, `,`, `S`, `C`, `u`, `U`, `x`, `X`, `I`, `D`, `W`, `j`
-- add changed meaning for `-fp` path
-- add `-fDW`: in English mode show month, day-of-week without abbreviation
-- chg changed `-O` to `-S` (no sort)
+- add `-f` fields (`|`, `,`, `S`, `C`, `u`, `U`, `x`, `X`, `I`, `D`, `W`, `j`)
+  - chg `-fp`: meaning of path changed
+  - add `-fDW`: in English mode, show month and day-of-week without abbreviation
+  - del `-t`: removed (replaced by `-fT`)
 - add `-O`: hide directories
-- chg moved `initColor()` timing in `main()`
-- chg fixed processing in `colorUsage()`
-- fix fixed `printAggregate()` when `displaycount` is 0
+  - chg `-O` to `-S`: no sort
 - add OpenMP support
-- del removed `-m`, `-z`, `-N` (replaced by `-F`)
-- add `-F`: per-field sorting (most `-f` items; `p` treated as `n`; `|` and `,` ignored)
-- chg changed padding in `printLong()`
-- del removed `-TB`, `-TE` (integrated into `-nn`; enclosure fixed to `[` and `]`)
-- del removed `-256`
-- chg added extension aggregation display to `-r`
-- del `-t`: removed (replaced by `-fT`)
 - add git support (build)
-- add `-j`: classification for `-fj` and related usages
-- chg changed `printLong()` display length processing
-- chg changed `-n`, `-n`: no color display
-- chg changed `-nn`: unique strings enclosed with `[` and `]`; `-nnX`: enclosed with `X` and `X`; `-nnXY`: enclosed with `X` and `Y`
+- add `-J`: classification for `-fj` and related usages
 - add `--`: read from standard input
+- add `-j`: JSON output format
+- chg `--always` to `--color=`; supports `--color=auto`, `--color=always`, `--color=never`
+- add `-F`: per-field sorting (most `-f` items; `p` treated as `n`; `|` and `,` ignored)
+  - del `-m`, `-z`, `-N`: removed (replaced by `-F`)
+- add `-R`: display specified string length in `paint` color
+- chg `-n`: no color output
+  - chg `-nn`: unique strings enclosed with `[` and `]`; `-nnX`: enclosed with `X` and `X`; `-nnXY`: enclosed with `X` and `Y`
+  - del `-TB`, `-TE`
+- fix `printAggregate()` when `displaycount` is 0
+- chg `printLong()` padding and display length processing
+- del `-256`
 
 ---
-
-Translator: Antigravity
-Translation date: 2026-03-03T14:31:06+09:00
-Note: I have translated and synchronized this document with the latest Japanese README.md.

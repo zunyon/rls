@@ -1,53 +1,40 @@
 ﻿## Last Update:
-## my-last-update-time "2025, 07/13 08:35"
-
+## my-last-update-time "2026, 03/15 16:33"
 
 ## ================================================================================
 ## 共通
-function __fish_rls_farg_completions
-	set -l token (commandline -ct)
-	set -l partial (string replace -r '^-' '' -- $token)
-
-	## 候補とその説明の対応表
-	set -l keys s l u b e a o n d O t i r m z N mm zz NN
+function __fish_rls_register_options
+	set -l keys s l S d u b e a o O i r
 	set -l descs \
-		"short list format (no kind, one color)." \
-		"long list format." \
-		"deep unique word check." \
-		"beginning of file name." \
-		"paint unique group-name word." \
-		"show all dot files." \
-		"show only directories." \
-		"no color." \
-		"use default colors." \
-		"no sort order." \
-		"human-readable date." \
-		"human-readable size." \
-		"show aggregate results." \
-		"mtime sort." \
-		"size sort." \
-		"alphabet sort." \
-		"reverse mtime sort." \
-		"reverse size sort." \
-		"reverse alphabet."
+		"short list format (no kind, one color)" \
+		"long list format" \
+		"no sort order" \
+		"use default colors" \
+		"deep unique word check" \
+		"beginning of file name" \
+		"paint unique group-name word" \
+		"show all dot files" \
+		"show only directories" \
+		"show only files" \
+		"human-readable size" \
+		"show aggregate results"
 
 	for idx in (seq (count $keys))
-		set key $keys[$idx]
+		set key	 $keys[$idx]
 		set desc $descs[$idx]
 
-		## 入力済みの文字は候補に出さない
-	   if not string match -q "*$key*" "$partial"
-			echo "$key	$desc"
-	   end
+		complete -c rls -s $key -d "$desc"
 	end
 end
 
 
 ## ================================================================================
 ## Listing format
-complete -c rls -s s -a '(__fish_rls_farg_completions)' -d 'short list format (no kind, one color)'
-complete -c rls -s l -a '(__fish_rls_farg_completions)' -d 'long list format'
-complete -c rls -s f -a '(__fish_rls_-ffarg_completions)' -d 'change format orders' -x
+complete -c rls -s s -n "not __fish_seen_argument -s s" -d "short list format (no kind, one color)"
+complete -c rls -s l -n "not __fish_seen_argument -s l" -d "long list format"
+complete -c rls -s f -a '(__fish_rls_-ffarg_completions)' -d 'change format orders.' -x
+complete -c rls -s J -a '(__fish_rls_-Ffarg_completions)' -d 'set jot with format order items.' -x
+complete -c rls -s j -d 'JSON format' -x
 
 ## -f
 function __fish_rls_-ffarg_completions
@@ -55,9 +42,8 @@ function __fish_rls_-ffarg_completions
 	set -l partial (string replace -r '^-f' '' -- $token)
 
 	## 候補とその説明の対応表
-	## !! 大文字の説明
-	set -l keys m o g c d p n k l e i h s t w "[" "]"
-	set -l descs "mode" "owner" "group" "count entry of DIR and FILE" "date" "PATH/FILE format" "name" "kind" "linkname" "errno" "inode" "hardlinks" "size of DIR and FILE" "time" "week" "enclosing [" "enclosing ]"
+	set -l keys m o g c d D p n k l e i h s S t T w W u x j "[" "]" "|" ","
+	set -l descs "mode" "owner" "group" "count entry of DIR and FILE" "date" "date (English)" "path" "name" "kind" "linkname" "errno" "inode" "hardlinks" "size" "size (no comma)" "time" "time (human-readable)" "week" "week (English)" "unique word" "extension" "jot" "enclosing [" "enclosing ]" "separator |" "separator ,"
 
 	for idx in (seq (count $keys))
 		set key $keys[$idx]
@@ -70,13 +56,89 @@ function __fish_rls_-ffarg_completions
 	end
 end
 
+## 殆ど同じだから -F, -j 共通
+function __fish_rls_-Ffarg_completions
+	set -l token (commandline -ct)
+	set -l partial (string replace -r '^-j' '' -- $token)
+	set -l partial (string replace -r '^-F' '' -- $partial)
 
+	## 候補とその説明の対応表
+	set -l keys m o g c d n k l e p i h s t w u x
+	set -l descs "mode" "owner" "group" "count" "date" "name" "kind" "linkname" "errno" "path" "inode" "hardlinks" "size" "time" "week" "unique" "extension"
+
+	for idx in (seq (count $keys))
+		set key $keys[$idx]
+		set desc $descs[$idx]
+
+		## 入力済みの文字は候補に出さない
+		if not string match -q "*$key*" "$partial"
+			echo "$partial$key	$desc"
+		end
+	end
+end
+
+
+## --------------------------------------------------------------------------------
+## Sort
+complete -c rls -s F -a '(__fish_rls_-Ffarg_completions)' -d 'change the sort order.' -x
+complete -c rls -s S -n "not __fish_seen_argument -s S" -d "no sort order"
+
+## -n
+function __fish_rls_-nfarg_completions
+	set -l token (commandline -ct)
+	set -l partial (string replace -r '^-n' '' -- $token)
+
+	## 候補とその説明の対応表
+	set -l keys n n\| n\<\>
+	set -l descs "[unique word]." "|unique word|." "<unique word>."
+
+	for idx in (seq (count $keys))
+		set key $keys[$idx]
+		set desc $descs[$idx]
+
+		## 入力済みの文字は候補に出さない
+		if not string match -q "*$key*" "$partial"
+			echo "$partial$key	$desc"
+		end
+	end
+end
+
+
+## --------------------------------------------------------------------------------
+## Color
+complete -c rls -s n -a '(__fish_rls_-nfarg_completions)' -d 'no colors.' -x
+complete -c rls -s d -n "not __fish_seen_argument -s d" -d "use default colors."
+complete -c rls -s c -a '(__fish_rls_-cfarg_completions)' -d 'set colors.' -x
+
+## -c
+function __fish_rls_-cfarg_completions
+	set -l token (commandline -ct)
+	set -l partial (string replace -r '^-c' '' -- $token)
+
+	## 候補とその説明の対応表
+	## !! 8 colors, 256 colors の説明、、、fore:3,000 back:4,000
+	## !! : のところまでが補完対象
+	set -l keys base= normal= dir= fifo= socket= device= error= paint= reset=0
+	set -l descs "base" "normal file" "directories" "FIFO/pipe" "socket" "block/character device" "error" "paint matched string" "RESET"
+
+	for idx in (seq (count $keys))
+		set key $keys[$idx]
+		set desc $descs[$idx]
+
+		## 本来は複数の属性を設定できるが、入力済みの文字は候補に出さない
+	   if not string match -q "*$key*" "$partial"
+			echo "$partial$key	$desc"
+	   end
+	end
+end
+
+
+## --------------------------------------------------------------------------------
 ## Coloring algorithm
-complete -c rls -s u -a '(__fish_rls_farg_completions)' -d 'deep unique word check'
-complete -c rls -s b -a '(__fish_rls_farg_completions)' -d 'beginning of file name'
-## complete -c rls -s p -d '-pxxx:paint the matched string.' -x 
+complete -c rls -s u -n "not __fish_seen_argument -s u" -d "deep unique word check"
+complete -c rls -s b -n "not __fish_seen_argument -s b" -d "beginning of file name"
 complete -c rls -s p -a '(__fish_rls_-pflag_completions)' -d '-pxxx:paint the matched string.' -x
-complete -c rls -s e -a '(__fish_rls_farg_completions)' -d 'paint unique group-name word'
+complete -c rls -s e -n "not __fish_seen_argument -s e" -d "paint unique group-name word"
 
 ## -p
 function __fish_rls_-pflag_completions
@@ -105,62 +167,24 @@ function __fish_rls_-pflag_completions
 end
 
 
+## --------------------------------------------------------------------------------
 ## Output data
-complete -c rls -s a -a '(__fish_rls_farg_completions)' -d 'show all dot files'
-complete -c rls -s o -a '(__fish_rls_farg_completions)' -d 'show only directories'
+complete -c rls -s a -n "not __fish_seen_argument -s a" -d "show all dot files"
+complete -c rls -s o -n "not __fish_seen_argument -s o" -d "show only directories"
+complete -c rls -s O -n "not __fish_seen_argument -s O" -d "show only files"
 complete -c rls -s P -d '-Pxxx:pickup only the string matched.' -x
 
 
-## Color
-complete -c rls -s n -a '(__fish_rls_farg_completions)' -d 'no colors'
-complete -c rls -s c -a '(__fish_rls_-cfarg_completions)' -d 'set colors' -x
-complete -c rls -s d -a '(__fish_rls_farg_completions)' -d 'use default colors'
-
-## -c
-function __fish_rls_-cfarg_completions
-	set -l token (commandline -ct)
-	set -l partial (string replace -r '^-c' '' -- $token)
-
-	## 候補とその説明の対応表
-	## !! 8 colors, 256 colors の説明、、、fore:3,000 back:4,000
-	## !! : のところまでが補完対象
-	set -l keys base= normal= dir= fifo= socket= device= error= paint= reset=0
-	set -l descs "base" "normal file" "directories" "FIFO/pipe" "socket" "block/character device" "error" "paint matched string" "RESET"
-
-	for idx in (seq (count $keys))
-		set key $keys[$idx]
-		set desc $descs[$idx]
-
-		## 本来は複数の属性を設定できるが、入力済みの文字は候補に出さない
-	   if not string match -q "*$key*" "$partial"
-			echo "$partial$key	$desc"
-	   end
-	end
-end
-
-
-## Sort
-complete -c rls -s m  -a '(__fish_rls_farg_completions)' -x -d 'mtime sort'
-complete -c rls -s z  -a '(__fish_rls_farg_completions)' -x -d 'size sort'
-complete -c rls -s N  -a '(__fish_rls_farg_completions)' -x -d 'alphabet sort'
-# !! これは始めは無くて良いか
-## complete -c rls -s mm  -a '(__fish_rls_farg_completions)' -x -d 'reverse mtime sort' 
-## complete -c rls -s zz  -a '(__fish_rls_farg_completions)' -x -d 'reverse size sort' 
-## complete -c rls -s NN  -a '(__fish_rls_farg_completions)' -x -d 'reverse alphabet sort' 
-complete -c rls -s O -a '(__fish_rls_farg_completions)' -d 'no sort order'
-
-
+## --------------------------------------------------------------------------------
 ## Additional
-complete -c rls -s t -a '(__fish_rls_farg_completions)' -d 'human-readable date'
-complete -c rls -s i -a '(__fish_rls_farg_completions)' -d 'human-readable size'
-complete -c rls -s r -a '(__fish_rls_farg_completions)' -d 'show aggregate results'
+complete -c rls -s i -n "not __fish_seen_argument -s i" -d "human-readable size"
+complete -c rls -s r -n "not __fish_seen_argument -s r" -d "show aggregate results"
+complete -c rls -s R -d '-Rxxx:color the corresponding length of the aggregate results.' -x
 
 
+## --------------------------------------------------------------------------------
 ## Other
-complete -c rls -s h -l help -x -d 'show usage.'
-complete -c rls -s v -l version -x -d 'show version.'
-# !! rls -alr /usTAB などで、/usr/include/ が出てこない
-## complete -c rls -a '-TB' -d 'enclosing string.(TB)' -x 
-## complete -c rls -a '-TE' -d 'enclosing string.(TE)' -x 
-## complete -c rls -a '-always' -d 'output the escape sequence characters.' -x 
-## complete -c rls -a '-256' -d 'color text output.' 
+complete -c rls -s h -l help -n "not __fish_seen_argument -s h" -d "show usage."
+complete -c rls -s v -l version -n "not __fish_seen_argument -s v" -d "show version."
+complete -c rls -a '--color=auto\tautomatic --color=always\talways --color=never\tnever.'
+complete -c rls -o - -d 'read from stdin.' -x

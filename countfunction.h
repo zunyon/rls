@@ -1,4 +1,4 @@
-extern size_t countstrlen(const char *str);
+ï»¿extern size_t countstrlen(const char *str);
 extern char * countstrstr(const char *haystack, const char *needle);
 extern int countstrcmp(const char *s1, const char *s2);
 extern int countstrncmp(const char *s1, const char *s2, size_t n);
@@ -22,7 +22,7 @@ extern void showCountFunc(void);
 
 
 // ================================================================================
-// ’u‚«Š·‚¦
+// ç½®ãæ›ãˆ
 #define strlen countstrlen
 #define strstr countstrstr
 #define strcmp countstrcmp
@@ -37,7 +37,7 @@ extern void showCountFunc(void);
 #define calloc countcalloc
 #define free countfree
 
-// #define stat countstat			# struct stat ‚ª”½‰‚·‚é
+// #define stat countstat			# struct stat ãŒåå¿œã™ã‚‹
 #define lstat countlstat
 #define readlink countreadlink
 #define memset countmemset

@@ -465,7 +465,7 @@ main(void)
 					break;
 				}
 			} else {
-				countprintf(" error:%", namelist[n]->d_name);
+				countprintf(" error:%s", namelist[n]->d_name);
 			}
 			countprintf("\n");
 

@@ -1,7 +1,7 @@
 /*
 	MIT License
 	
-	Copyright (c) 2025 zunyon
+	Copyright (c) 2025-2026 zunyon
 	
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
@@ -31,15 +31,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "03/03"
-#define BTIME "10:31:40"
+#define BDATE "03/20"
+#define BTIME "06:56:34"
 
-#define RELTYPE "[CURRENT]"
+#define RELTYPE "[RELEASE]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 03/03 07:33"
+// my-last-update-time "2026, 03/20 06:56"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -53,8 +53,8 @@
 // MD5 への対応 (make md5)
 // OpenMP への対応
 // git への対応 (make git)
-// 分類分け対応（-j -fj）
-
+// 分類分け対応（-J -fj）
+// json 形式出力対応
 
 // ================================================================================
 #include <stdio.h>
@@ -96,7 +96,7 @@
 
 #define SHOW_NONE   0					// 表示しない
 #define SHOW_SHORT  1					// printShort()
-#define SHOW_LONG   2					// printLong()
+#define SHOW_LONG   2					// printLong() or printJSON()
 
 #define SEP ','							// makeSize() のセパレート文字
 
@@ -181,21 +181,20 @@ myStrcasestr(const char *haystack, const char *needle)
 
 // -r で使用
 #ifdef MYROUND
-	#define round(d) ((int) ((d + 0.05) * 10.0) / 10.0)
+	#define round(d) ( ((int)((d) * 10.0 + 0.5)) / 10.0 )
 #else
 	#include <math.h>
 #endif
 
 
 // ================================================================================
-// 重複文字列リスト、、、unique 文字列をファイル名から検索しないように
+// 重複文字列リスト、、、unique 文字列の管理
 struct DLIST {
-	char dupword[UNIQUE_LENGTH + 1];	// 最大 32 文字
+	char dupword[UNIQUE_LENGTH + 1];
 	struct DLIST *left;
 	struct DLIST *right;
 	int fnamelistNumber;				// unique な fnamelist の [] 番目、-1 なら複数存在 (unique でない)
 	int length;
-	int count;
 };
 
 
@@ -227,7 +226,7 @@ mallocDuplist(char *word, int len)
 		len = UNIQUE_LENGTH;
 	}
 
-	*new = (struct DLIST) {"", NULL, NULL, 0, len, 0};
+	*new = (struct DLIST) {"", NULL, NULL, 0, len};
 
 	if (len) {
 		strncpy(new->dupword, word, len);
@@ -261,7 +260,6 @@ addDuplist(struct DLIST *p, char *word, int len, int number)
 	// 新規登録
 	struct DLIST *new_node = mallocDuplist(word, len);
 	new_node->fnamelistNumber = number;
-	new_node->count++;
 
 	*(ret < 0 ? &prev->left : &prev->right) = new_node;
 }
@@ -281,7 +279,6 @@ searchDuplist(struct DLIST *p, char *word, int len, int number)
 				// 自分以外は重複と判断
 				if (number != p->fnamelistNumber) {
 					p->fnamelistNumber = -1;
-					p->count++;
 				}
 				return 1;
 			}
@@ -515,14 +512,14 @@ struct FNAME {
 	struct stat sb;					// st_mode, st_mtime, st_size, st_uid, st_gid を使用
 	int isstat;
 
-	// !! main() の formatListString の分だけ確保、mmmmmmmmmm とかも可能なので、最大数は必要だけど
+	// main() の formatListString の分だけ確保、mmmmmmmmmm とかも可能なので、最大数は必要
 	char *info[ListCountd];			// この構造体の文字列要素の先頭
 		char inode[DATALEN];				// inode
 		char inodec[DATALEN];				// inode の文字列、comma 表記
 		char nlink[DATALEN];				// hard links
 		char mode[11];						// mode bits
-		char owner[11];						// owner
-		char group[11];						// group
+		char owner[DATALEN];				// owner
+		char group[DATALEN];				// group
 		char size[16];						// size の文字列
 		char sizec[DATALEN];				// size の文字列、comma 表記
 		char count[16];						// ディレクトリに含まれているファイル数と、size の混合
@@ -538,7 +535,7 @@ struct FNAME {
 		char *name;							// 表示用ファイル名
 		char lowername[FNAME_LENGTH];		// 比較用
 		char kind[2];						// 種類
-		char linkname[FNAME_LENGTH];		// link 名、PATH_MAX が正式
+		char linkname[FNAME_LENGTH + 1];	// link 名、PATH_MAX が正式、readlink() の後の strcat("/") 分
 		char errnostr[FNAME_LENGTH];		// lstat() のエラー
 		char extension[FNAME_LENGTH / 2];	// 拡張子
 		char jot[FNAME_LENGTH / 2];			// 分類分け
@@ -600,6 +597,7 @@ struct ALIST {
 	int show_simple;
 	int show_long;
 	int format_list;
+	int show_json;
 
 	// -f 関連は format_ に纏める
 #ifdef MD5
@@ -741,6 +739,9 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 
 
 // --------------------------------------------------------------------------------
+// 現時刻から半年前かチェック (秒でチェック、60 * 60 * 24 * 365 / 2 = 15768000)、前なら年表示
+#define HARF_YEAR_SEC 15768000
+
 void
 makeDate(struct FNAME *p, time_t lt)
 {
@@ -753,13 +754,12 @@ makeDate(struct FNAME *p, time_t lt)
 		dtime *= -1.0;
 	}
 
-	// 現時刻から半年前かチェック (秒でチェック、60 * 60 * 24 * 365 / 2 = 15768000)、前なら年表示
 	// 省略なし %B, %A
-	strftime(p->datelong, DATALEN, (dtime < 15768000) ? "%B %e %H:%M" : "%B %e  %Y", t);
+	strftime(p->datelong, DATALEN, (dtime < HARF_YEAR_SEC) ? "%B %e %H:%M" : "%B %e  %Y", t);
 	strftime(p->weeklong, DATALEN, "%A", t);
 
 	// 3 文字の省略表示 %b, %a
-	strftime(p->date, DATALEN, (dtime < 15768000) ? "%b %e %H:%M" : "%b %e  %Y", t);
+	strftime(p->date, DATALEN, (dtime < HARF_YEAR_SEC) ? "%b %e %H:%M" : "%b %e  %Y", t);
 	strftime(p->week, DATALEN, "%a", t);
 
 	strftime(p->time, DATALEN, "%Y, %m/%d %H:%M:%S", t);
@@ -1021,7 +1021,6 @@ countMatchedString(const char *str)
 	const char *pos = name;
 	while ((pos = strstr(pos, paintString)) != NULL) {
 		ret++;
-		// !!
 		pos += (paintStringLen > 0) ? paintStringLen : 1; // 一致時のスキップ
 	}
 
@@ -1033,8 +1032,7 @@ countMatchedString(const char *str)
 void
 printMatchedString(struct FNAME dummy, const char *str, struct ALIST cfg)
 {
-	// このファイル情報のどれにも該当していない pickupString() されていない
-// 	if (p.uniqueend == -1 || paintStringLen == 0) {
+	// pickupString() されていない
 	if (paintStringLen == 0) {
 		printStr(base, str);
 		return;
@@ -1194,7 +1192,10 @@ myMtimeSort(const void *a, const void *b)
 	struct FNAME *s1 = (struct FNAME *)a;
 	struct FNAME *s2 = (struct FNAME *)b;
 
-	return ((double) s1->sb.st_mtime - s2->sb.st_mtime < 1) ? 1 : -1;
+	if (s1->sb.st_mtime > s2->sb.st_mtime) { return  1; }
+	if (s1->sb.st_mtime < s2->sb.st_mtime) { return -1; }
+
+	return 0;
 }
 
 int
@@ -1217,7 +1218,7 @@ typedef enum {
 	owner_sortfunc  = 'o',
 	group_sortfunc  = 'g',
 	extension_sortfunc = 'x',
-	jot_sortfunc = 'j',
+	jot_sortfunc = 'J',
 	linkname_sortfunc  = 'l',
 	errnostr_sortfunc  = 'e',
 
@@ -1240,41 +1241,60 @@ typedef enum {
 } SORTLIST;
 
 
-
 typedef int (*sortfunc)(const void *, const void *);
-sortfunc sortfunclist[UCHAR_MAX +1];
-static sortfunc slist[UCHAR_MAX +1];
-static sortfunc srevlist[UCHAR_MAX +1];
+struct sfunclist {
+	sortfunc func;
+	sortfunc slist;
+	sortfunc srevlist;
+} sortfunclist[UCHAR_MAX +1];
 
-// #define toggleFunction(target) sortfunclist[(char) target] = (sortfunclist[(char) target] == slist[(char) target]) ? srevlist[(char) target] : slist[(char) target];
+
+// sort のタイプを表示
+#ifdef DEBUG
 void
-toggleFunction(int target)
+showSortFunc(int c)
 {
-	sortfunclist[target] = (sortfunclist[target] == slist[target]) ? srevlist[target] : slist[target];
+	printf(" showSortFunc: %c ", c);
+
+	sortfunc comparefunc = sortfunclist[c].func;
+	if (comparefunc == NULL)           { printf("NULL\n");           }
+	if (comparefunc == myAlphaSort)    { printf("myAlphaSort\n");    }
+	if (comparefunc == myAlphaSortRev) { printf("myAlphaSortRev\n"); }
+	if (comparefunc == mySizeSort)     { printf("mySizeSort\n");     }
+	if (comparefunc == mySizeSortRev)  { printf("mySizeSortRev\n");  }
+	if (comparefunc == myMtimeSort)    { printf("myMtimeSort\n");    }
+	if (comparefunc == myMtimeSortRev) { printf("myMtimeSortRev\n"); }
+}
+#endif
+
+void
+toggleFunction(int c)
+{
+	sortfunclist[c].func = (sortfunclist[c].func == sortfunclist[c].slist) ? sortfunclist[c].srevlist : sortfunclist[c].slist;
+
+#ifdef DEBUG
+	showSortFunc(c);
+#endif
 }
 
-// #define setSortFunc(c, a, b) slist[c] = a; srevlist[c] = b;
 void
 setSortFunc(int c, sortfunc a, sortfunc b)
 {
-	slist[c] = a;
-	srevlist[c] = b;
+	sortfunclist[c].func = a;
+	sortfunclist[c].slist = a;
+	sortfunclist[c].srevlist = b;
 
-// 	sortfunc comparefunc;
-// 	printf(" !!c(%c):   ", c);
-// 	if (comparefunc == NULL)           { printf("NULL\n");           }
-// 	if (comparefunc == myAlphaSort)    { printf("myAlphaSort\n");    }
-// 	if (comparefunc == myAlphaSortRev) { printf("myAlphaSortRev\n"); }
-// 	if (comparefunc == mySizeSort)     { printf("mySizeSort\n");     }
-// 	if (comparefunc == mySizeSortRev)  { printf("mySizeSortRev\n");  }
-// 	if (comparefunc == myMtimeSort)    { printf("myMtimeSort\n");    }
-// 	if (comparefunc == myMtimeSortRev) { printf("myMtimeSortRev\n"); }
+#ifdef DEBUG
+	showSortFunc(c);
+#endif
 }
 
 
 void
-sortfunclistinit(void)
+initSortFuncList(void)
 {
+	debug printStr(label, "initSortFuncList:\n");
+
 #ifdef MD5
 	setSortFunc(md5_sortfunc,          myAlphaSort, myAlphaSortRev);
 #endif
@@ -1304,42 +1324,7 @@ sortfunclistinit(void)
 	setSortFunc(nlink_sortfunc,        mySizeSort, mySizeSortRev);
 
 	setSortFunc(name_sortfunc,         myAlphaSort, myAlphaSortRev);
-	setSortFunc(name_sortfunc,         myAlphaSort, myAlphaSortRev);
 	setSortFunc(path_sortfunc,         myAlphaSort, myAlphaSortRev);
-
-
-#ifdef MD5
-	sortfunclist[md5_sortfunc] = myAlphaSortRev;
-#endif
-#ifdef GIT
-	sortfunclist[git_sortfunc] = myAlphaSortRev;
-#endif
-	sortfunclist[mode_sortfunc] = myAlphaSortRev;
-	sortfunclist[kind_sortfunc] = myAlphaSortRev;
-	sortfunclist[unique_sortfunc] = myAlphaSortRev;
-	sortfunclist[owner_sortfunc]  = myAlphaSortRev;
-	sortfunclist[group_sortfunc]  = myAlphaSortRev;
-	sortfunclist[extension_sortfunc] = myAlphaSortRev;
-	sortfunclist[jot_sortfunc] = myAlphaSortRev;
-	sortfunclist[linkname_sortfunc]  = myAlphaSortRev;
-	sortfunclist[errnostr_sortfunc]  = myAlphaSortRev;
-
-	sortfunclist[week_sortfunc] = myAlphaSortRev;
-	sortfunclist[date_sortfunc] = myMtimeSort;
-	sortfunclist[time_sortfunc] = myMtimeSort;
-	sortfunclist[timereadable_sortfunc] = myMtimeSort;
-	sortfunclist[weeklong_sortfunc] = myAlphaSortRev;
-	sortfunclist[datelong_sortfunc] = myMtimeSort;
-
-	sortfunclist[size_sortfunc]  = mySizeSortRev;
-	sortfunclist[count_sortfunc] = mySizeSortRev;
-	sortfunclist[inode_sortfunc] = mySizeSortRev;
-	sortfunclist[nlink_sortfunc] = mySizeSortRev;
-
-	sortfunclist[path_sortfunc] = myAlphaSort;
-
-	// デフォルト
-	sortfunclist[name_sortfunc] = myAlphaSort;
 }
 
 
@@ -1370,14 +1355,14 @@ debug_displayAllQsortdata(struct FNAME *data, int n, struct ALIST cfg)
 // ================================================================================
 // unique を全ファイルリストに反映する
 void
-refrectDuplist(struct DLIST *node, struct FNAME *p)
+reflectDuplist(struct DLIST *node, struct FNAME *p)
 {
 	if (node == NULL) {
 		return;
 	}
 
 	// 左から順番に対応
-	refrectDuplist(node->left, p);
+	reflectDuplist(node->left, p);
 
 	if (node->fnamelistNumber != -1 && node->length) {
 		int j = node->fnamelistNumber;
@@ -1412,7 +1397,7 @@ refrectDuplist(struct DLIST *node, struct FNAME *p)
 		}
 	}
 
-	refrectDuplist(node->right, p);
+	reflectDuplist(node->right, p);
 }
 
 
@@ -1441,7 +1426,7 @@ runUniqueCheck(struct FNAME *fnamelist, int pnth, struct DLIST *duplist, void (*
 
 		// --------------------------------------------------------------------------------
 		// 途中で終了するか、判断
-		refrectDuplist(duplist, fnamelist);
+		reflectDuplist(duplist, fnamelist);
 
 		int sum = 0;
 		// unique 該当を数える
@@ -1453,7 +1438,7 @@ runUniqueCheck(struct FNAME *fnamelist, int pnth, struct DLIST *duplist, void (*
 				int len = fnamelist[j].uniqueend - fnamelist[j].uniquebegin + 1;
 				count_chklen[len]++;
 
-				// refrectDuplist() を白紙に戻す
+				// reflectDuplist() を白紙に戻す
 				fnamelist[j].uniquebegin = -1;
 				fnamelist[j].uniqueend = -1;
 
@@ -1536,31 +1521,6 @@ uniqueCheckFirstWord(struct FNAME *p, int j, int len, struct DLIST *duplist)
 	if (searchDuplist(duplist, tmp, len, j) == 0) {
 		addDuplist(duplist, tmp, len, j);
 	}
-}
-
-
-// --------------------------------------------------------------------------------
-void
-uniqueCheckEmacs(struct FNAME *p, int j, int len, struct DLIST *duplist)
-{
-	// uniqueCheckEmacs 固有
-	char ename[FNAME_LENGTH];
-	strcpy(ename, p[j].lowername);
-
-	char *extension = strchr(ename, '.');
-	// 拡張子が 1 つだけなら、削除する必要は無い
-	if (extension) {
-		extension++;
-		// 1 つ以上見つかったので、拡張子を切断
-		if (searchDuplist(duplist, extension, strlen(extension), j)) {
-			if (extension) {
-				ename[strlen(ename) - strlen(extension)] = '\0';
-			}
-		}
-	}
-
-	// --------------------------------------------------------------------------------
-	uniqueCheck(p, j, len, duplist);
 }
 
 
@@ -2116,62 +2076,118 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 }
 
 
-// ================================================================================
 void
-displayDuplist(struct DLIST *node)
+printJSON(struct FNAME *data, int n, struct ALIST cfg, int dummy[])
 {
-	if (node == NULL) {
+	debug printStr(label, "printJSON:\n");
+
+	if (cfg.show_json == 0 || n == 0) {
 		return;
 	}
 
-	// 左から順番に表示
-	displayDuplist(node->left);
-	if (node->count) {
-		printf("[%s:%d] ", node->dupword, node->count);
-// 		printf("dup: [%s]:%d, %d\n", node->dupword, node->fnamelistNumber, node->count);
+	int printjson_count = 0;
+
+	// 表示対象があるか確認
+	for (int i=0; i<n; i++) {
+		if (data[i].showlist != SHOW_LONG) {
+			continue;
+		}
+		printjson_count++;
+		break;
 	}
-	displayDuplist(node->right);
-}
 
+	// 無かった
+	if (printjson_count == 0) {
+		return;
+	}
 
-// extension ごとの数を表示
-void
-printExtension(struct FNAME *fnamelist, int nth)
-{
-	debug printStr(label, "printExtension:\n");
-
-	struct DLIST *extensionduplist = mallocDuplist("", 0);
-
-	for (int i=0; i<nth; i++) {
-		if (fnamelist[i].showlist == SHOW_NONE) {
+	for (int i=0; i<n; i++) {
+		// 非表示設定のファイルは表示しない
+		if (data[i].showlist != SHOW_LONG) {
 			continue;
 		}
 
-		char *extension = fnamelist[i].extension;
-		int len = strlen(extension);
+		// --------------------------------------------------------------------------------
+		printf("  {\n");
+		for (int j=0; cfg.formatListString[j] != '\0'; j++) {
+			char *namep = NULL;
+			int padding = 0;
 
-		// len が 0 でも拡張子無しとしてカウント
-		// . が 1 文字目だったら拡張子と判断しない
-		if (len == fnamelist[i].length - 1) {
-			continue;
+			// JSON 出力はパディング不要だが、最大長に合わせて padding を計算
+// 			switch (tolower(cfg.formatListString[j])) {
+			switch (cfg.formatListString[j]) {
+			  case 'm': namep = "mode";  padding = 1; break;
+			  case 'o': namep = "owner"; padding = 0; break;
+			  case 'g': namep = "group"; padding = 0; break;
+			  case 'c': namep = "count"; padding = 0; break;
+			  case 'C': namep = "Count"; padding = 0; break;
+			  case 'd': namep = "date";  padding = 1; break;
+			  case 'D': namep = "Date";  padding = 1; break;
+			  case 'p': namep = "path";  padding = 1; break;
+			  case 'n': namep = "name";  padding = 1; break;
+			  case 'k': namep = "kind";  padding = 1; break;
+			  case 'l': namep = "lname"; padding = 0; break;
+			  case 'e': namep = "errno"; padding = 0; break;
+
+			  case 'i': namep = "inode"; padding = 0; break;
+			  case 'I': namep = "Inode"; padding = 0; break;
+			  case 'h': namep = "nlink"; padding = 0; break;
+			  case 's': namep = "size";  padding = 1; break;
+			  case 'S': namep = "Size";  padding = 1; break;
+			  case 't': namep = "mtime"; padding = 0; break;
+			  case 'T': namep = "Mtime"; padding = 0; break;
+			  case 'w': namep = "week";  padding = 1; break;
+			  case 'W': namep = "Week";  padding = 1; break;
+			  case 'u': namep = "uword"; padding = 0; break;
+			  case 'x': namep = "ext";   padding = 2; break;
+			  case 'j': namep = "jot";   padding = 2; break;
+#ifdef MD5
+			  case '5': namep = "MD5";   padding = 2; break;
+#endif
+#ifdef GIT
+			  case '6': namep = "git";   padding = 2; break;
+#endif
+			  // 上記以外は無視
+			  default:
+				continue;
+			}
+
+			printf("    \"%s\"", namep);
+			printf("%*s", padding, "");
+			printf(" : ");
+
+			// データがあるものはそのまま、無いものは null を表示
+			// !! 表示する文字が " か \ の時、printUnique() みたいに \ のエスケープシーケンスが必要
+			if (data[i].info[j] != NULL) {
+				if (data[i].info[j][0] != '\0') {
+					printf("\"");
+					printMatchedString(data[i], data[i].info[j], cfg);
+					printf("\"");
+				} else {
+					printf("null");
+				}
+			}
+
+			if (cfg.formatListString[j+1] != '\0') {
+				printf(",");
+			}
+			printf("\n");
 		}
+		printf("  }");
 
-		if (searchDuplist(extensionduplist, extension, len, i) == 0) {
-			addDuplist(extensionduplist, extension, len, i);
+		// --------------------------------------------------------------------------------
+		// 要素が続く
+		if (i < n-1) {
+			printf(",\n");
 		}
 	}
 
-	debug printf(" ");
-
-	printStr(label, "extension: ");
-	displayDuplist(extensionduplist);
-	printf("\n");
-
-	freeDuplist(extensionduplist);
+	if (dummy[0] == -1) {
+	}
 }
 
 
-// --------------------------------------------------------------------------------
+// ================================================================================
 // どの程度の文字列の長さで unique になっているか表示
 // -R や、-p の結果も paint で表示する
 void
@@ -2199,8 +2215,6 @@ printAggregate(struct FNAME *fnamelist, int nth, int aggregate_length)
 		}
 	}
 
-	// 少しだけ計算結果が違う、個別の四捨五入の方が実測値に近い
-// 	double percent = hitcount * 100.0 / nth;
 	double percent = 0.0;
 	for (int i=1; i<UNIQUE_LENGTH && nth; i++) {
 		percent += round(count_chklen[i] * 100.0 / nth);
@@ -2244,7 +2258,7 @@ showVersion(char **argv)
 	printf("\n");
 	printf(" Change Layout of display list.\n");
 	printf("  Long listing format:  change format orders with -f, sort orders with -F.\n");
-	printf("  Short lisring format: layout is preserved on redirect. (similar to result layout on redirect: -fNk)\n");
+	printf("  Short listing format: layout is preserved on redirect. (similar to result layout on redirect: -fNk)\n");
 
 
 	// --------------------------------------------------------------------------------
@@ -2319,6 +2333,7 @@ showUsage(char **argv)
 	printStr(label, "Listing format options:\n");
 	printf(" -s: Short listing format. (no kind, one color)\n");
 	printf(" -l: Long listing format.\n");
+	printf(" -j: JSON format.\n");
 	printf(" "); printStr(normal, "-f"); printf(": with -l, change Format orders. (default: -fmogcdNKLE)\n");
 	printf("      m:mode, o:owner, g:group, c:count, d:date, p:path, n:name, k:kind, l:linkname, e:errno,\n");
 	printf("      i:inode, h:hardlinks, s:size, t:time, w:week, u:uniqueword, x:extension, j:jot.\n");
@@ -2338,10 +2353,10 @@ showUsage(char **argv)
 	printf("      W, D:without abbreviation.\n");
 	printf("      T:human-readable time.\n");
 	printf("      Upper case is padding off. (Same length: no change in appearance (m, t, 5, 6))\n");
-	printf(" "); printStr(normal, "-j"); printf(": set jot whith format order items. (xMovie=mov,avi,mp4:xPrj=c,h,md:xGraph=png,gif,jpg:mRun=rwx,r-x,--x)\n");
+	printf(" "); printStr(normal, "-J"); printf(": set jot whith format order items. (xMovie=mov,avi,mp4:xPrj=c,h,md:xGraph=png,gif,jpg:mRun=rwx,r-x,--x)\n");
 	printf("      check format order item extension  jot label  matched string mov or avi or mp4.\n");
 	printf("      xMovie=mov,avi,mp4 =>    x         Movie                    =mov,avi,mp4.\n");
-	printf("     -s > -j > -l = -f > default short listing (include file status)\n");
+	printf("     -s > -j > -l = -f = -J > default short listing (include file status)\n");
 
 	printf("\n");
 	printStr(label, "Sort options:\n");
@@ -2407,16 +2422,19 @@ showUsage(char **argv)
 	printf("\n");
 	printStr(label, "Additional options:\n");
 	printf(" -i: with -l, human-readable sIze. (-f with count, size, hardlinks)\n");
-	printf(" "); printStr(label,  "-r"); printf(": show aggregate Results. (with extension results, if you use)\n");
+	printf(" "); printStr(label,  "-r"); printf(": show aggregate Results.\n");
 	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \""); printStr(paint,  "paint"); printf("\" color. (-Rnumber)\n");
 	printf("     -i = -r = -R\n");
 
 	printf("\n");
 	printStr(label, "Other options:\n");
+	printf(" "); printStr(normal,"--"); printf(":            read the list from stdin. (default: -fmogcdPNKLE)\n");
 	printf(" -h, "); printStr(normal, "--help"); printf(":    show this message.\n");
 	printf(" -v, "); printStr(normal, "--version"); printf(": show Version.\n");
-	printf(" "); printStr(normal,"-always"); printf(":       output the escape sequence characters in redirect.\n");
-	printf(" "); printStr(normal,"--"); printf(":            read the list from stdin.\n");
+	printf("     "); printStr(normal,"--color="); printf(":  output the escape sequence characters in redirect. (default: --color=auto)\n");
+	printf("                 auto:   judge output by redirect or not.\n");
+	printf("                 always: always output.\n");
+	printf("                 never:  never output.\n");
 }
 
 
@@ -2569,9 +2587,6 @@ void
 orderSort(int showorder[], struct DENT dent[], int dirarg)
 {
 	debug printStr(label, "orderSort:\n");
-// 	for (int i=0; i<dirarg; i++) {
-// 		printf("show order:%d, %d\n", showorder[i], dent[showorder[i]].is_file);
-// 	}
 
 	for (int i=0; i<dirarg - 1; i++) {
 		int swapped = 0;
@@ -2645,8 +2660,8 @@ rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 			}
 		}
 
-		if (sortfunclist[(int)c]) {
-			qsort(fnamelist, nth, sizeof(struct FNAME), sortfunclist[(int)c]);
+		if (sortfunclist[(int)c].func) {
+			qsort(fnamelist, nth, sizeof(struct FNAME), sortfunclist[(int)c].func);
 		}
 	}
 }
@@ -2654,7 +2669,7 @@ rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 
 // 各項目の最大表示長さ
 void
-fnameLength(struct FNAME *p)
+calcFnameLength(struct FNAME *p)
 {
 	// 特殊計測
 // 	p->length = strlen(p->name);
@@ -2760,7 +2775,7 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 		int len = strlen(argv[i]);
 
 		// --------------------------------------------------------------------------------
-#if 0
+#ifdef DEBUG
 		// -1 の実装、argv[1], argv[2] は固定
 		if (strcmp(argv[1], "-1") == 0) {
 			char buffer[1048576];
@@ -2795,13 +2810,12 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 			continue;
 		}
 
-		if (strcmp(argv[i], "-always") == 0) {
-			cfg->output_escape++;
-			continue;
-		}
-
 		if (strcmp(argv[i], "--") == 0) {
 			cfg->from_stdin++;
+			// デフォルトの表示項目 + ソートを設定
+			strcpy(cfg->formatListString, "mogcdPNKLE");
+			strcpy(cfg->formatSortString, "ppnn");
+
 			continue;
 		}
 
@@ -2846,7 +2860,7 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 		}
 
 		// jot
-		if (strncmp(argv[i], "-j", 2) == 0) {
+		if (strncmp(argv[i], "-J", 2) == 0) {
 			if (len == 2) { argverr[i] = error; errc++; continue; }
 
 			strcpy(cfg->jotString, argv[i] + 2);
@@ -2927,6 +2941,26 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 			continue;
 		}
 
+		// エスケープシーケンスの出力設定
+		if (strncmp(argv[i], "--color=", 8) == 0) {
+			if (len == 8) { argverr[i] = error; errc++; continue; }
+
+			char *str = argv[i] + 8;
+			if (strcmp(str, "always") == 0) {
+				cfg->output_escape++;
+				continue;
+			}
+			if (strcmp(str, "auto") == 0) {
+				cfg->output_escape = 0;
+				continue;
+			}
+			if (strcmp(str, "never") == 0) {
+				cfg->no_color = 1;
+				continue;
+			}
+			argverr[i] = error; errc++; 
+		}
+
 		// --------------------------------------------------------------------------------
 		// '-' から始まるのはオプション、、、パス名の場合は、"./-xxx" などにして
 		if (argv[i][0] == '-') {
@@ -2938,6 +2972,7 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 				switch (argv[i][j]) {
 					case 's': cfg->show_simple++;       break;	// lstat() を使用しない printShort()
 					case 'l': cfg->show_long++;         break;	// long 表示
+					case 'j': cfg->show_json++;         break;	// json 出力
 
 					case 'u': cfg->deep_unique++;       break;	// unique チェックを最後まで行う
 					case 'b': cfg->beginning_word++;    break;	// uniqueCheckFirstWord() のみ
@@ -2968,8 +3003,6 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 			}
 		} else {
 			// '-' から始まっていないので、多分ファイル名、パスの指定
-// 			strcpy(dirarglist[dirarg], argv[i]);
-// 			dirarg++;
 			cfg->dirarg[i] = 1;
 		}
 	}
@@ -3031,8 +3064,6 @@ progressAlist(struct ALIST *cfg)
 	if (cfg->show_simple) {
 		cfg->show_long = 0;
 		cfg->readable_size = 0;
-
-// 		cfg->formatSortString[0] = '\0';
 		cfg->format_list = 0;
 	}
 
@@ -3046,7 +3077,7 @@ progressAlist(struct ALIST *cfg)
 	// --------------------------------------------------------------------------------
 	// -F の sort で行う内容を決定
 	if (cfg->formatSortString[0] != '\0' || cfg->show_long) {
-		sortfunclistinit();
+		initSortFuncList();
 	}
 
 	for (int i=0; cfg->formatSortString[i] != '\0'; i++) {
@@ -3056,17 +3087,16 @@ progressAlist(struct ALIST *cfg)
 	}
 
 	// --------------------------------------------------------------------------------
-	// jot -j の sort で行う内容を決定
+	// jot -J の sort で行う内容を決定
 	if (cfg->jotString[0] != '\0') {
-		char string[FNAME_LENGTH];
-		strcpy(string, cfg->jotString);
 		int strl = strlen(cfg->jotString);
-		char *str = string;
+		char string[strl +1];
+		strcpy(string, cfg->jotString);
 
-		str = strtok(string, DELIMITER);
+		char *str = strtok(string, DELIMITER);
 		while (str != NULL) {
-			char jot[strl];
-			char values[strl];
+			char jot[strl +1];
+			char values[strl +1];
 
 			if (sscanf(str +1, "%[^=]=%s", jot, values) != 2) {
 				break;
@@ -3117,9 +3147,9 @@ progressAlist(struct ALIST *cfg)
 #endif
 
 	// --------------------------------------------------------------------------------
-	// -l が指定されなかったら、-f も無し
+	// -l, -j が指定されなかったら、-f も無し
 	// pickupString() 向けに操作
-	if (cfg->show_long == 0) {
+	if (cfg->show_long == 0 && cfg->show_json == 0) {
 		cfg->formatListString[0] = 'n';
 		cfg->formatListString[1] = '\0';
 
@@ -3161,7 +3191,7 @@ progressAlist(struct ALIST *cfg)
 	}
 
 	// stdin からの入力
-	// !! カレントディレクトリは OK そうだけど、他のディレクトリはダメ (chdir しないと)
+	// カレントディレクトリは OK そうだけど、他のディレクトリはダメ (chdir しないと)
 	if (cfg->from_stdin) {
 		cfg->do_uniquecheck = 0;
 	}
@@ -3170,7 +3200,7 @@ progressAlist(struct ALIST *cfg)
 
 // ================================================================================
 void
-doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int count_is_file)
+doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int count_is_file, void (*showlong)(struct FNAME *data, int n, struct ALIST cfg, int digits[]))
 {
 	// 表示に向けて SHOW_NONE 以外のリストを作成
 	for (int i=0; i<dirarg; i++) {
@@ -3196,14 +3226,15 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 
 		p->nth = newnth;
 		p->fnamelist = newlist;
-// 		printf("nthall:%d, nth:%d\n", p->nthall, p->nth);
 	}
+
+	// ================================================================================
+	// 複数のファイル/ディレクトリが指定された場合
+	int jcount = 1;
 
 	// ================================================================================
 	// データの表示、ファイル指定対応 (まずは is_file のデータ)、sort はしない
 	if (count_is_file) {
-		printStr(base, "single files:\n");
-
 		int k = 0;
 		if (cfg.show_long) {
 			int digits[UCHAR_MAX + 1] = {0};
@@ -3264,8 +3295,29 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 					continue;
 				}
 
+				if (p->nth == 0) {
+					continue;
+				}
+
+				// --------------------------------------------------------------------------------
 				// 表示レイアウト
-				printLong(fnamelist, p->nth, cfg, digits);
+				if (cfg.show_json) {
+					if (i != dirarg && jcount) {
+						printf("[\n");
+						jcount = 0;
+					}
+				}
+
+				showlong(fnamelist, p->nth, cfg, digits);
+
+				if (cfg.show_json) {
+					if (i == dirarg -1 && jcount == 0) {
+						printf("\n]\n");
+					} else {
+						printf(",\n");
+					}
+				}
+				// --------------------------------------------------------------------------------
 
 				// 次があれば \n する
 				if (i != dirarg - 1) {
@@ -3383,22 +3435,34 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		}
 
 		// ================================================================================
-		// is_file 時の表示に合わせる
-		if (dirarg > 1) {
-			printStr(base, p->path);
-			printStr(base, ":\n");
+		// fnamelist の表示
+		if (cfg.show_json) {
+			if (i != dirarg && jcount) {
+				printf("[\n");
+				jcount = 0;
+			}
 		}
 
-		// --------------------------------------------------------------------------------
-		// fnamelist の表示
-		printLong( fnamelist, p->nth, cfg, digits);
+		if (cfg.show_long && cfg.show_json == 0 && dirarg > 1) {
+			printf("%s:\n", p->path);
+		}
+
+		showlong(  fnamelist, p->nth, cfg, digits);
+
+		if (cfg.show_json) {
+			if (i == dirarg -1 && jcount == 0) {
+				printf("\n]\n");
+			} else {
+				printf(",\n");
+			}
+		}
+
 		printShort(fnamelist, p->nth, cfg);
 
 		// ================================================================================
 		// 集計表示
 		if (cfg.aggregate_results) {
 			printAggregate(p->fnamelistall, p->nthall, cfg.aggregate_length);
-			printExtension(p->fnamelistall, p->nthall);
 		}
 
 		// --------------------------------------------------------------------------------
@@ -3420,6 +3484,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 }
 
 
+// ================================================================================
 #ifdef GIT
 char *
 getGitStatusStr(unsigned int flags)
@@ -3518,7 +3583,7 @@ makeGit(struct DENT *p)
 #endif
 
 
-// --------------------------------------------------------------------------------
+// ================================================================================
 // stdin からファイルリストを読み込む、| で使用
 int
 scandirStdin(struct dirent ***namelist)
@@ -3559,7 +3624,6 @@ scandirStdin(struct dirent ***namelist)
 
 		// d_name にコピー
 		strcpy(ent->d_name, line);
-// 		printf("[%s]\n", ent->d_name);
 
 		// 配列が足りない
 		if (count == nth) {
@@ -3612,7 +3676,6 @@ main(int argc, char *argv[])
 
 	if (getcwd(cwd, FNAME_LENGTH) == NULL) {
 		perror("getcwd");
-		printf(" =>cwd:%s\n", cwd);
 		exit(EXIT_FAILURE);
 	}
 	debug printf("cwd:%s\n", cwd);
@@ -3621,8 +3684,9 @@ main(int argc, char *argv[])
 	// wcStrlen() 用の初期化
 	if (setlocale(LC_ALL, "") == NULL) {
 		perror("setlocale");
-		printf(" =>setlocale(LC_ALL, \"\");\n");
-		exit(EXIT_FAILURE);
+// 		printf(" =>setlocale(LC_ALL, \"\");\n");
+// 		exit(EXIT_FAILURE);
+		printf(" =>Warning: setlocale() failed, using default locale\n");
 	}
 
 	// ================================================================================
@@ -3646,7 +3710,7 @@ main(int argc, char *argv[])
 	struct ALIST cfg = {
 		.onlyPaintStr[0] = '\0',
 		.formatListString = "mogcdNKLE",
-		.formatSortString = "nn",																			// -f の sort 指定
+		.formatSortString = "nn",																		// -f の sort 指定
 
 		// --------------------------------------------------------------------------------
 		// Control Sequence Introducer
@@ -3680,6 +3744,10 @@ main(int argc, char *argv[])
 	// --------------------------------------------------------------------------------
 	// デフォルトは、uniqueCheck() 向けの設定
 	printName = printUnique;			// uniqueCheck(), uniqueCheckFirstWord() 結果を表示する
+
+	// --------------------------------------------------------------------------------
+	void (*showlong)(struct FNAME *data, int n, struct ALIST cfg, int digits[]);	// printLong() or printJSON()
+	showlong = printLong;				// long listing の初期表示は printLong()
 
 	// --------------------------------------------------------------------------------
 	// default color text を格納
@@ -3733,6 +3801,15 @@ main(int argc, char *argv[])
 	}
 
 	// --------------------------------------------------------------------------------
+	// JSON 形式出力
+	if (cfg.show_json) {
+		cfg.show_long++;
+		cfg.output_escape = 0;
+		cfg.aggregate_results = 0;
+		showlong = printJSON;
+	}
+
+	// --------------------------------------------------------------------------------
 	// argv[i] は順不同なので、優先順位を実装
 	if (cfg.no_color) {
 		// 色の初期化
@@ -3740,10 +3817,6 @@ main(int argc, char *argv[])
 			colorlist[i][0] = '\0';
 		}
 	}
-
-#ifdef DEBUG
-	debug_showArgvswitch(cfg);
-#endif
 
 	// --------------------------------------------------------------------------------
 	// 引数か、環境変数から色を指定する
@@ -3759,11 +3832,8 @@ main(int argc, char *argv[])
 
 	// ================================================================================
 	// 引数表示
-
-	// -h か、引数にエラー
 	if (cfg.show_help || errc) {
 		showUsage(argv);
-
 		// -h 以外の引数が指定されていた場合
 		if (argc > 2 || errc) {
 			printf("\n");
@@ -3778,14 +3848,6 @@ main(int argc, char *argv[])
 				printf(" Include Unknown or Missing Option.\n");			// 引数にエラー
 			}
 		}
-
-// 		printf("\n");
-// 		// 色を採用した後に表示
-// 		colorUsage();
-// 		if (cfg.argv_color) {
-// 			// argcolor の表示
-// 			printf("  argv color:      %s\n", cfg.color_txt);
-// 		}
 		exit(EXIT_SUCCESS);
 	}
 
@@ -3927,18 +3989,16 @@ main(int argc, char *argv[])
 			// path の登録
 			strcpy(fnamelist[j].path, dirarglist[i]);
 
-// !!
-// printf(" d_name:[%s]\n", direntlist[j]->d_name);
 			if (cfg.from_stdin) {
-				char *p = strrchr(fnamelist[j].name, '/');
-				if (p) {
-					int len = strlen(p);
+				char *str = strrchr(fnamelist[j].name, '/');
+				if (str) {
+					int len = strlen(str);
 					int pl = strlen(direntlist[j]->d_name) - len;
 					strcpy(fnamelist[j].path, direntlist[j]->d_name);
 					fnamelist[j].path[pl +1] = '\0';
 					strcpy(dirarglist[i], fnamelist[j].path);
 
-					fnamelist[j].name = p +1;
+					fnamelist[j].name = str +1;
 					fnamelist[j].length = len;
 					for (int k=0; k<len; k++) {
 						fnamelist[j].lowername[k] = tolower(fnamelist[j].name[k]);
@@ -3949,7 +4009,6 @@ main(int argc, char *argv[])
 					strcpy(fnamelist[j].path, "./");
 					strcpy(dirarglist[i], "./");
 				}
-// printf("d_name:[%s], path[%s], [%s], driarglist[%s]\n", direntlist[j]->d_name, fnamelist[j].path, fnamelist[j].name, dirarglist[i]);
 			}
 
 			// -s はファイル名しか使用しない
@@ -3999,41 +4058,38 @@ main(int argc, char *argv[])
 			if (cfg.format_mode == 0) {
 				// --------------------------------------------------------------------------------
 			// printShort() なら DT_XXX で十分
-// 				if (cfg.show_long == 0) {
-// 					fnamelist[j].kind[0] = '\0';
-					fnamelist[j].kind[1] = '\0';
+				fnamelist[j].kind[1] = '\0';
 
-					switch (direntlist[j]->d_type) {
-					  // !! DT_REG には Permission denied のファイルも含まれる
-					  case DT_DIR:  fnamelist[j].kind[0] = '/'; fnamelist[j].color = dir; fnamelist[j].mode[0] = 'd'; break;
-					  case DT_FIFO: fnamelist[j].kind[0] = '|'; fnamelist[j].color = fifo;   break;
-					  case DT_SOCK: fnamelist[j].kind[0] = '='; fnamelist[j].color = socket; break;
-					  case DT_LNK: {fnamelist[j].kind[0] = '@'; fnamelist[j].mode[0] = 'l'; 
-						  // symlink 先のファイル名
-						  ssize_t rlen = readlink(fnamelist[j].name, fnamelist[j].linkname, sizeof(fnamelist[j].linkname) - 1);
-						  if (rlen == -1) {
-							  fnamelist[j].color = error;
-							  fnamelist[j].linkname[0] = '\0';
-							  break;
-						  }
-						  fnamelist[j].linkname[rlen] = '\0';
+				switch (direntlist[j]->d_type) {
+				  // DT_REG には Permission denied のファイルも含まれる
+				  case DT_DIR:  fnamelist[j].kind[0] = '/'; fnamelist[j].color = dir; fnamelist[j].mode[0] = 'd'; break;
+				  case DT_FIFO: fnamelist[j].kind[0] = '|'; fnamelist[j].color = fifo;   break;
+				  case DT_SOCK: fnamelist[j].kind[0] = '='; fnamelist[j].color = socket; break;
+				  case DT_LNK: {fnamelist[j].kind[0] = '@'; fnamelist[j].mode[0] = 'l'; 
+					  // symlink 先のファイル名
+					  ssize_t rlen = readlink(fnamelist[j].name, fnamelist[j].linkname, sizeof(fnamelist[j].linkname) - 1);
+					  if (rlen == -1) {
+						  fnamelist[j].color = error;
+						  fnamelist[j].linkname[0] = '\0';
+						  break;
+					  }
+					  fnamelist[j].linkname[rlen] = '\0';
 
-						  struct stat sb;
-						  // link 先の sb を取得、link 先がディレクトリか
-						  if (lstat(fnamelist[j].linkname, &sb) == -1) {
-							  // データが取れなかったから異常
-							  fnamelist[j].color = error;
-						  } else {
-							  // ディレクトリだったら / を追記
-							  if ((sb.st_mode & S_IFMT) == S_IFDIR) {
-								  strcat(fnamelist[j].linkname, "/");
-								  fnamelist[j].color = dir;
-								  fnamelist[j].kind[0] = '/';
-							  }
+					  struct stat sb;
+					  // link 先の sb を取得、link 先がディレクトリか
+					  if (lstat(fnamelist[j].linkname, &sb) == -1) {
+						  // データが取れなかったから異常
+						  fnamelist[j].color = error;
+					  } else {
+						  // ディレクトリだったら / を追記
+						  if ((sb.st_mode & S_IFMT) == S_IFDIR) {
+							  strcat(fnamelist[j].linkname, "/");
+							  fnamelist[j].color = dir;
+							  fnamelist[j].kind[0] = '/';
 						  }
-					  } break;
-					}
-// 				}
+					  }
+				  } break;
+				}
 			}
 		}
 
@@ -4041,7 +4097,6 @@ main(int argc, char *argv[])
 		// cwd ディレクトリに戻る
 		if (chdir(cwd)) {
 // 			perror("chdir");
-// 			printf(" =>chdir to %s fail.\n", cwd);
 			printf("chdir: %s [%s]\n", strerror(errno), cwd);
 			exit(EXIT_FAILURE);
 		}
@@ -4060,7 +4115,6 @@ main(int argc, char *argv[])
 	// ================================================================================
 	// データの加工
 	// fnamelist の処理、uniqueCheck() 対象のデータの選別
-	// !! sourcelist が do_emacs 用になっている
 	// sourcelist: unique check の対象にするか
 	// showlist:   printShort(), printLong() で表示する対象
 
@@ -4089,10 +4143,10 @@ main(int argc, char *argv[])
 			}
 
 			// 引数のファイルは見つからなかった
-			// !! ここだけ表示が外れている
 			if (count != 1) {
 				char msg[strlen(dirarglist[i]) + strlen(p->is_filename) + 32];
 
+				// !! ここだけ表示が外れている
 				sprintf(msg, "No such file: [%s%s]\n", dirarglist[i], p->is_filename);
 				printStr(base, msg);
 			} else {
@@ -4118,14 +4172,7 @@ main(int argc, char *argv[])
 					strcpy(fnamelist[j].md5,  "-");
 					continue;
 				}
-// 				if (fnamelist[j].sb.st_size == 0) {
-// 					strcpy(fnamelist[j].md5,  "-");
-// 					continue;
-// 				}
-
 				char fullpath[FNAME_LENGTH];
-				// !!
-// 				sprintf(fullpath, "%s%s", dirarglist[i], fnamelist[j].name);
 				sprintf(fullpath, "%s%s", fnamelist[j].path, fnamelist[j].name);
 
 				if (makeMD5(fullpath, fnamelist[j].md5) == -1) {
@@ -4210,6 +4257,7 @@ main(int argc, char *argv[])
 			}
 		}
 
+		// --------------------------------------------------------------------------------
 		if (cfg.format_owner) {
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
@@ -4222,8 +4270,9 @@ main(int argc, char *argv[])
 				struct passwd *pw;
 				if ((pw = getpwuid(fnamelist[j].sb.st_uid)) == NULL) {
 					perror("getpwuid");
-					printf(" =>Y%s\n", fnamelist[j].name);
-					exit(EXIT_FAILURE);
+					printf(" =>uid: %s\n", fnamelist[j].name);
+					strcpy(fnamelist[j].owner, "-");
+					continue;
 				}
 				strcpy(fnamelist[j].owner, pw->pw_name);
 			}
@@ -4241,8 +4290,9 @@ main(int argc, char *argv[])
 				struct group *gr;
 				if ((gr = getgrgid(fnamelist[j].sb.st_gid)) == NULL) {
 					perror("getgrgid");
-					printf(" =>Y%s\n", fnamelist[j].name);
-					exit(EXIT_FAILURE);
+					printf(" =>gid: %s\n", fnamelist[j].name);
+					strcpy(fnamelist[j].group, "-");
+					continue;
 				}
 				strcpy(fnamelist[j].group, gr->gr_name);
 			}
@@ -4273,27 +4323,26 @@ main(int argc, char *argv[])
 #endif
 
 		// ================================================================================
-		// jot -j 対応
+		// jot -J 対応
 		if (cfg.format_jot) {
 			debug printStr(label, "jot:\n");
 			debug printf("jotString:[%s]\n", cfg.jotString);
 			int strl = strlen(cfg.jotString);
+			char string[strl +1];
+			strcpy(string, cfg.jotString);
 
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
 				}
 
-				char string[FNAME_LENGTH];
-				strcpy(string, cfg.jotString);
-				char *str = string;
-
 				char chk[2];
 				chk[1] = '\0';
-				str = strtok(string, DELIMITER);
+
+				char *str = strtok(string, DELIMITER);
 				while(str != NULL) {
-					char jot[strl];
-					char values[strl];
+					char jot[strl +1];
+					char values[strl +1];
 
 					if (sscanf(str +1, "%[^=]=%s", jot, values) != 2) {
 						break;
@@ -4413,9 +4462,6 @@ main(int argc, char *argv[])
 					if (len) {
 						if (searchDuplist(extensionduplist, extension, len, j) == 0) {
 							addDuplist(extensionduplist, extension, len, j);
-						} else {
-							searchDuplist(p->duplist, extension + 1, len, -1);
-// 							addDuplist(p->duplist, extension + 1, len, -1);
 						}
 					}
 				}
@@ -4423,7 +4469,6 @@ main(int argc, char *argv[])
 				// --------------------------------------------------------------------------------
 				// ファイル名がどの程度同じか判断する、、、、.el, .elc なら、[j] の方がファイル名が長いはず
 				float m = matchPercent(fnamelist[j - 1], fnamelist[j]);
-
 				debug printf(" %.2f: %s\n", m, fnamelist[j].name);
 
 				// 0.75: 3/4 文字、4/5 文字以上同じ (x.el と、x.elc) で無ければ、別のファイルと考える
@@ -4451,8 +4496,8 @@ main(int argc, char *argv[])
 			}
 			freeDuplist(extensionduplist);
 
-			runUniqueCheck(fnamelist, p->nth, p->duplist, uniqueCheckEmacs, cfg.deep_unique);
-			refrectDuplist(p->duplist, fnamelist);
+			runUniqueCheck(fnamelist, p->nth, p->duplist, uniqueCheck, cfg.deep_unique);
+			reflectDuplist(p->duplist, fnamelist);
 			cfg.do_uniquecheck = 0;
 		}
 
@@ -4498,12 +4543,12 @@ main(int argc, char *argv[])
 				runUniqueCheck(fnamelist, p->nth, p->duplist, uniqueCheck, cfg.deep_unique);
 			}
 
-			refrectDuplist(p->duplist, fnamelist);
+			reflectDuplist(p->duplist, fnamelist);
 		}
 
 		// --------------------------------------------------------------------------------
 		// ユニーク文字列
-		// !! エスケープ文字列も表示、該当なしと、' ' の差がわからないから、printLong() の中で個別対応を考える
+		// エスケープ文字列も表示、該当なしと、' ' の差がわからないから、printLong() の中で個別対応を考える
 		if (cfg.format_unique) {
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
@@ -4533,7 +4578,6 @@ main(int argc, char *argv[])
 				if (pickupString(fnamelist[j], paintString, cfg.formatListString, strcasestr) == 1) {
 					// hit した記録、aggregate_results でカウント
 					fnamelist[j].uniquebegin = 0;
-					fnamelist[j].uniqueend = cfg.aggregate_length;
 					fnamelist[j].uniqueend = paintStringLen -1;
 				}
 			}
@@ -4581,7 +4625,7 @@ main(int argc, char *argv[])
 		// --------------------------------------------------------------------------------
 		// 各項目の最大表示長さ
 		if (cfg.show_long) {
-			debug printStr(label, "fnameLength:\n");
+			debug printStr(label, "calcFnameLength:\n");
 
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
@@ -4589,7 +4633,7 @@ main(int argc, char *argv[])
 				}
 
 				// 各項目の長さ計算
-				fnameLength(&fnamelist[j]);
+				calcFnameLength(&fnamelist[j]);
 
 				// 各項目の最大幅数の確定
 				p->name_digits =  MAX(p->name_digits, countMatchedString(fnamelist[j].name) * cfg.tlen + fnamelist[j].print_length);
@@ -4741,7 +4785,7 @@ main(int argc, char *argv[])
 
 	// --------------------------------------------------------------------------------
 	// データの表示 (パス指定対応)
-	doOUTPUT(dent, showorder, dirarg, cfg, count_is_file);
+	doOUTPUT(dent, showorder, dirarg, cfg, count_is_file, showlong);
 
 	// ================================================================================
 	// 表示終了後に free
@@ -4749,6 +4793,10 @@ main(int argc, char *argv[])
 	freeDENT(dent, dirarg);
 
 	// --------------------------------------------------------------------------------
+#ifdef DEBUG
+	debug_showArgvswitch(cfg);
+#endif
+
 	// 標準関数のカウント数の表示
 #ifdef COUNTFUNC
 	printf("\n");
