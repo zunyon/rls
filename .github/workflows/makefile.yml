@@ -33,12 +33,12 @@ jobs:
     - name: run rls debug
       run: |
         $MAKE clean debug
-        ./rls -always
+        ./rls --color=always
 
     - name: run rls md5
       run: |
         $MAKE clean md5
-        ./rls -always -fmogcdw5NkPle -alr
+        ./rls --color=always -fmogcdw5NkPle -alr
         cp ./rls ./current-build-ubuntu/rls
 
     - name: make, ldd
@@ -60,11 +60,11 @@ jobs:
       run: |
         ./rls -alr -nn
         echo "----------"
-        ./rls -alr -always
+        ./rls -alr --color=always
         echo "----------"
         ./rls -nn
         echo "----------"
-        ./rls -always
+        ./rls --color=always
 
     - name: Create ZIP
       run: |
@@ -113,14 +113,14 @@ jobs:
 #    - name: run rls debug
 #      run: |
 #        $MAKE clean debug
-#        ./rls -always
+#        ./rls --color=always
 
     # ここがダメ
     - name: run rls md5
       run: |
         export OPENSSL_DIR=$(brew --prefix openssl@3)
         gcc -I$OPENSSL_DIR/include -L$OPENSSL_DIR/lib -DMD5 rls.c -lssl -lcrypto -o rls
-        ./rls -always -fmogcdw5NkPle -alr
+        ./rls --color=always -fmogcdw5NkPle -alr
         cp ./rls ./current-build-macos/rls
 
     - name: make, ldd
@@ -142,11 +142,11 @@ jobs:
       run: |
         ./rls -alr -nn
         echo "----------"
-        ./rls -alr -always
+        ./rls -alr --color=always
         echo "----------"
         ./rls -nn
         echo "----------"
-        ./rls -always
+        ./rls --color=always
 
     - name: Create ZIP
       run: |

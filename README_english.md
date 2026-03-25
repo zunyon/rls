@@ -293,31 +293,12 @@ Summary table:
 
 ## Help
 
-- [Version 0.4.0 current](./README_rls_current.md)
+- [Version 0.5.0 current](./README_rls_current.md)
+- [Version 0.4.0](./README_rls_v0.4.0.md)
 - [Version 0.3.0](./README_rls_v0.3.0.md)
 
-## Changes since v0.3.0
+## Changes since v0.4.0
 
-- add `-f` fields (`|`, `,`, `S`, `C`, `u`, `U`, `x`, `X`, `I`, `D`, `W`, `j`)
-  - chg `-fp`: meaning of path changed
-  - add `-fDW`: in English mode, show month and day-of-week without abbreviation
-  - del `-t`: removed (replaced by `-fT`)
-- add `-O`: hide directories
-  - chg `-O` to `-S`: no sort
-- add OpenMP support
-- add git support (build)
-- add `-J`: classification for `-fj` and related usages
-- add `--`: read from standard input
-- add `-j`: JSON output format
-- chg `--always` to `--color=`; supports `--color=auto`, `--color=always`, `--color=never`
-- add `-F`: per-field sorting (most `-f` items; `p` treated as `n`; `|` and `,` ignored)
-  - del `-m`, `-z`, `-N`: removed (replaced by `-F`)
-- add `-R`: display specified string length in `paint` color
-- chg `-n`: no color output
-  - chg `-nn`: unique strings enclosed with `[` and `]`; `-nnX`: enclosed with `X` and `X`; `-nnXY`: enclosed with `X` and `Y`
-  - del `-TB`, `-TE`
-- fix `printAggregate()` when `displaycount` is 0
-- chg `printLong()` padding and display length processing
-- del `-256`
+- fix `makeMode()` handling of setuid, setgid, sticky bit.
 
 ---

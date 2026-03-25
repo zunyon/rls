@@ -300,30 +300,11 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 
 
 ## ヘルプ
-- [Version 0.4.0 current](./README_rls_current.md)　のヘルプ
+- [Version 0.5.0 current](./README_rls_current.md)　のヘルプ
+- [Version 0.4.0](./README_rls_v0.4.0.md)　のヘルプ
 - [Version 0.3.0](./README_rls_v0.3.0.md)　のヘルプ
 <br><br>
 
 
-## v0.3.0 からの変更内容
-- add `-f` の項目追加（`|`, `,`, `S`, `C`, `u`, `U`, `x`, `X`, `I`, `D`, `W`, `j`）
-  - chg `-fp` path の意味変更
-  - add `-fDW` 英語表記の場合，月，曜日などを省略せずに表示
-  - del `-t` の廃止（`-fT` にリプレース）
-- add `-O` の追加，ディレクトリを非表示
-  - chg `-O` から `-S` へ変更，ソートを行わない
-- add OpenMP への対応
-- add git へ対応 (build)
-- add `-J` の追加，`-fj` 向けファイルなどの分類分け
-- add `--` 標準入力から読み込む
-- add `-j` JSON 形式出力
-- chg `--always` から `--color=` に変更，内容は `--color=auto, --color=always, --color=never`
-- add `-F` の追加，項目単位でソート（`-f` の殆どの項目，`p` は `n` として， `|`, `,`, は無視）
-  - del `-m`, `-z`, `-N` の廃止（`-F` にリプレース）
-- add `-R` の追加，指定数字の文字列長さを paint 色で表示
-- chg `-n` の変更，`-n`: 色なし表記
-  - chg `-nn`: ユニーク文字列を '[' と ']' で囲う，`-nnX`: 'X' と 'X' で囲う，`-nnXY`: 'X' と 'Y' で囲う
-  - del `-TB`, `-TE` の廃止
-- fix `printAggregate()` の displaycount が 0 の時の処理修正
-- chg `printLong()` のパディングの変更，表示長さの処理変更
-- del `-256` の廃止
+## v0.4.0 からの変更内容
+- fix `makeMode()` の setuid, setgid, sticky bit の対応修正

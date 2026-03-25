@@ -54,7 +54,7 @@
 // OpenMP への対応
 // git への対応 (make git)
 // 分類分け対応（-J -fj）
-// json 形式出力対応
+// JSON 形式出力対応
 
 // ================================================================================
 #include <stdio.h>
@@ -673,7 +673,7 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 		case S_IFDIR:  c = 'd'; p->color = dir;    p->kind[0] = '/'; break;	// dir
 		case S_IFBLK:  c = 'b'; p->color = device;                   break;	// block device      /dev/
 		case S_IFCHR:  c = 'c'; p->color = device;                   break;	// character device  /dev/
-		case S_IFIFO:  c = '|'; p->color = fifo;   p->kind[0] = '|'; break;	// FIFO/pipe         /tmp/fish.ryoma/
+		case S_IFIFO:  c = '|'; p->color = fifo;   p->kind[0] = '|'; break;	// FIFO/pipe         /tmp/fish.xxx/
 		case S_IFSOCK: c = 's'; p->color = socket; p->kind[0] = '='; break;	// socket            /tmp/tmux-100/
 		case S_IFLNK: {														// symlink
 			c = 'l'; p->kind[0] = '@';
@@ -730,10 +730,14 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 	// --------------------------------------------------------------------------------
 	// setuid, setgid, sticky bit の対応
 	// /user/include/linux/stat.h
-	switch (st_mode & 0007000) {
-		case S_ISUID: p->mode[3] = 's'; break;		// /bin/umount
-		case S_ISGID: p->mode[6] = 's'; break;		// /bin/write.ul
-		case S_ISVTX: p->mode[9] = 't'; break;		// /tmp/
+	if (st_mode & S_ISUID) {
+		p->mode[3] = (p->mode[3] == 'x') ? 's' : 'S';		// /bin/umount
+	}
+	if (st_mode & S_ISGID) {
+		p->mode[6] = (p->mode[6] == 'x') ? 's' : 'S';		// /bin/write.ul
+	}
+	if (st_mode & S_ISVTX) {
+		p->mode[9] = (p->mode[9] == 'x') ? 't' : 'T';		// /tmp/
 	}
 }
 
@@ -2972,7 +2976,7 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 				switch (argv[i][j]) {
 					case 's': cfg->show_simple++;       break;	// lstat() を使用しない printShort()
 					case 'l': cfg->show_long++;         break;	// long 表示
-					case 'j': cfg->show_json++;         break;	// json 出力
+					case 'j': cfg->show_json++;         break;	// JSON 出力
 
 					case 'u': cfg->deep_unique++;       break;	// unique チェックを最後まで行う
 					case 'b': cfg->beginning_word++;    break;	// uniqueCheckFirstWord() のみ
