@@ -1,5 +1,5 @@
 ﻿## Last Update:
-## my-last-update-time "2026, 03/15 16:33"
+## my-last-update-time "2026, 03/29 14:03"
 
 ## ================================================================================
 ## 共通
@@ -42,8 +42,8 @@ function __fish_rls_-ffarg_completions
 	set -l partial (string replace -r '^-f' '' -- $token)
 
 	## 候補とその説明の対応表
-	set -l keys m o g c d D p n k l e i h s S t T w W u x j "[" "]" "|" ","
-	set -l descs "mode" "owner" "group" "count entry of DIR and FILE" "date" "date (English)" "path" "name" "kind" "linkname" "errno" "inode" "hardlinks" "size" "size (no comma)" "time" "time (human-readable)" "week" "week (English)" "unique word" "extension" "jot" "enclosing [" "enclosing ]" "separator |" "separator ,"
+	set -l keys m o g c C d D p n k l e i I h s S t T w W u x j "[" "]" "|" ","
+	set -l descs "mode" "owner" "group" "count entry of DIR and FILE" "count (no comma)" "date" "date (English)" "path" "name" "kind" "linkname" "errno" "inode" "inode (no comma)" "hardlinks" "size" "size (no comma)" "time" "time (human-readable)" "week" "week (English)" "unique word" "extension" "jot" "enclosing [" "enclosing ]" "separator |" "separator ,"
 
 	for idx in (seq (count $keys))
 		set key $keys[$idx]

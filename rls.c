@@ -23,23 +23,24 @@
 */
 
 // ================================================================================
-#define VERSION "0.4.0"
+#define VERSION "0.5.0"
 // 2024, 09/01 Ver. 0.1.0
 // 2025, 01/13 Ver. 0.2.0
 // 2025, 08/23 Ver. 0.3.0
+// 2026, 05/20 Ver. 0.4.0
 
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "03/20"
-#define BTIME "06:56:34"
+#define BDATE "03/30"
+#define BTIME "23:32:57"
 
-#define RELTYPE "[RELEASE]"
+#define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 03/20 06:56"
+// my-last-update-time "2026, 03/30 15:49"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -136,10 +137,13 @@
 #define MYSTRCASESTR	// 標準に無い、GNU strcasestr() の代わりに実装
 #define MYROUND			// round() の -lm が不要になるように実装
 
-// 速いかな ?
+// 速い ?
 #undef strncmp
 #define strncmp memcmp
 
+// !! sanitize がうるさいとき
+#undef strncpy
+#define strncpy memcpy
 
 #ifdef MYTOLOWER
 	// - を _ に変更する
@@ -518,8 +522,8 @@ struct FNAME {
 		char inodec[DATALEN];				// inode の文字列、comma 表記
 		char nlink[DATALEN];				// hard links
 		char mode[11];						// mode bits
-		char owner[DATALEN];				// owner
-		char group[DATALEN];				// group
+		char *owner;						// owner
+		char *group;						// group
 		char size[16];						// size の文字列
 		char sizec[DATALEN];				// size の文字列、comma 表記
 		char count[16];						// ディレクトリに含まれているファイル数と、size の混合
@@ -1001,6 +1005,48 @@ printUnique(struct FNAME p, const char *dummy, struct ALIST cfg)
 }
 
 
+// -- で使用、'-', '_' の置換を行わない表示
+void
+printUniqueOriginal(struct FNAME p, const char *dummy, struct ALIST cfg)
+{
+	// unique が無いので、そのまま表示
+	if (p.uniquebegin == -1) {
+		printStr(base, p.name);
+		return;
+	}
+
+	printEscapeColor(base);
+	// --------------------------------------------------------------------------------
+	// あれば uniquebegin までを表示
+	if (p.uniquebegin > 0) {
+		printf("%.*s", p.uniquebegin, p.name);
+	}
+
+	// --------------------------------------------------------------------------------
+	// 色付け開始
+	printf("%s", cfg.textbegin);
+	printEscapeColor(p.color);
+
+	// unique 部分は 1 文字ずつ表示
+	for (int i=p.uniquebegin; i<=p.uniqueend; i++) {
+		// 普通の文字表示
+		printf("%c", p.name[i]);
+	}
+	printEscapeColor(reset);
+
+	// --------------------------------------------------------------------------------
+	printEscapeColor(base);
+	printf("%s", cfg.textend);
+	// あれば uniqueend 後を表示
+	printf("%s", p.name + p.uniqueend + 1);
+	printEscapeColor(reset);
+
+	// dummy
+	if (dummy == NULL) {
+	}
+}
+
+
 // -p 対象文字列に何回該当したか、、、"aaaaaa" の場合 "aa" は 3 回該当の仕様
 int
 countMatchedString(const char *str)
@@ -1009,7 +1055,7 @@ countMatchedString(const char *str)
 		return 0;
 	}
 
-	int length = strlen(str);
+	int length = strlen(str);		// !! ここをどうにかしないと
 	// 比較用に小文字化
 	char name[length + 1];
 	for (int i=0; i<length; i++) {
@@ -1104,6 +1150,11 @@ printKind(struct FNAME p, const char *str, struct ALIST cfg)
 
 // ================================================================================
 // ファイル単位で管理
+
+// owner, group の共通管理
+char defstr[1] = "";
+char deferr[] = "-";
+
 void
 addFNamelist(struct FNAME *p, char *name)
 {
@@ -1115,6 +1166,9 @@ addFNamelist(struct FNAME *p, char *name)
 	p->extension[0] = '\0';
 	p->jot[0] = '\0';
 	p->date_f = 0;
+
+	p->owner = defstr;
+	p->group = defstr;
 
 #ifdef MD5
 	p->md5[0] = '\0';
@@ -2317,28 +2371,28 @@ showUsage(char **argv)
 	printStr(label, "Usage:\n");
 	printf(" %s [OPTION]... [DIR/|FILE]...\n", argv[0]);
 	printf("\n");
-	printf(" List of directories and files. If nothing is listed, the current directory is used.\n");
+	printf(" List directories and files. If no path is specified, the current directory is used.\n");
 	printf("  Long listing format:  /bin is FILE, /bin/ is DIRECTORY.\n");
 	printf("  Short listing format: /bin is DIRECTORY.\n");
 
 	printf("\n");
-	printf(" Options may be specified individually, as in -l -a -u, or collectively, as in -alu. (In no particular order)\n");
-	printf(" Color "); printStr(normal, "-xxx"); printf(" option is specified separately from the other options.\n");
+	printf(" Options may be specified individually (-l -a -u) or combined (-alu) in any order.\n");
+	printf(" Color "); printStr(normal, "-xxx"); printf(" options are separate from other options.\n");
 
 	printf("\n");
-	printf(" If multiple identical options are specified:\n");
-	printf("  Overridden by the last option: -c, -p, -P, -f, -R, -F, -j, -n.\n");
+	printf(" If multiple identical options are given:\n");
+	printf("  The last one takes precedence: -c, -p, -P, -f, -R, -F, -j, -n.\n");
 
 	printf("\n");
-	printf(" Options have priority. (Last line of each "); printStr(label, "options:"); printf(")\n");
-	printf("  If a higher priority option is set, lower priority options are ignored.\n");
+	printf(" Options have priority rules. (see the last line of each "); printStr(label, "option"); printf(" group)\n");
+	printf("  Higher-priority options override lower-priority ones.\n");
 
 	printf("\n");
 	printStr(label, "Listing format options:\n");
-	printf(" -s: Short listing format. (no kind, one color)\n");
+	printf(" -s: Short listing format. (no kind, single color)\n");
 	printf(" -l: Long listing format.\n");
 	printf(" -j: JSON format.\n");
-	printf(" "); printStr(normal, "-f"); printf(": with -l, change Format orders. (default: -fmogcdNKLE)\n");
+	printf(" "); printStr(normal, "-f"); printf(": with -l, change Format order. (default: -fmogcdNKLE)\n");
 	printf("      m:mode, o:owner, g:group, c:count, d:date, p:path, n:name, k:kind, l:linkname, e:errno,\n");
 	printf("      i:inode, h:hardlinks, s:size, t:time, w:week, u:uniqueword, x:extension, j:jot.\n");
 #ifdef MD5
@@ -2347,27 +2401,26 @@ showUsage(char **argv)
 #ifdef GIT
 	printf("      6:git status. (build option)\n");
 #endif
-	printf("      [, ], |, ',':specified character is displayed.\n");
+	printf("      [, ], |, ',':display the specified character.\n");
 	printf("      ---\n");
 	printf("      d:\"%%b %%e %%H:%%M\" or \"%%b %%e  %%Y\" format.\n");
 	printf("      s:size of DIRECTORY and FILE.\n");
-	printf("      c:for DIRECTORY, the number of directory entries (without \".\" and \"..\"). otherwise, size of FILE.\n");
-	printf("      x:word after the last dot, dot is not the beginning character of the filename.\n");
-	printf("      S, C, I:no comma output.\n");
-	printf("      W, D:without abbreviation.\n");
+	printf("      c:for DIRECTORY, number of entries (excluding \".\" and \"..\"); otherwise FILE size.\n");
+	printf("      x:substring after the last dot. (dot is not the first character)\n");
+	printf("      S, C, I:suppress comma output.\n");
+	printf("      W, D:disable abbreviation.\n");
 	printf("      T:human-readable time.\n");
-	printf("      Upper case is padding off. (Same length: no change in appearance (m, t, 5, 6))\n");
-	printf(" "); printStr(normal, "-J"); printf(": set jot whith format order items. (xMovie=mov,avi,mp4:xPrj=c,h,md:xGraph=png,gif,jpg:mRun=rwx,r-x,--x)\n");
-	printf("      check format order item extension  jot label  matched string mov or avi or mp4.\n");
-	printf("      xMovie=mov,avi,mp4 =>    x         Movie                    =mov,avi,mp4.\n");
-	printf("     -s > -j > -l = -f = -J > default short listing (include file status)\n");
+	printf("      Uppercase disables padding. (Same width: no visible change for m, t, 5, 6)\n");
+	printf(" "); printStr(normal, "-J"); printf(": set jot rules for format order items. (xMovie=mov,avi,mp4:xPrj=c,h,md:xGraph=png,gif,jpg:mRun=rwx,r-x,--x)\n");
+	printf("      Example: xMovie=mov,avi,mp4  =>  format item x,  label Movie,  matches mov/avi/mp4.\n");
+	printf("     -s > -j > -l = -f = -J > default short listing (includes file status)\n");
 
 	printf("\n");
 	printStr(label, "Sort options:\n");
-	printf(" "); printStr(normal, "-F"); printf(": change the sort order. (default: -Fn)\n");
+	printf(" "); printStr(normal, "-F"); printf(": change sort order. (default: -Fn)\n");
 	printf("      even if the -f option is not specified, the output will still be sorted.\n");
-	printf("      item is 1st, 2nd, 3rd, ..., sort order item.\n");
-	printf("      duplicates of the same item is a Reverse sort instruction. (-Fnss: 1st:name, 2nd:reverse size sort)\n");
+	printf("      items represent 1st, 2nd, 3rd, ..., sort keys.\n");
+	printf("      repeating the same item reverses its sort order. (e.g., -Fnss: 1st=name, 2nd=reverse size)\n");
 	printf("       alphabet: m:mode, o:owner, g:group, p:path, n:name, k:kind, l:linkname, e:errno, w:week, u:uniqueword,\n");
 	printf("                 x:extension, j:jot.\n");
 #ifdef MD5
@@ -2379,40 +2432,40 @@ showUsage(char **argv)
 	printf("       size:     i:inode, h:hardlinks, s:size, c:count.\n");
 	printf("       mtime:    d:date, t:time.\n");
 	printf("      ---\n");
-	printf("      without sort order item. ([, ], |, ',':specified character)\n");
-	printf(" -S: no Sort order.\n");
+	printf("      without sort order item. ([, ], |, ',')\n");
+	printf(" -S: disable Sorting.\n");
 	printf("     -S > -F\n");
 
 	printf("\n");
 	printStr(label, "Color options:\n");
 	printf(" "); printStr(normal, "-n"); printf(": No colors.\n");
-	printf("     -nn:   -n with, enclose each unique word with [ and ].\n");
-	printf("     -nnX:  -n with, enclose each unique word with X on both sides. (X is single character)\n");
-	printf("     -nnXY: -n with, enclose each unique word with X at the beginning and Y at the end.\n");
+	printf("     -nn:   -n with enclosing each unique word with [ and ].\n");
+	printf("     -nnX:  -n with enclosing each unique word with X on both sides. (X is a single character)\n");
+	printf("     -nnXY: -n with enclosing each unique word with X (start) and Y (end).\n");
 	printf(" -d: use Default colors.\n");
 	printf(" "); printStr(normal, "-c"); printf(": set Custom colors. (8: -cbase=37:normal=34:normal=1:..., 256: -cbase=3007:normal=3012:normal=1:...)\n");
-	printf("      "); printStr(base,   "base");   printf( ":   not unique string.\n");
+	printf("      "); printStr(base,   "base");   printf( ":   non-unique strings.\n");
 	printf("      "); printStr(normal, "normal"); printf(   ": normal files.\n");
 	printf("      "); printStr(dir,    "dir");    printf(":    directories.\n");
 	printf("      "); printStr(fifo,   "fifo");   printf( ":   FIFO/pipe.\n");
 	printf("      "); printStr(socket, "socket"); printf(   ": socket.\n");
 	printf("      "); printStr(device, "device"); printf(   ": block/character device.\n");
-	printf("      "); printStr(label,  "label");  printf(  ":  label string.\n");
-	printf("      "); printStr(error,  "error");  printf(  ":  error string.\n");
-	printf("      "); printStr(paint,  "paint");  printf(  ":  matched string.\n");
+	printf("      "); printStr(label,  "label");  printf(  ":  label strings.\n");
+	printf("      "); printStr(error,  "error");  printf(  ":  error strings.\n");
+	printf("      "); printStr(paint,  "paint");  printf(  ":  matched strings.\n");
 	printf("      ---\n");
-	printf("      8 colors:   Control Sequence Introducer. (depends on terminal implementation)\n");
+	printf("      8 colors:   Control Sequence Introducer. (terminal-dependent)\n");
 	printf("      256 colors: fore:30xx, back:40xx.\n");
-	printf("      8 colors and 256 colors cannot be specified at the same time.\n");
-	printf("      %s environment: same as -c option format, same restrictions.\n", ENVNAME);
+	printf("      8-color and 256-color modes cannot be mixed.\n");
+	printf("      %s environment variable: same format and restrictions as -c.\n", ENVNAME);
 	printf("     -n > -c > -d > %s env color > default color\n", ENVNAME);
 
 	printf("\n");
 	printStr(label, "Coloring algorithm options:\n");
-	printf(" -u: deep Unique word check. (default check -> deep check)\n");
-	printf(" -b: Beginning of file name. (default check -> beginning check)\n");
-	printf(" "); printStr(normal, "-p"); printf(": Paint the matched string. (-pstring, case insensitive)\n");
-	printf(" -e: paint Elisp like file unique group name word check.\n");
+	printf(" -u: deep Unique word check. (default -> deep)\n");
+	printf(" -b: Beginning of file name. (default -> beginning)\n");
+	printf(" "); printStr(normal, "-p"); printf(": Paint matched string. (-pstring, case insensitive)\n");
+	printf(" -e: paint Elisp-like file unique group name word check.\n");
 	printf("     -p > -u > -b = -e > default unique word check algorithm\n");
 
 	printf("\n");
@@ -2420,23 +2473,23 @@ showUsage(char **argv)
 	printf(" -a: show All dot files.\n");
 	printf(" -o: with -a, show Only directories. (-s > -o > [FILE])\n");
 	printf(" -O: show Only files.\n");
-	printf(" "); printStr(normal, "-P"); printf(": like -p, Pickup only the string matched. (-Pstring, case sensitive)\n");
+	printf(" "); printStr(normal, "-P"); printf(": like -p, Pick up only matched string. (-Pstring, case sensitive)\n");
 	printf("     -O = -P > -o > -a\n");
 
 	printf("\n");
 	printStr(label, "Additional options:\n");
-	printf(" -i: with -l, human-readable sIze. (-f with count, size, hardlinks)\n");
+	printf(" -i: with -l, human-readable sIze. (affects count, size, hardlinks in -f)\n");
 	printf(" "); printStr(label,  "-r"); printf(": show aggregate Results.\n");
 	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \""); printStr(paint,  "paint"); printf("\" color. (-Rnumber)\n");
 	printf("     -i = -r = -R\n");
 
 	printf("\n");
 	printStr(label, "Other options:\n");
-	printf(" "); printStr(normal,"--"); printf(":            read the list from stdin. (default: -fmogcdPNKLE)\n");
+	printf(" "); printStr(normal,"--"); printf(":            read list and calc unique word from stdin. (default: -fmogcdPNKLE)\n");
 	printf(" -h, "); printStr(normal, "--help"); printf(":    show this message.\n");
 	printf(" -v, "); printStr(normal, "--version"); printf(": show Version.\n");
-	printf("     "); printStr(normal,"--color="); printf(":  output the escape sequence characters in redirect. (default: --color=auto)\n");
-	printf("                 auto:   judge output by redirect or not.\n");
+	printf("     "); printStr(normal,"--color="); printf(":  control escape sequence output. (default: --color=auto)\n");
+	printf("                 auto:   detect redirection.\n");
 	printf("                 always: always output.\n");
 	printf("                 never:  never output.\n");
 }
@@ -2683,8 +2736,6 @@ calcFnameLength(struct FNAME *p)
 	p->inodecl = strlen(p->inodec);
 	p->nlinkl  = strlen(p->nlink);
 	p->model   = strlen(p->mode);	// 固定長
-	p->ownerl  = strlen(p->owner);
-	p->groupl  = strlen(p->group);
 	p->sizel   = strlen(p->size);
 	p->sizecl  = strlen(p->sizec);
 	p->countl  = strlen(p->count);
@@ -2819,7 +2870,6 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 			// デフォルトの表示項目 + ソートを設定
 			strcpy(cfg->formatListString, "mogcdPNKLE");
 			strcpy(cfg->formatSortString, "ppnn");
-
 			continue;
 		}
 
@@ -3192,12 +3242,6 @@ progressAlist(struct ALIST *cfg)
 			cfg->do_uniquecheck = 0;
 			cfg->do_emacs = 0;
 		}
-	}
-
-	// stdin からの入力
-	// カレントディレクトリは OK そうだけど、他のディレクトリはダメ (chdir しないと)
-	if (cfg->from_stdin) {
-		cfg->do_uniquecheck = 0;
 	}
 }
 
@@ -3656,7 +3700,126 @@ scandirStdin(struct dirent ***namelist)
 }
 
 
+// ================================================================================
+// st_uid, st_gid のキャッシュ
+struct HASH {
+	int key;
+	char value[DATALEN];
+	int length;
+};
+
+
+#ifdef DEBUG
+void
+showHash(struct HASH htable[], int last)
+{
+	for (int i=0; i<last; i++) {
+		printf(" %6d: %s\n", htable[i].key, htable[i].value);
+	}
+}
+#endif
+
+
+int
+searchHash(struct HASH htable[], int last, int key)
+{
+	for (int i=0; i<last; i++) {
+		if (htable[i].key == key) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+
+int
+addHash(struct HASH htable[], int *last, int key, char value[])
+{
+// 	printf("*last:%d, key:%d, vl:%s\n", *last, key, value);
+	if (searchHash(htable, *last, key) == -1) {
+		htable[*last].key = key;
+		strcpy(htable[*last].value, value);
+		htable[*last].length = strlen(value);
+// 		printf("[%s], %d\n", htable[*last].value, htable[*last].length);
+		(*last)++;
+		return *last -1;
+	}
+
+	return 0;
+}
+
+
 // --------------------------------------------------------------------------------
+int
+countOgroups(void)
+{
+	int ogroups = 0;
+
+	setpwent();					// valgrid で引っかかる
+	while (getpwent()) {
+		ogroups++;
+	}
+	endpwent();
+
+	return ogroups;
+}
+
+
+void
+makeOgroups(struct HASH htable[], int *last)
+{
+	struct passwd *pw;
+	setpwent();
+	while ((pw = getpwent()) != NULL) {
+		addHash(htable, last, pw->pw_uid, pw->pw_name);
+	}
+	endpwent();
+}
+
+
+int
+countGgroups(void)
+{
+	return getgroups(0, NULL);
+}
+
+
+int
+makeGgroups(struct HASH htable[], int *last, int ggroups)
+{
+// 	printf("all groups:%d\n", ggroups);
+
+	gid_t *groups;
+	groups = malloc(sizeof(gid_t) * ggroups);
+	if (groups == NULL) {
+		perror("malloc");
+		return 1;
+	}
+
+	// グループ ID を取得
+	ggroups = getgroups(ggroups, groups);
+	if (ggroups == -1) {
+		perror("getgroups");
+		free(groups);
+		return 1;
+	}
+
+// 	printf("Supplementary groups (%d):\n", ggroups);
+	for (int j=0; j<ggroups; j++) {
+		struct group *gr = getgrgid(groups[j]);
+		if (gr != NULL) {
+// 			printf("  %d (%s)\n", (int)groups[j], gr->gr_name);
+			addHash(htable, last, groups[j], gr->gr_name);
+		}
+	}
+	free(groups);
+
+	return 0;
+}
+
+
+// ================================================================================
 int
 main(int argc, char *argv[])
 {
@@ -3797,6 +3960,14 @@ main(int argc, char *argv[])
 	// ================================================================================
 	// 依存・関連する argv の処理
 	progressAlist(&cfg);
+
+	// --------------------------------------------------------------------------------
+	// -- stdin からの入力だから、元の文字列で色付け
+	// stdin からの入力は、ユニーク文字列の処理系が fish じゃ無くなる
+	// 差分文字列からの補完ができるように '-', '_' の補完をやめる
+	if (cfg.from_stdin) {
+		printName = printUniqueOriginal;
+	}
 
 	// --------------------------------------------------------------------------------
 	// -p 指定文字列で色付け
@@ -4033,8 +4204,12 @@ main(int argc, char *argv[])
 						strcpy(fnamelist[j].inodec, "-");
 						strcpy(fnamelist[j].nlink,  "-");
 						strcpy(fnamelist[j].mode,   "-");
-						strcpy(fnamelist[j].owner,  "-");
-						strcpy(fnamelist[j].group,  "-");
+
+						fnamelist[j].owner = deferr;
+						fnamelist[j].group = deferr;
+						fnamelist[j].ownerl = 1;
+						fnamelist[j].groupl = 1;
+
 						strcpy(fnamelist[j].size,   "-");
 						strcpy(fnamelist[j].sizec,  "-");
 						strcpy(fnamelist[j].count,  "-");
@@ -4119,9 +4294,37 @@ main(int argc, char *argv[])
 	// ================================================================================
 	// データの加工
 	// fnamelist の処理、uniqueCheck() 対象のデータの選別
+	// !! sourcelist が do_emacs 用になっている
 	// sourcelist: unique check の対象にするか
 	// showlist:   printShort(), printLong() で表示する対象
 
+
+	// --------------------------------------------------------------------------------
+	// owner, group のキャッシュ
+	int olast = 0;
+	int glast = 0;
+
+	int ggroups = countGgroups();
+	int ogroups = countOgroups();	// こちらは時間がかかる
+
+	// サイズを取得する
+	struct HASH otable[ogroups];
+	struct HASH gtable[ggroups];
+
+	// 小さいか確認
+	int totalnth = 0;
+	for (int i=0; i<dirarg; i++) {
+		struct DENT *p;
+		p = &dent[i];
+		totalnth += p->nth;
+	}
+	// 事前に準備する
+	if (totalnth > (ggroups + ogroups)) {
+		makeOgroups(otable, &olast);
+		makeGgroups(gtable, &glast, ggroups);
+	}
+
+	// --------------------------------------------------------------------------------
 	for (int i=0; i<dirarg; i++) {
 		struct DENT *p;
 		p = &dent[i];
@@ -4270,15 +4473,21 @@ main(int argc, char *argv[])
 				if (fnamelist[j].isstat == -1) {
 					continue;
 				}
-
-				struct passwd *pw;
-				if ((pw = getpwuid(fnamelist[j].sb.st_uid)) == NULL) {
-					perror("getpwuid");
-					printf(" =>uid: %s\n", fnamelist[j].name);
-					strcpy(fnamelist[j].owner, "-");
-					continue;
+				int ret = searchHash(otable, olast, fnamelist[j].sb.st_uid);
+				if (ret == -1) {
+					struct passwd *pw;
+					if ((pw = getpwuid(fnamelist[j].sb.st_uid)) == NULL) {
+						perror("getpwuid");
+						printf(" =>uid: %s\n", fnamelist[j].name);
+						ret = addHash(otable, &olast, fnamelist[j].sb.st_uid, "-");
+						fnamelist[j].owner = otable[ret].value;
+						fnamelist[j].ownerl = otable[ret].length;
+						continue;
+					}
+					ret = addHash(otable, &olast, fnamelist[j].sb.st_uid, pw->pw_name);
 				}
-				strcpy(fnamelist[j].owner, pw->pw_name);
+				fnamelist[j].owner = otable[ret].value;
+				fnamelist[j].ownerl = otable[ret].length;
 			}
 		}
 
@@ -4291,16 +4500,32 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				struct group *gr;
-				if ((gr = getgrgid(fnamelist[j].sb.st_gid)) == NULL) {
-					perror("getgrgid");
-					printf(" =>gid: %s\n", fnamelist[j].name);
-					strcpy(fnamelist[j].group, "-");
-					continue;
+				int ret = searchHash(gtable, glast, fnamelist[j].sb.st_gid);
+				if (ret == -1) {
+					struct group *gr;
+					if ((gr = getgrgid(fnamelist[j].sb.st_gid)) == NULL) {
+						perror("getgrgid");
+						printf(" =>gid: %s\n", fnamelist[j].name);
+						ret = addHash(gtable, &glast, fnamelist[j].sb.st_gid, "-");
+						fnamelist[j].group = gtable[ret].value;
+						fnamelist[j].groupl = gtable[ret].length;
+						continue;
+					}
+					ret = addHash(gtable, &glast, fnamelist[j].sb.st_gid, gr->gr_name);
 				}
-				strcpy(fnamelist[j].group, gr->gr_name);
+				fnamelist[j].group = gtable[ret].value;
+				fnamelist[j].groupl = gtable[ret].length;
 			}
 		}
+
+		// --------------------------------------------------------------------------------
+#ifdef DEBUG
+		printf("idCache:\n");
+		printf(" olast:%d, glast:%d\n", olast, glast);
+		showHash(otable, olast);
+		printf("\n");
+		showHash(gtable, glast);
+#endif
 
 		// --------------------------------------------------------------------------------
 		if (cfg.format_extension || cfg.do_emacs || cfg.aggregate_results) {
@@ -4552,7 +4777,7 @@ main(int argc, char *argv[])
 
 		// --------------------------------------------------------------------------------
 		// ユニーク文字列
-		// エスケープ文字列も表示、該当なしと、' ' の差がわからないから、printLong() の中で個別対応を考える
+		// !! エスケープ文字列も表示、該当なしと、' ' の差がわからないから、printLong() の中で個別対応を考える
 		if (cfg.format_unique) {
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
