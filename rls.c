@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "03/30"
-#define BTIME "23:32:57"
+#define BDATE "04/02"
+#define BTIME "22:09:53"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 03/30 15:49"
+// my-last-update-time "2026, 04/02 22:09"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -222,7 +222,7 @@ mallocDuplist(char *word, int len)
 	struct DLIST *new = malloc(sizeof(struct DLIST));
 	if (new == NULL) {
 		perror("malloc");
-		printf(" =>You have no memory. %zu\n", sizeof(struct DLIST));
+		printf(" mallocDuplist: You have no memory. %zu\n", sizeof(struct DLIST));
 		exit(EXIT_FAILURE);
 	}
 
@@ -748,7 +748,7 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 
 // --------------------------------------------------------------------------------
 // 現時刻から半年前かチェック (秒でチェック、60 * 60 * 24 * 365 / 2 = 15768000)、前なら年表示
-#define HARF_YEAR_SEC 15768000
+#define HALF_YEAR_SEC 15768000
 
 void
 makeDate(struct FNAME *p, time_t lt)
@@ -763,11 +763,11 @@ makeDate(struct FNAME *p, time_t lt)
 	}
 
 	// 省略なし %B, %A
-	strftime(p->datelong, DATALEN, (dtime < HARF_YEAR_SEC) ? "%B %e %H:%M" : "%B %e  %Y", t);
+	strftime(p->datelong, DATALEN, (dtime < HALF_YEAR_SEC) ? "%B %e %H:%M" : "%B %e  %Y", t);
 	strftime(p->weeklong, DATALEN, "%A", t);
 
 	// 3 文字の省略表示 %b, %a
-	strftime(p->date, DATALEN, (dtime < HARF_YEAR_SEC) ? "%b %e %H:%M" : "%b %e  %Y", t);
+	strftime(p->date, DATALEN, (dtime < HALF_YEAR_SEC) ? "%b %e %H:%M" : "%b %e  %Y", t);
 	strftime(p->week, DATALEN, "%a", t);
 
 	strftime(p->time, DATALEN, "%Y, %m/%d %H:%M:%S", t);
@@ -3259,6 +3259,12 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		fnamelist = p->fnamelist;
 
 		struct FNAME *newlist = (struct FNAME *) malloc(sizeof(struct FNAME) * p->nth);
+		if (newlist == NULL) {
+			perror("malloc");
+			printf(" doOUTPUT: You have no memory. %zu\n", sizeof(struct FNAME) * p->nth);
+			exit(EXIT_FAILURE);
+		}
+
 		int newnth = 0;
 
 		for (int j=0; j<p->nth; j++) {
@@ -3657,6 +3663,11 @@ scandirStdin(struct dirent ***namelist)
 		if (nread > 0 && line[nread - 2] == '/') {
 			line[nread - 2] = '\0';						// `/` 削除
 		}
+		if (len > FNAME_LENGTH -1) {
+			fprintf(stderr, "scandirStdin: too long name [%s].\n", line);
+			len = FNAME_LENGTH -1;
+			line[len] = '\0';
+		}
 
 		// struct dirent を自前で確保
 		struct dirent *ent = malloc(sizeof(struct dirent));
@@ -3689,7 +3700,6 @@ scandirStdin(struct dirent ***namelist)
 			}
 			list = tmp;
 		}
-
 		list[count++] = ent;
 	}
 
@@ -4558,7 +4568,6 @@ main(int argc, char *argv[])
 			debug printf("jotString:[%s]\n", cfg.jotString);
 			int strl = strlen(cfg.jotString);
 			char string[strl +1];
-			strcpy(string, cfg.jotString);
 
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
@@ -4567,6 +4576,8 @@ main(int argc, char *argv[])
 
 				char chk[2];
 				chk[1] = '\0';
+
+				strcpy(string, cfg.jotString);
 
 				char *str = strtok(string, DELIMITER);
 				while(str != NULL) {
