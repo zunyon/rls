@@ -16,7 +16,7 @@ rls highlights the unique part of each filename for easier fish shell filename c
 
 ### ユニーク文字列のハイライト
 `rls` は，`fish` がファイル名補完に必要な文字だけをハイライトしてファイル一覧を表示します。<br>
-`emacs n.c` のように，`n.c` の入力後に `TAB` を押すと，`fish` が `countfunction.c` と補完します。
+`emacs n.c` のように，`n.c` の入力後に `TAB` を押すと，`fish` が `countfunction.c` と補完します。<br>
 ![Unique filename completion demo](demo_rls.gif)<br>
 ハイライトされている部分を入力すれば，そのファイルが補完対象になります。<br>
 `rls.fish` の場合は，`.f` だけ入力すれば補完対象です。
@@ -47,7 +47,7 @@ rls -fCsn -Fss /tmp/                # ファイルサイズの大きい順
 rls -fcNLE -Fee /mnt/               # エラーのあるファイルの確認（-f に c, s, d, w, m など lstat() を行う項目が必要）
 rls -Fxss -fxsn ~/project/src       # ファイルの種類（拡張子別），サイズ順
 rls -fmogcdjNKLE -JxSRC=c,h -PSRC   # ディレクトリにある拡張子が c,h のファイルだけ表示
-find *.c -print | rls --  alr       # find 結果に対して -alr
+find *.c -print | rls -- -alr       # find 結果に対して -alr
 ```
 項目の種類については，ヘルプの `-f` を確認してください。
 <br>
@@ -57,6 +57,7 @@ find *.c -print | rls --  alr       # find 結果に対して -alr
 - `-F` で，ソート順を変更，`-f` で指定する全項目がソート対象，第 1，第 2，第 3，... のように複数のソート条件を指定可能
 - `-nn` で，ユニーク文字列を指定文字で囲って表示，色付け不可な端末でのユニーク文字列表記
 - `-e` で，elisp のような，拡張子だけが異なるファイル名が複数存在する "グループ" 向けユニーク文字列のハイライト
+- `-8` で，n:name, p:path を OSC 8 フォーマットで出力（ロング形式，ショート形式，特に標準入力からの処理）
 <br><br>
 - `-J` で，`-fj` 向けファイルなどの分類分け，特定ファイルのラベル表示
   - 異なる種類（拡張子）のファイルを同じグループに分類する（png, jpg, gif や、mov, avi, mp4 などを 1 つにまとめる）
@@ -320,3 +321,6 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 
 ## v0.4.0 からの変更内容
 - fix `makeMode()` の setuid, setgid, sticky bit の対応修正
+- fix `printJSON()` のフォーマットリストの対応修正
+- chg カラーリストの対応変更
+- add `-8` の追加，n:name, p:path の OSC 8 対応（ショート/ロング、標準入力からの処理）

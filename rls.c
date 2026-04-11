@@ -27,20 +27,20 @@
 // 2024, 09/01 Ver. 0.1.0
 // 2025, 01/13 Ver. 0.2.0
 // 2025, 08/23 Ver. 0.3.0
-// 2026, 05/20 Ver. 0.4.0
+// 2026, 03/20 Ver. 0.4.0
 
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "04/02"
-#define BTIME "22:09:53"
+#define BDATE "04/11"
+#define BTIME "05:26:02"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 04/02 22:09"
+// my-last-update-time "2026, 04/11 05:25"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -106,9 +106,6 @@
 
 // 表示属性の切り替え
 #define printEscapeColor(color) printf("%s", colorlist[color]);
-
-// 変数名を文字列にする
-#define toStr(n) #n
 
 // 対象がディレクトリかどうか
 #define IS_DIRECTORY(data) ((data).mode[0] == 'd' || ((data).linkname[0] != '\0' && (data).linkname[strlen((data).linkname) - 1] == '/'))
@@ -299,19 +296,22 @@ searchDuplist(struct DLIST *p, char *word, int len, int number)
 
 // ================================================================================
 // -c のカラー関連
+#define CLISTStr(X) \
+	X(base, ":   non-unique strings.") \
+	X(normal, ": normal files.") \
+	X(dir, ":    directories.") \
+	X(fifo, ":   FIFO/pipe.") \
+	X(socket, ": socket.") \
+	X(device, ": block/character device.") \
+	X(error, ":  error strings.") \
+	X(paint, ":  matched strings.") \
+	X(label, ":  label strings.") \
+	X(reset, ":  reset colors.")
+
+
 typedef enum {
-	base,
-	normal,
-	dir,
-	fifo,
-	socket,
-	device,
-
-	error,
-	paint,
-
-	label,
-	reset,
+	#define CLISTenum(name, string) name,
+	CLISTStr(CLISTenum)
 
 	ListCount
 } CLIST;
@@ -354,15 +354,9 @@ colorUsage(void)
 	}
 
 	printf("  setting color:   ");
-	printStr(base,   "base");   printf(", ");
-	printStr(normal, "normal"); printf(", ");
-	printStr(dir,    "dir");    printf(", ");
-	printStr(fifo,   "fifo");   printf(", ");
-	printStr(socket, "socket"); printf(", ");
-	printStr(device, "device"); printf(", ");
-	printStr(error,  "error");  printf(", ");
-	printStr(label,  "label");  printf(", ");
-	printStr(paint,  "paint");
+	#define CLISTStrColor(name, string) printStr(name, #name); printf(" ");
+	CLISTStr(CLISTStrColor)
+
 	printf("\n");
 }
 
@@ -374,16 +368,8 @@ initColor(int default_color, char *argcolor)
 	debug printStr(label, "initColor:\n");
 
 	char *cname[ListCount] = {
-		toStr(base),
-		toStr(normal),
-		toStr(dir),
-		toStr(fifo),
-		toStr(socket),
-		toStr(device),
-		toStr(error),
-		toStr(paint),
-		toStr(label),
-		toStr(reset)
+		#define CLISTarray(name, string) #name,
+		CLISTStr(CLISTarray)
 	};
 
 	// --------------------------------------------------------------------------------
@@ -537,6 +523,7 @@ struct FNAME {
 		char path[FNAME_LENGTH];			// 絶対パス/相対パスで指定されたパス名
 		char unique[UNIQUE_LENGTH];			// ユニーク文字列
 		char *name;							// 表示用ファイル名
+		char osc8[FNAME_LENGTH];			// OSC 8 の base path
 		char lowername[FNAME_LENGTH];		// 比較用
 		char kind[2];						// 種類
 		char linkname[FNAME_LENGTH + 1];	// link 名、PATH_MAX が正式、readlink() の後の strcat("/") 分
@@ -602,6 +589,7 @@ struct ALIST {
 	int show_long;
 	int format_list;
 	int show_json;
+	int show_osc8;
 
 	// -f 関連は format_ に纏める
 #ifdef MD5
@@ -1276,7 +1264,7 @@ typedef enum {
 	owner_sortfunc  = 'o',
 	group_sortfunc  = 'g',
 	extension_sortfunc = 'x',
-	jot_sortfunc = 'J',
+	jot_sortfunc = 'j',
 	linkname_sortfunc  = 'l',
 	errnostr_sortfunc  = 'e',
 
@@ -1634,6 +1622,8 @@ wcStrlen(char *name)
 
 // --------------------------------------------------------------------------------
 // 表示する -f 情報の中から、該当文字列を探す
+// !! -p は部分一致が良いし、-J (x) は完全一致が良い（下記のように h と sh を分ける場合など）
+//    ./a.out -alr -fmogcdxjNkLE -JxSCRIPT=sh:xSRC=c,h
 int
 pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const char *, const char *))
 {
@@ -1659,7 +1649,8 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 		  case 'k': case 'K': if (func(p.kind,   string)) { return 1; } break;
 		  case 'D':           if (func(p.datelong, string)) { return 1; } break;
 		  case 'W':           if (func(p.weeklong, string)) { return 1; } break;
-		  case 'x': case 'X': if (func(p.extension,      string)) { return 1; } break;
+// 		  case 'x': case 'X': if (func(p.extension,      string)) { return 1; } break;
+		  case 'x': case 'X': if (strcasecmp(p.extension, string) == 0) { return 1; } break;
 		  case 'j': case 'J': if (func(p.jot,    string)) { return 1; } break;
 		  case 'l': case 'L': if (strcasestr(p.linkname, string)) { return 1; } break;
 		  case 'e': case 'E': if (strcasestr(p.errnostr, string)) { return 1; } break;
@@ -1677,6 +1668,32 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 
 
 // ================================================================================
+// OSC 8
+void
+beginOSC8str(char *base, char *path, char *name)
+{
+	debug printf("OSC8:[%s,%s,%s] ", base, path, name);
+
+	printf("\x1b]8;;");
+	printf("%s/", base);
+	if (path[0] == '.' && path[1] == '/') {
+		printf("%s", path +2);
+	} else {
+		printf("%s", path);
+	}
+	printf("%s", name);
+	printf("\x1b\\");
+}
+
+
+void
+endOSC8Str(void)
+{
+	printf("\x1b]8;;\x1b\\");
+}
+
+
+// --------------------------------------------------------------------------------
 // リダイレクトでもレイアウトを維持するようにスペースを使用
 void
 printShort(struct FNAME *data, int n, struct ALIST cfg)
@@ -1804,9 +1821,16 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 		for (int i=0; i<col; i++) {
 			for (int j=0; j<row && rowcolumnlist[j][i] != -1; j++) {
 				int index = rowcolumnlist[j][i];
+				if (cfg.show_osc8) {
+					beginOSC8str(data[index].osc8, data[index].path, data[index].name);
+				}
 
 				// リダイレクトしてもレイアウトを保つように
 				printName(data[index], data[index].name, cfg);
+
+				if (cfg.show_osc8) {
+					endOSC8Str();
+				}
 				int ret = printKind(data[index], data[index].kind, cfg);
 				// 表示項目が最後 (右が -1) ならパディング出力しない
 				if (j < row - 1 && rowcolumnlist[j + 1][i] != -1) {
@@ -1848,7 +1872,15 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 	// --------------------------------------------------------------------------------
 	// termlen より長いファイル名がある
 	for (int i=0; i<n; i++) {
+		if (cfg.show_osc8) {
+			beginOSC8str(data[i].osc8, data[i].path, data[i].name);
+		}
+
 		printName(data[i], data[i].name, cfg);
+
+		if (cfg.show_osc8) {
+			endOSC8Str();
+		}
 		printKind(data[i], data[i].kind, cfg);
 		printf("\n");
 
@@ -2025,7 +2057,15 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 					break;
 				}
 				debug printf("%c:", cfg.formatListString[j]);
+				if (cfg.show_osc8) {
+					beginOSC8str(data[i].osc8, data[i].path, "");
+				}
+
 				printMatchedString(data[i], data[i].info[j], cfg);
+
+				if (cfg.show_osc8) {
+					endOSC8Str();
+				}
 				if (haveAfterdataStr[j]) {
 					if (digits[(unsigned char) cfg.formatListString[j]]) {
 						printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
@@ -2039,7 +2079,15 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 
 			  case 'n': case 'N':
 				debug printf("%c:", cfg.formatListString[j]);
+				if (cfg.show_osc8) {
+					beginOSC8str(data[i].osc8, data[i].path, data[i].name);
+				}
+
 				printName(data[i], data[i].info[j], cfg);					// name (printUnique(), printMatchedString() の切替)
+
+				if (cfg.show_osc8) {
+					endOSC8Str();
+				}
 				if (haveAfterdataStr[j]) {
 					if (digits[(unsigned char) cfg.formatListString[j]]) {
 						printf("%*s", digits[(unsigned char) cfg.formatListString[j]] - len, "");
@@ -2174,31 +2222,31 @@ printJSON(struct FNAME *data, int n, struct ALIST cfg, int dummy[])
 			// JSON 出力はパディング不要だが、最大長に合わせて padding を計算
 // 			switch (tolower(cfg.formatListString[j])) {
 			switch (cfg.formatListString[j]) {
-			  case 'm': namep = "mode";  padding = 1; break;
-			  case 'o': namep = "owner"; padding = 0; break;
-			  case 'g': namep = "group"; padding = 0; break;
-			  case 'c': namep = "count"; padding = 0; break;
-			  case 'C': namep = "Count"; padding = 0; break;
-			  case 'd': namep = "date";  padding = 1; break;
-			  case 'D': namep = "Date";  padding = 1; break;
-			  case 'p': namep = "path";  padding = 1; break;
-			  case 'n': namep = "name";  padding = 1; break;
-			  case 'k': namep = "kind";  padding = 1; break;
-			  case 'l': namep = "lname"; padding = 0; break;
-			  case 'e': namep = "errno"; padding = 0; break;
+			  case 'm': case 'M': namep = "mode";  padding = 1; break;
+			  case 'o': case 'O': namep = "owner"; padding = 0; break;
+			  case 'g': case 'G': namep = "group"; padding = 0; break;
+			  case 'c':           namep = "count"; padding = 0; break;
+			  case 'C':           namep = "Count"; padding = 0; break;
+			  case 'd':           namep = "date";  padding = 1; break;
+			  case 'D':           namep = "Date";  padding = 1; break;
+			  case 'p': case 'P': namep = "path";  padding = 1; break;
+			  case 'n': case 'N': namep = "name";  padding = 1; break;
+			  case 'k': case 'K': namep = "kind";  padding = 1; break;
+			  case 'l': case 'L': namep = "lname"; padding = 0; break;
+			  case 'e': case 'E': namep = "errno"; padding = 0; break;
 
 			  case 'i': namep = "inode"; padding = 0; break;
 			  case 'I': namep = "Inode"; padding = 0; break;
-			  case 'h': namep = "nlink"; padding = 0; break;
+			  case 'h': case 'H': namep = "nlink"; padding = 0; break;
 			  case 's': namep = "size";  padding = 1; break;
 			  case 'S': namep = "Size";  padding = 1; break;
 			  case 't': namep = "mtime"; padding = 0; break;
 			  case 'T': namep = "Mtime"; padding = 0; break;
 			  case 'w': namep = "week";  padding = 1; break;
 			  case 'W': namep = "Week";  padding = 1; break;
-			  case 'u': namep = "uword"; padding = 0; break;
-			  case 'x': namep = "ext";   padding = 2; break;
-			  case 'j': namep = "jot";   padding = 2; break;
+			  case 'u': case 'U': namep = "uword"; padding = 0; break;
+			  case 'x': case 'X': namep = "ext";   padding = 2; break;
+			  case 'j': case 'J': namep = "jot";   padding = 2; break;
 #ifdef MD5
 			  case '5': namep = "MD5";   padding = 2; break;
 #endif
@@ -2375,13 +2423,23 @@ showUsage(char **argv)
 	printf("  Long listing format:  /bin is FILE, /bin/ is DIRECTORY.\n");
 	printf("  Short listing format: /bin is DIRECTORY.\n");
 
+	printf(" OSC8:");
+	beginOSC8str("https://github.com/zunyon/rls", "", "");
+	printf("%s", argv[0]);
+	endOSC8Str();
+	printf(" ");
+	beginOSC8str("https://github.com/zunyon/rls", "blob/main/", "README_rls_current.md");
+	printf("help(options)");
+	endOSC8Str();
+	printf("\n");
+
 	printf("\n");
 	printf(" Options may be specified individually (-l -a -u) or combined (-alu) in any order.\n");
 	printf(" Color "); printStr(normal, "-xxx"); printf(" options are separate from other options.\n");
 
 	printf("\n");
 	printf(" If multiple identical options are given:\n");
-	printf("  The last one takes precedence: -c, -p, -P, -f, -R, -F, -j, -n.\n");
+	printf("  The last one takes precedence: -c, -p, -P, -f, -R, -F, -J, -n.\n");
 
 	printf("\n");
 	printf(" Options have priority rules. (see the last line of each "); printStr(label, "option"); printf(" group)\n");
@@ -2444,15 +2502,10 @@ showUsage(char **argv)
 	printf("     -nnXY: -n with enclosing each unique word with X (start) and Y (end).\n");
 	printf(" -d: use Default colors.\n");
 	printf(" "); printStr(normal, "-c"); printf(": set Custom colors. (8: -cbase=37:normal=34:normal=1:..., 256: -cbase=3007:normal=3012:normal=1:...)\n");
-	printf("      "); printStr(base,   "base");   printf( ":   non-unique strings.\n");
-	printf("      "); printStr(normal, "normal"); printf(   ": normal files.\n");
-	printf("      "); printStr(dir,    "dir");    printf(":    directories.\n");
-	printf("      "); printStr(fifo,   "fifo");   printf( ":   FIFO/pipe.\n");
-	printf("      "); printStr(socket, "socket"); printf(   ": socket.\n");
-	printf("      "); printStr(device, "device"); printf(   ": block/character device.\n");
-	printf("      "); printStr(label,  "label");  printf(  ":  label strings.\n");
-	printf("      "); printStr(error,  "error");  printf(  ":  error strings.\n");
-	printf("      "); printStr(paint,  "paint");  printf(  ":  matched strings.\n");
+
+	#define CLISTStrHelpMessage(name, string) printf("      "); printStr(name, #name); printf("%s\n", string);
+	CLISTStr(CLISTStrHelpMessage)
+
 	printf("      ---\n");
 	printf("      8 colors:   Control Sequence Introducer. (terminal-dependent)\n");
 	printf("      256 colors: fore:30xx, back:40xx.\n");
@@ -2481,7 +2534,8 @@ showUsage(char **argv)
 	printf(" -i: with -l, human-readable sIze. (affects count, size, hardlinks in -f)\n");
 	printf(" "); printStr(label,  "-r"); printf(": show aggregate Results.\n");
 	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the \""); printStr(paint,  "paint"); printf("\" color. (-Rnumber)\n");
-	printf("     -i = -r = -R\n");
+	printf(" -8: output n:name and p:path fields in OSC 8 format. (Short/Long listing)\n");
+	printf("     -i = -r = -R = -8\n");
 
 	printf("\n");
 	printStr(label, "Other options:\n");
@@ -2842,9 +2896,9 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 				exit(EXIT_FAILURE);
 			}
 
-			for (int i=0; i<r; i++) {
-				printf ("%s\n", namelist[i]->d_name);
-				free(namelist[i]);
+			for (int j=0; j<r; j++) {
+				printf ("%s\n", namelist[j]->d_name);
+				free(namelist[j]);
 			}
 			free(namelist);
 			fflush(stdout);
@@ -3027,6 +3081,7 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 					case 's': cfg->show_simple++;       break;	// lstat() を使用しない printShort()
 					case 'l': cfg->show_long++;         break;	// long 表示
 					case 'j': cfg->show_json++;         break;	// JSON 出力
+					case '8': cfg->show_osc8++;         break;	// OSC 8 出力
 
 					case 'u': cfg->deep_unique++;       break;	// unique チェックを最後まで行う
 					case 'b': cfg->beginning_word++;    break;	// uniqueCheckFirstWord() のみ
@@ -3406,6 +3461,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 
 					// 必要な項目のコピー
 					data[count].name = fnamelist[j].name;
+					strcpy(data[count].osc8, fnamelist[j].osc8);
 					strcpy(data[count].kind, fnamelist[j].kind);
 					strcpy(data[count].lowername, fnamelist[j].lowername);
 
@@ -3501,7 +3557,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 			printf("%s:\n", p->path);
 		}
 
-		showlong(  fnamelist, p->nth, cfg, digits);
+		showlong(fnamelist, p->nth, cfg, digits);
 
 		if (cfg.show_json) {
 			if (i == dirarg -1 && jcount == 0) {
@@ -3540,25 +3596,31 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 
 // ================================================================================
 #ifdef GIT
+
+#define GITLIST \
+	X(GIT_STATUS_INDEX_NEW,        "A ") \
+	X(GIT_STATUS_INDEX_MODIFIED,   "M ") \
+	X(GIT_STATUS_INDEX_DELETED,    "D ") \
+	X(GIT_STATUS_INDEX_RENAMED,    "R ") \
+	X(GIT_STATUS_INDEX_TYPECHANGE, "T ") \
+	X(GIT_STATUS_WT_NEW,           "??") \
+	X(GIT_STATUS_WT_MODIFIED,      " M") \
+	X(GIT_STATUS_WT_DELETED,       " D") \
+	X(GIT_STATUS_WT_TYPECHANGE,    " T") \
+	X(GIT_STATUS_WT_RENAMED,       " R") \
+	X(GIT_STATUS_WT_UNREADABLE,    " *") \
+	X(GIT_STATUS_IGNORED,          "!!") \
+	X(GIT_STATUS_CONFLICTED,       "**")
+
 char *
 getGitStatusStr(unsigned int flags)
 {
 	// /usr/include/git2/status.h
-	if (flags & GIT_STATUS_INDEX_NEW)        return "A ";
-	if (flags & GIT_STATUS_INDEX_MODIFIED)   return "M ";
-	if (flags & GIT_STATUS_INDEX_DELETED)    return "D ";
-	if (flags & GIT_STATUS_INDEX_RENAMED)    return "R ";
-	if (flags & GIT_STATUS_INDEX_TYPECHANGE) return "T ";
+	#define X(status, str) if (flags & status) return str;
+	GITLIST
+	#undef X
 
-	if (flags & GIT_STATUS_WT_NEW)           return "??";
-	if (flags & GIT_STATUS_WT_MODIFIED)      return " M";
-	if (flags & GIT_STATUS_WT_DELETED)       return " D";
-	if (flags & GIT_STATUS_WT_TYPECHANGE)    return " T";
-	if (flags & GIT_STATUS_WT_RENAMED)       return " R";
-// 	if (flags & GIT_STATUS_WT_UNREADABLE)    return " *";
-
-	if (flags & GIT_STATUS_IGNORED)          return "!!";
-	if (flags & GIT_STATUS_CONFLICTED)       return "**";
+	// 該当なし
 	return "  ";
 }
 
@@ -4174,6 +4236,14 @@ main(int argc, char *argv[])
 			// path の登録
 			strcpy(fnamelist[j].path, dirarglist[i]);
 
+			// osc8 base path
+			if (cfg.show_osc8) {
+				// Ubuntu
+				sprintf(fnamelist[j].osc8, "file://%s", cwd);
+				// WSL で解釈が windows の時
+// 				sprintf(fnamelist[j].osc8, "file://c:/%s", cwd +7);
+			}
+
 			if (cfg.from_stdin) {
 				char *str = strrchr(fnamelist[j].name, '/');
 				if (str) {
@@ -4190,6 +4260,7 @@ main(int argc, char *argv[])
 					}
 					fnamelist[j].lowername[len] = '\0';
 				} else {
+					// ls | rls -- -alr などの時
 					fnamelist[j].name = direntlist[j]->d_name;
 					strcpy(fnamelist[j].path, "./");
 					strcpy(dirarglist[i], "./");

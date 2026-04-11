@@ -17,7 +17,6 @@ By combining the output of `rls` with `fish`'s filename completion feature, you 
 ### Highlighting Unique Strings
 `rls` highlights only the characters necessary for `fish` to complete a filename.<br>
 For example, typing `n.c` and pressing `TAB` (e.g. `emacs n.c` then `TAB`) may complete to `countfunction.c` when the highlighted substring matches.
-
 ![Unique filename completion demo](demo_rls.gif)
 
 If you type the highlighted substring, that file becomes the completion target. For the provided `rls.fish` completion script, typing just `.f` may be sufficient to match certain files.
@@ -54,7 +53,7 @@ rls -fCsn -Fss /tmp/                # sort by file size (largest first)
 rls -fcNLE -Fee /mnt/               # check files with errors (-f requires fields invoking lstat() such as c, s, d, w, m)
 rls -Fxss -fxsn ~/project/src       # file type by extension, then by size
 rls -fmogcdjNKLE -JxSRC=c,h -PSRC   # show files in directory whose extension is c or h
-find *.c -print | rls --  alr       # apply -alr to find results
+find *.c -print | rls -- -alr       # apply -alr to find results
 ```
 
 See the help for `-f` for the full list of available fields.
