@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "04/11"
-#define BTIME "05:26:02"
+#define BDATE "04/18"
+#define BTIME "21:38:15"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 04/11 05:25"
+// my-last-update-time "2026, 04/18 21:38"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -219,7 +219,7 @@ mallocDuplist(char *word, int len)
 	struct DLIST *new = malloc(sizeof(struct DLIST));
 	if (new == NULL) {
 		perror("malloc");
-		printf(" mallocDuplist: You have no memory. %zu\n", sizeof(struct DLIST));
+		fprintf(stderr, " mallocDuplist: You have no memory. %zu\n", sizeof(struct DLIST));
 		exit(EXIT_FAILURE);
 	}
 
@@ -2855,27 +2855,15 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 {
 	debug printStr(label, "initAlist:\n");
 
-	char argv[argc][ListCount * COLOR_TEXT + 1];
+	char argv[argc][FNAME_LENGTH +1];
 	for (int i=0; i<argc; i++) {
 		int len = strlen(argv_[i]);
 
-		if (len < FNAME_LENGTH) {
-			strcpy(argv[i], argv_[i]);
-		} else {
-			if (argv[i][0] == '-' && argv[i][1] == 'c') {
-				// default_color_txt
-				if (len >= ListCount * COLOR_TEXT) {
-					strncpy(argv[i], argv_[i], ListCount * COLOR_TEXT);
-					argv[i][ListCount * COLOR_TEXT] = '\0';
-				} else {
-					strncpy(argv[i], argv_[i], FNAME_LENGTH);
-					argv[i][FNAME_LENGTH] = '\0';
-				}
-			} else {
-				strncpy(argv[i], argv_[i], FNAME_LENGTH);
-				argv[i][FNAME_LENGTH] = '\0';
-			}
+		if (len > FNAME_LENGTH) {
+			len = FNAME_LENGTH;
 		}
+		strncpy(argv[i], argv_[i], len);
+		argv[i][len] = '\0';
 	}
 
 	int errc = 0;
@@ -3316,7 +3304,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		struct FNAME *newlist = (struct FNAME *) malloc(sizeof(struct FNAME) * p->nth);
 		if (newlist == NULL) {
 			perror("malloc");
-			printf(" doOUTPUT: You have no memory. %zu\n", sizeof(struct FNAME) * p->nth);
+			fprintf(stderr, " doOUTPUT: You have no memory. %zu\n", sizeof(struct FNAME) * p->nth);
 			exit(EXIT_FAILURE);
 		}
 
@@ -3774,7 +3762,7 @@ scandirStdin(struct dirent ***namelist)
 
 // ================================================================================
 // st_uid, st_gid のキャッシュ
-struct HASH {
+struct ARRAY {
 	int key;
 	char value[DATALEN];
 	int length;
@@ -3783,7 +3771,7 @@ struct HASH {
 
 #ifdef DEBUG
 void
-showHash(struct HASH htable[], int last)
+showArray(struct ARRAY htable[], int last)
 {
 	for (int i=0; i<last; i++) {
 		printf(" %6d: %s\n", htable[i].key, htable[i].value);
@@ -3793,11 +3781,16 @@ showHash(struct HASH htable[], int last)
 
 
 int
-searchHash(struct HASH htable[], int last, int key)
+searchArray(struct ARRAY htable[], int last, int key)
 {
 	for (int i=0; i<last; i++) {
 		if (htable[i].key == key) {
+// 			printf("searchArray key:%d, last:%d, val:%s\n", key, last, htable[i].value);
 			return i;
+		}
+
+		if (htable[i].key == -1) {
+			return -1;
 		}
 	}
 
@@ -3806,19 +3799,15 @@ searchHash(struct HASH htable[], int last, int key)
 
 
 int
-addHash(struct HASH htable[], int *last, int key, char value[])
+addArray(struct ARRAY htable[], int *last, int key, char value[])
 {
-// 	printf("*last:%d, key:%d, vl:%s\n", *last, key, value);
-	if (searchHash(htable, *last, key) == -1) {
-		htable[*last].key = key;
-		strcpy(htable[*last].value, value);
-		htable[*last].length = strlen(value);
-// 		printf("[%s], %d\n", htable[*last].value, htable[*last].length);
-		(*last)++;
-		return *last -1;
-	}
+// 	printf("addArray *last:%d, key:%d, vl:%s\n", *last, key, value);
 
-	return 0;
+	htable[*last].key = key;
+	strcpy(htable[*last].value, value);
+	htable[*last].length = strlen(value);
+	(*last)++;
+	return *last -1;
 }
 
 
@@ -3838,18 +3827,6 @@ countOgroups(void)
 }
 
 
-void
-makeOgroups(struct HASH htable[], int *last)
-{
-	struct passwd *pw;
-	setpwent();
-	while ((pw = getpwent()) != NULL) {
-		addHash(htable, last, pw->pw_uid, pw->pw_name);
-	}
-	endpwent();
-}
-
-
 int
 countGgroups(void)
 {
@@ -3857,45 +3834,11 @@ countGgroups(void)
 }
 
 
-int
-makeGgroups(struct HASH htable[], int *last, int ggroups)
-{
-// 	printf("all groups:%d\n", ggroups);
-
-	gid_t *groups;
-	groups = malloc(sizeof(gid_t) * ggroups);
-	if (groups == NULL) {
-		perror("malloc");
-		return 1;
-	}
-
-	// グループ ID を取得
-	ggroups = getgroups(ggroups, groups);
-	if (ggroups == -1) {
-		perror("getgroups");
-		free(groups);
-		return 1;
-	}
-
-// 	printf("Supplementary groups (%d):\n", ggroups);
-	for (int j=0; j<ggroups; j++) {
-		struct group *gr = getgrgid(groups[j]);
-		if (gr != NULL) {
-// 			printf("  %d (%s)\n", (int)groups[j], gr->gr_name);
-			addHash(htable, last, groups[j], gr->gr_name);
-		}
-	}
-	free(groups);
-
-	return 0;
-}
-
-
 // ================================================================================
 int
 main(int argc, char *argv[])
 {
-	char dirarglist[argc][FNAME_LENGTH];	// 引数の dir のリスト
+	char dirarglist[argc][FNAME_LENGTH +1];	// 引数の dir のリスト
 	int dirarg = 0;
 	int argverr[argc];						// argv のエラー記録
 
@@ -3925,7 +3868,7 @@ main(int argc, char *argv[])
 		perror("setlocale");
 // 		printf(" =>setlocale(LC_ALL, \"\");\n");
 // 		exit(EXIT_FAILURE);
-		printf(" =>Warning: setlocale() failed, using default locale\n");
+		fprintf(stderr, " =>Warning: setlocale() failed, using default locale\n");
 	}
 
 	// ================================================================================
@@ -4005,7 +3948,12 @@ main(int argc, char *argv[])
 	errc = initAlist(argc, argv, &cfg, argverr);
 	for (int i=1; i<argc; i++) {
 		if (cfg.dirarg[i] == 1) {
-			strcpy(dirarglist[dirarg], argv[i]);
+			int len = strlen(argv[i]);
+			if (len > FNAME_LENGTH) {
+				len = FNAME_LENGTH;
+			}
+			strncpy(dirarglist[dirarg], argv[i], len);
+			dirarglist[dirarg][len] = '\0';
 			dirarg++;
 		}
 	}
@@ -4183,7 +4131,7 @@ main(int argc, char *argv[])
 		// 多分パス、移動に失敗したら次のパス
 		if (chdir(dirarglist[i]) != 0) {
 // 			perror("chdir");
-			debug printf("chdir: %s [%s]\n", strerror(errno), dirarglist[i]);
+			fprintf(stderr, "chdir: %s [%s]\n", strerror(errno), dirarglist[i]);
 			continue;
 		}
 
@@ -4198,7 +4146,7 @@ main(int argc, char *argv[])
 
 		if (p->nth == -1) {
 			perror("scandir");
-			printf(" =>path:%s\n", dirarglist[i]);
+			fprintf(stderr, " =>path:%s\n", dirarglist[i]);
 			exit(EXIT_FAILURE);
 		}
 
@@ -4208,7 +4156,7 @@ main(int argc, char *argv[])
 
 		if (p->fnamelist == NULL) {
 			perror("malloc");
-			printf(" =>size:%zu\n", sizeof(struct FNAME) * p->nth);
+			fprintf(stderr, " =>size:%zu\n", sizeof(struct FNAME) * p->nth);
 			// cwd を試みる
 			if (chdir(cwd)) {
 				printf("chdir: %s [%s]\n", strerror(errno), cwd);
@@ -4357,7 +4305,7 @@ main(int argc, char *argv[])
 		// cwd ディレクトリに戻る
 		if (chdir(cwd)) {
 // 			perror("chdir");
-			printf("chdir: %s [%s]\n", strerror(errno), cwd);
+			fprintf(stderr, "chdir: %s [%s]\n", strerror(errno), cwd);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -4385,24 +4333,22 @@ main(int argc, char *argv[])
 	int olast = 0;
 	int glast = 0;
 
+	int ogroups = countOgroups();
 	int ggroups = countGgroups();
-	int ogroups = countOgroups();	// こちらは時間がかかる
 
-	// サイズを取得する
-	struct HASH otable[ogroups];
-	struct HASH gtable[ggroups];
+	struct ARRAY otable[ogroups];
+	struct ARRAY gtable[ggroups];
 
-	// 小さいか確認
-	int totalnth = 0;
-	for (int i=0; i<dirarg; i++) {
-		struct DENT *p;
-		p = &dent[i];
-		totalnth += p->nth;
+	for (int i=0; i<ogroups; i++) {
+		otable[i].key = -1;
+		otable[i].value[0] = '\0';
+		otable[i].length = 0;
 	}
-	// 事前に準備する
-	if (totalnth > (ggroups + ogroups)) {
-		makeOgroups(otable, &olast);
-		makeGgroups(gtable, &glast, ggroups);
+
+	for (int i=0; i<ggroups; i++) {
+		gtable[i].key = -1;
+		gtable[i].value[0] = '\0';
+		gtable[i].length = 0;
 	}
 
 	// --------------------------------------------------------------------------------
@@ -4554,18 +4500,19 @@ main(int argc, char *argv[])
 				if (fnamelist[j].isstat == -1) {
 					continue;
 				}
-				int ret = searchHash(otable, olast, fnamelist[j].sb.st_uid);
+
+				int ret = searchArray(otable, olast, fnamelist[j].sb.st_uid);
 				if (ret == -1) {
 					struct passwd *pw;
 					if ((pw = getpwuid(fnamelist[j].sb.st_uid)) == NULL) {
 						perror("getpwuid");
-						printf(" =>uid: %s\n", fnamelist[j].name);
-						ret = addHash(otable, &olast, fnamelist[j].sb.st_uid, "-");
+						fprintf(stderr, " =>uid: %s\n", fnamelist[j].name);
+						ret = addArray(otable, &olast, fnamelist[j].sb.st_uid, "-");
 						fnamelist[j].owner = otable[ret].value;
 						fnamelist[j].ownerl = otable[ret].length;
 						continue;
 					}
-					ret = addHash(otable, &olast, fnamelist[j].sb.st_uid, pw->pw_name);
+					ret = addArray(otable, &olast, fnamelist[j].sb.st_uid, pw->pw_name);
 				}
 				fnamelist[j].owner = otable[ret].value;
 				fnamelist[j].ownerl = otable[ret].length;
@@ -4581,18 +4528,18 @@ main(int argc, char *argv[])
 					continue;
 				}
 
-				int ret = searchHash(gtable, glast, fnamelist[j].sb.st_gid);
+				int ret = searchArray(gtable, glast, fnamelist[j].sb.st_gid);
 				if (ret == -1) {
 					struct group *gr;
 					if ((gr = getgrgid(fnamelist[j].sb.st_gid)) == NULL) {
 						perror("getgrgid");
-						printf(" =>gid: %s\n", fnamelist[j].name);
-						ret = addHash(gtable, &glast, fnamelist[j].sb.st_gid, "-");
+						fprintf(stderr, " =>gid: %s\n", fnamelist[j].name);
+						ret = addArray(gtable, &glast, fnamelist[j].sb.st_gid, "-");
 						fnamelist[j].group = gtable[ret].value;
 						fnamelist[j].groupl = gtable[ret].length;
 						continue;
 					}
-					ret = addHash(gtable, &glast, fnamelist[j].sb.st_gid, gr->gr_name);
+					ret = addArray(gtable, &glast, fnamelist[j].sb.st_gid, gr->gr_name);
 				}
 				fnamelist[j].group = gtable[ret].value;
 				fnamelist[j].groupl = gtable[ret].length;
@@ -4603,9 +4550,9 @@ main(int argc, char *argv[])
 #ifdef DEBUG
 		printf("idCache:\n");
 		printf(" olast:%d, glast:%d\n", olast, glast);
-		showHash(otable, olast);
+		showArray(otable, olast);
 		printf("\n");
-		showHash(gtable, glast);
+		showArray(gtable, glast);
 #endif
 
 		// --------------------------------------------------------------------------------

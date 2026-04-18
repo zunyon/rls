@@ -323,4 +323,4 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - fix `makeMode()` の setuid, setgid, sticky bit の対応修正
 - fix `printJSON()` のフォーマットリストの対応修正
 - chg カラーリストの対応変更
-- add `-8` の追加，n:name, p:path の OSC 8 対応（ショート/ロング、標準入力からの処理）
+- add `-8` の追加，n:name, p:path の OSC 8 対応（ショート/ロング，標準入力からの処理）
