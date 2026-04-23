@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "04/21"
-#define BTIME "07:03:04"
+#define BDATE "04/23"
+#define BTIME "22:59:41"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 04/21 07:02"
+// my-last-update-time "2026, 04/23 22:58"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -135,12 +135,11 @@
 #define MYROUND			// round() の -lm が不要になるように実装
 
 // 速い ?
-#undef strncmp
-#define strncmp memcmp
+// #undef strncmp
+// #define strncmp memcmp
 
-// !! sanitize がうるさいとき
-#undef strncpy
-#define strncpy memcpy
+// #undef strncpy
+// #define strncpy memcpy
 
 #ifdef MYTOLOWER
 	// - を _ に変更する
@@ -213,6 +212,7 @@ freeDuplist(struct DLIST *node)
 }
 
 
+// 上の層で len < UNIQUE_LENGTH を確約
 struct DLIST *
 mallocDuplist(char *word, int len)
 {
@@ -221,10 +221,6 @@ mallocDuplist(char *word, int len)
 		perror("malloc");
 		fprintf(stderr, " mallocDuplist: You have no memory. %zu\n", sizeof(struct DLIST));
 		exit(EXIT_FAILURE);
-	}
-
-	if (len > UNIQUE_LENGTH) {
-		len = UNIQUE_LENGTH;
 	}
 
 	*new = (struct DLIST) {"", NULL, NULL, 0, len};
@@ -876,19 +872,16 @@ makeMD5(char *fname, char *md5)
 
 	EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
 	if (!mdctx) {
-		strcpy(md5, "-");
 		return -1;
 	}
 
 	if (EVP_DigestInit_ex(mdctx, EVP_md5(), NULL) != 1) {
 		EVP_MD_CTX_free(mdctx);
-		strcpy(md5, "-");
 		return -1;
 	}
 
 	FILE *fp;
 	if ((fp = fopen(fname, "rb")) == NULL) {
-		strcpy(md5, "-");
 		return -1;
 	}
 
@@ -899,7 +892,6 @@ makeMD5(char *fname, char *md5)
 		if (EVP_DigestUpdate(mdctx, buf, n) != 1) {
 			EVP_MD_CTX_free(mdctx);
 			fclose(fp);
-			strcpy(md5, "-");
 			return -1;
 		}
 	}
@@ -910,7 +902,6 @@ makeMD5(char *fname, char *md5)
 
 	if (EVP_DigestFinal_ex(mdctx, md_value, &md_len) != 1) {
 		EVP_MD_CTX_free(mdctx);
-		strcpy(md5, "-");
 		return -1;
 	}
 	EVP_MD_CTX_free(mdctx);
@@ -1567,7 +1558,7 @@ matchPercent(struct FNAME p1, struct FNAME p2)
 	// 二つの文字列を比較
 	while (p1.name[i] == p2.name[i]) {
 		if (p1.name[i] == '\0') {
-			return 100.0;				// 完全一致
+			return 1.0;				// 完全一致
 		}
 		i++;
 	}
@@ -1676,6 +1667,17 @@ beginOSC8str(char *base, char *path, char *name)
 void
 endOSC8Str(void)
 {
+	printf("\x1b]8;;\x1b\\");
+}
+
+
+void
+printOSC8Str(char *path, char *name)
+{
+	printf("\x1b]8;;");
+	printf("%s", path);
+	printf("\x1b\\");
+	printf("%s", name);
 	printf("\x1b]8;;\x1b\\");
 }
 
@@ -2410,14 +2412,10 @@ showUsage(char **argv)
 	printf("  Long listing format:  /bin is FILE, /bin/ is DIRECTORY.\n");
 	printf("  Short listing format: /bin is DIRECTORY.\n");
 
-	printf(" OSC8:");
-	beginOSC8str("https://github.com/zunyon/rls", "", "");
-	printf("%s", argv[0]);
-	endOSC8Str();
-	printf(" ");
-	beginOSC8str("https://github.com/zunyon/rls", "blob/main/", "README_rls_current.md");
-	printf("help(options)");
-	endOSC8Str();
+	printf(" OSC8: ");
+	printOSC8Str("https://github.com/zunyon/rls", argv[0]);
+	printf("  ");
+	printOSC8Str("https://github.com/zunyon/rls/blob/main/README_rls_current.md", "help (options)");
 	printf("\n");
 
 	printf("\n");
@@ -2608,7 +2606,7 @@ struct DENT {
 	char is_filename[FNAME_LENGTH];		// パスから切り離したファイル名
 
 	// インデント用、文字列の最大桁数
-#define DIGITSLISTdigits(initial, name) int name##_digits;
+	#define DIGITSLISTdigits(initial, name) int name##_digits;
 	DIGITSLISTStr(DIGITSLISTdigits)
 
 #ifdef MD5
@@ -3995,10 +3993,27 @@ main(int argc, char *argv[])
 	memset(dent, 0, sizeof(dent));
 	for (int i=0; i<dirarg; i++) {
 		dent[i].path = dirarglist[i];
+
+// 	dent[i].direntlist = NULL;
+// 	dent[i].nth = 0;
+// 	dent[i].fnamelist = NULL;
+// 	dent[i].nthall = 0;
+// 	dent[i].is_file = 0;
+
 		memset(dent[i].is_filename, 0, sizeof(dent[i].is_filename));
 		// non-unique リストの初期化
 		dent[i].duplist = mallocDuplist("", 0);
 		showorder[i] = i;
+
+// 	#define DIGITSLISTdigitsset(initial, name) dent[i].name##_digits = 0;
+// 	DIGITSLISTStr(DIGITSLISTdigitsset)
+// #ifdef MD5
+// 	dent[i].md5_digits = 0;
+// #endif
+// #ifdef GIT
+// 	dent[i].git_digits = 0;
+// #endif
+
 	}
 
 	// ================================================================================
@@ -4130,6 +4145,11 @@ main(int argc, char *argv[])
 				char *str = strrchr(fnamelist[j].name, '/');
 				if (str) {
 					int len = strlen(str);
+
+					if (len > UNIQUE_LENGTH) {
+						len = UNIQUE_LENGTH;
+					}
+
 					int pl = strlen(direntlist[j]->d_name) - len;
 					strcpy(fnamelist[j].path, direntlist[j]->d_name);
 					fnamelist[j].path[pl +1] = '\0';
@@ -4267,8 +4287,12 @@ main(int argc, char *argv[])
 	int olast = 0;
 	int glast = 0;
 
-	int ogroups = countOgroups();
-	int ggroups = countGgroups();
+	int ogroups = 0;
+	int ggroups = 0;
+
+	// -static の時、-fmcdNKLE と、og を飛ばせば動く
+	if (cfg.format_owner) { ogroups = countOgroups(); }
+	if (cfg.format_group) { ggroups = countGgroups(); }
 
 	struct ARRAY otable[ogroups];
 	struct ARRAY gtable[ggroups];
@@ -4651,6 +4675,11 @@ main(int argc, char *argv[])
 				if (extension) {
 					extension++;
 					int len = strlen(extension);
+
+					if (len > UNIQUE_LENGTH) {
+						len = UNIQUE_LENGTH;
+					}
+
 					if (len) {
 						if (searchDuplist(extensionduplist, extension, len, j) == 0) {
 							addDuplist(extensionduplist, extension, len, j);
