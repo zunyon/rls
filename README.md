@@ -324,3 +324,6 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - fix `printJSON()` のフォーマットリストの対応修正
 - chg カラーリストの対応変更
 - add `-8` の追加，n:name, p:path の OSC 8 対応（ショート/ロング，標準入力からの処理）
+- add `-8appname` で appname を指定
+- del `-d` の廃止，`-creset=0` で同義
+- chg `printLong()` の L, E のインデント変更
