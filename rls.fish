@@ -1,15 +1,14 @@
 ﻿## Last Update:
-## my-last-update-time "2026, 03/29 14:03"
+## my-last-update-time "2026, 05/06 19:57"
 
 ## ================================================================================
 ## 共通
 function __fish_rls_register_options
-	set -l keys s l S d u b e a o O i r
+	set -l keys s l S u b e a o O i r
 	set -l descs \
 		"short list format (no kind, one color)" \
 		"long list format" \
 		"no sort order" \
-		"use default colors" \
 		"deep unique word check" \
 		"beginning of file name" \
 		"paint unique group-name word" \
@@ -107,7 +106,6 @@ end
 ## --------------------------------------------------------------------------------
 ## Color
 complete -c rls -s n -a '(__fish_rls_-nfarg_completions)' -d 'no colors.' -x
-complete -c rls -s d -n "not __fish_seen_argument -s d" -d "use default colors."
 complete -c rls -s c -a '(__fish_rls_-cfarg_completions)' -d 'set colors.' -x
 
 ## -c

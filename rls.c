@@ -33,14 +33,14 @@
 #define INCDATE
 #define BYEAR "2026"
 #define BDATE "05/02"
-#define BTIME "09:57:26"
+#define BTIME "17:34:04"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 05/02 09:56"
+// my-last-update-time "2026, 05/02 17:28"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -409,7 +409,7 @@ initColor(char *argcolor)
 		int found = 0;
 		for (int i=0; i<(int) (sizeof(cname) / sizeof(cname[0])); i++) {
 			if (strcmp(name, cname[i]) == 0) {
-				char ctxt[COLOR_TEXT*2];
+				char ctxt[COLOR_TEXT *2];
 
 				// 指定された項目は、1 回目は default を上書き、それ以降は追記
 				if (overwritelist[i] == -1) {
@@ -891,6 +891,7 @@ makeMD5(char *fname, char *md5)
 
 	FILE *fp;
 	if ((fp = fopen(fname, "rb")) == NULL) {
+		EVP_MD_CTX_free(mdctx);
 		return -1;
 	}
 
@@ -1507,18 +1508,13 @@ uniqueCheck(struct FNAME *p, int j, int len, struct DLIST *duplist)
 	// 1 文字目から、len 文字ずつ最後まで繰り返す
 	for (int i=0; i<=l; i++) {
 		char *tmp = p[j].lowername + i;
-		int brk = 0;
 
 		for (int k=0; k<len; k++) {
 			// 漢字が含まれている || '()' だとエスケープできないから飛ばす、tolower() 後の文字列で
 			if (isprint((int) tmp[k]) == 0 || strchr(SKIP_LIST, tmp[k])) {
-				brk = 1;
-				break;
+				addDuplist(duplist, tmp, len, -1);
+				continue;
 			}
-		}
-		if (brk) {
-			addDuplist(duplist, tmp, len, -1);
-			continue;
 		}
 
 		if (searchDuplist(duplist, tmp, len, j) == 0) {
@@ -1531,14 +1527,14 @@ uniqueCheck(struct FNAME *p, int j, int len, struct DLIST *duplist)
 void
 uniqueCheckFirstWord(struct FNAME *p, int j, int len, struct DLIST *duplist)
 {
-	char *tmp = p[j].lowername;
-
 	if (p[j].length == len) {
 		if (searchDuplist(duplist, p[j].lowername, len, -1) == 0) {
 			addDuplist(duplist, p[j].lowername, len, -1);
 		}
 		return;
 	}
+
+	char *tmp = p[j].lowername;
 
 	for (int k=0; k<len; k++) {
 		// 漢字が含まれている || '()' だとエスケープできないから飛ばす、tolower() 後の文字列で
@@ -2460,8 +2456,10 @@ showUsage(char **argv)
 	printf("      W, D:disable abbreviation.\n");
 	printf("      T:human-readable time.\n");
 	printf("      Uppercase disables padding. (Same width: no visible change for m, t, 5, 6)\n");
-	printf(" "); printStr(normal, "-J"); printf(": set jot rules for format order items. (xMovie=mov,avi,mp4:xPrj=c,h,md:xGraph=png,gif,jpg:mRun=rwx,r-x,--x)\n");
-	printf("      Example: xMovie=mov,avi,mp4  =>  format item x,  label Movie,  matches mov/avi/mp4.\n");
+	printf(" "); printStr(normal, "-J"); printf(": set jot rules for format order items.\n");
+	printf("      Example: -JxImage=png,gif,jpg,jpeg:xProject=c,h,md\n");
+	printf("               show label Image:   -fx matches png/gif/jpg/jpeg.\n");
+	printf("               show label Project: -fx matches c/h/md.\n");
 	printf("     -s > -j > -l = -f = -J > default short listing (includes file status)\n");
 
 	printf("\n");
@@ -2497,8 +2495,8 @@ showUsage(char **argv)
 	CLISTStr(CLISTStrHelpMessage)
 
 	printf("      ---\n");
-	printf("      8 colors:   Control Sequence Introducer. (terminal-dependent)\n");
-	printf("      256 colors: fore:30xx, back:40xx.\n");
+	printf("      8-colors:   Control Sequence Introducer. (terminal-dependent)\n");
+	printf("      256-colors: fore:30xx, back:40xx.\n");
 	printf("      8-color and 256-color modes cannot be mixed.\n");
 	printf("      %s environment variable: same format and restrictions as -c.\n", ENVNAME);
 	printf("     -n > -c > %s env color > default color\n", ENVNAME);
