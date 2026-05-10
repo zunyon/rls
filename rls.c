@@ -40,7 +40,7 @@
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 05/02 17:28"
+// my-last-update-time "2026, 05/10 17:12"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1508,13 +1508,18 @@ uniqueCheck(struct FNAME *p, int j, int len, struct DLIST *duplist)
 	// 1 文字目から、len 文字ずつ最後まで繰り返す
 	for (int i=0; i<=l; i++) {
 		char *tmp = p[j].lowername + i;
+		int brk = 0;
 
 		for (int k=0; k<len; k++) {
 			// 漢字が含まれている || '()' だとエスケープできないから飛ばす、tolower() 後の文字列で
 			if (isprint((int) tmp[k]) == 0 || strchr(SKIP_LIST, tmp[k])) {
+				brk = 1;
 				addDuplist(duplist, tmp, len, -1);
-				continue;
+				break;
 			}
+		}
+		if (brk) {
+			continue;
 		}
 
 		if (searchDuplist(duplist, tmp, len, j) == 0) {
