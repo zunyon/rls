@@ -1042,7 +1042,7 @@ printUniqueOriginal(struct FNAME p, const char *dummy, struct ALIST cfg)
 int
 countMatchedString(const char *str)
 {
-	if (paintStringLen == 0) {
+	if (paintStringLen == 0 || str == NULL) {
 		return 0;
 	}
 
@@ -4292,8 +4292,8 @@ main(int argc, char *argv[])
 	int olast = 0;
 	int glast = 0;
 
-	int ogroups = 0;
-	int ggroups = 0;
+	int ogroups = 10;
+	int ggroups = 10;
 
 	// -static の時、-fmcdNKLE と、og を飛ばせば動く
 	if (cfg.format_owner) { ogroups = countOgroups(); }

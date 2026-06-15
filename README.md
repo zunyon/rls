@@ -326,3 +326,5 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - add `-8appname` で appname を指定
 - del `-d` の廃止，`-creset=0` で同義
 - chg `printLong()` の L, E のインデント変更
+- fix `countMatchedString()` で str の NULL 判定追加
+- chg `ogroups, ggroups` の初期値を変更
