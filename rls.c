@@ -40,7 +40,7 @@
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 06/23 23:48"
+// my-last-update-time "2026, 06/27 13:05"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -297,7 +297,7 @@ searchDuplist(struct DLIST *p, char *word, int len, int number)
 	X(normal, ": normal files.") \
 	X(dir, ":    directories.") \
 	X(fifo, ":   FIFO/pipe.") \
-	X(socket, ": socket.") \
+	X(sock, ":   socket.") \
 	X(device, ": block/character device.") \
 	X(error, ":  error strings.") \
 	X(paint, ":  matched strings.") \
@@ -661,7 +661,7 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 		case S_IFBLK:  c = 'b'; p->color = device;                   break;		// block device      /dev/
 		case S_IFCHR:  c = 'c'; p->color = device;                   break;		// character device  /dev/
 		case S_IFIFO:  c = '|'; p->color = fifo;   p->kind[0] = '|'; break;		// FIFO/pipe         /tmp/fish.xxx/
-		case S_IFSOCK: c = 's'; p->color = socket; p->kind[0] = '='; break;		// socket            /tmp/tmux-100/
+		case S_IFSOCK: c = 's'; p->color = sock;   p->kind[0] = '='; break;		// socket            /tmp/tmux-100/
 		case S_IFLNK: {															// symlink
 			c = 'l'; p->kind[0] = '@';
 			if (cfg.format_link) {
@@ -3842,13 +3842,13 @@ main(int argc, char *argv[])
 		// 属性 太=1, (細=2), イタリック=3, 下線=4, 点滅=5, (速い点滅=6), 文字/背景の反転=7, (隠す=8), 取消=9, 2重下線=21, 上線=53
 		.color_txt = 
 		   // 8 色
-		   "base=37:normal=34:dir=36:fifo=33:socket=35:device=33:error=31:paint=32:"					// 文字色
+		   "base=37:normal=34:dir=36:fifo=33:sock=35:device=33:error=31:paint=32:"					// 文字色
 // 		   "base=100:"																					// 背景色
 
 		   // 256 色、3000 は fore, 4000 は back
-// 		   "base=3007:normal=3012:dir=3014:fifo=3011:socket=3009:device=3011:error=3009:paint=3032"		// 文字色
+// 		   "base=3007:normal=3012:dir=3014:fifo=3011:sock=3009:device=3011:error=3009:paint=3032"		// 文字色
 
-// 		   "normal=1:dir=1:socket=1:device=1:label=1:error=1:paint=1:"									// 属性
+// 		   "normal=1:dir=1:sock=1:device=1:label=1:error=1:paint=1:"									// 属性
 // 		   "paint=95:paint=5:"	// 点滅させるためには、明るい色を指定する必要あり
 
 		   "reset=0"
@@ -4232,8 +4232,8 @@ main(int argc, char *argv[])
 				switch (direntlist[j]->d_type) {
 				  // DT_REG には Permission denied のファイルも含まれる
 				  case DT_DIR:  fnamelist[j].kind[0] = '/'; fnamelist[j].color = dir; fnamelist[j].mode[0] = 'd'; break;
-				  case DT_FIFO: fnamelist[j].kind[0] = '|'; fnamelist[j].color = fifo;   break;
-				  case DT_SOCK: fnamelist[j].kind[0] = '='; fnamelist[j].color = socket; break;
+				  case DT_FIFO: fnamelist[j].kind[0] = '|'; fnamelist[j].color = fifo; break;
+				  case DT_SOCK: fnamelist[j].kind[0] = '='; fnamelist[j].color = sock; break;
 				  case DT_LNK: {fnamelist[j].kind[0] = '@'; fnamelist[j].mode[0] = 'l'; 
 					  // symlink 先のファイル名
 					  ssize_t rlen = readlink(fnamelist[j].name, fnamelist[j].linkname, sizeof(fnamelist[j].linkname) - 1);

@@ -129,7 +129,7 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 ### 補完例の terminal 環境
 上記の terminal 環境は下記です。
 - `Windows Terminal` の配色を `Tango Dark` で使用
-- 環境変数 `RLS_COLORS` に `base=37:normal=34:dir=36:fifo=33:socket=35:device=33:error=31:paint=32:normal=1:dir=1:socket=1:device=1:label=1:error=1:paint=1:reset=0` をセット
+- 環境変数 `RLS_COLORS` に `base=37:normal=34:dir=36:fifo=33:sock=35:device=33:error=31:paint=32:normal=1:dir=1:sock=1:device=1:label=1:error=1:paint=1:reset=0` をセット
 <br>
 
 色の設定はデフォルトカラーと同じで，後半の `normal=1` 以降に強調（明るい色）を設定しています。<br>
@@ -329,3 +329,4 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - fix `countMatchedString()` で str の NULL 判定追加
 - chg `ogroups, ggroups` の初期値を変更
 - fix mode の初期化を追加
+- chg `socket` の enum などを `sock` へ変更（mac への対応）
