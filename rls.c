@@ -40,7 +40,7 @@
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 05/10 17:12"
+// my-last-update-time "2026, 06/23 23:48"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -559,7 +559,6 @@ struct FNAME {
 		// 各項目の長さ
 		#define FNAMEItemlist(initial, name) int name##l;
 		FNAMEItem(FNAMEItemlist)
-// !!
 		int length;							// 純粋なファイル名の長さ strlen()
 
 #ifdef MD5
@@ -758,6 +757,7 @@ makeDate(struct FNAME *p, time_t lt)
 
 	// --------------------------------------------------------------------------------
 	// readable time
+	// 30 日は 4week, 31 日は 1month
 	do {
 // 		if (dtime < 30) {          strcpy( p->timereadable,    "just now"); break; }
 		if (dtime < 60) {          sprintf(p->timereadable,   "%dsec ago", (int) dtime); break; }
@@ -2184,7 +2184,7 @@ printJSON(struct FNAME *data, int n, struct ALIST cfg, int dummy[])
 {
 	debug printStr(label, "printJSON:\n");
 
-	if (cfg.show_json == 0) {
+	if (cfg.show_json == 0 || n == 0) {
 		return;
 	}
 
@@ -2491,9 +2491,9 @@ showUsage(char **argv)
 	printf("\n");
 	printStr(label, "Color options:\n");
 	printf(" "); printStr(normal, "-n"); printf(": No colors.\n");
-	printf("     -nn:   -n with enclosing each unique word with [ and ].\n");
-	printf("     -nnX:  -n with enclosing each unique word with X on both sides. (X is a single character)\n");
-	printf("     -nnXY: -n with enclosing each unique word with X (start) and Y (end).\n");
+	printf("      -nn:   -n with enclosing each unique word with [ and ].\n");
+	printf("      -nnX:  -n with enclosing each unique word with X on both sides. (X is a single character)\n");
+	printf("      -nnXY: -n with enclosing each unique word with X (start) and Y (end).\n");
 	printf(" "); printStr(normal, "-c"); printf(": set Custom colors. (8: -cbase=37:normal=34:normal=1:..., 256: -cbase=3007:normal=3012:normal=1:...)\n");
 
 	#define CLISTStrHelpMessage(name, string) printf("      "); printStr(name, #name); printf("%s\n", string);
@@ -2527,8 +2527,8 @@ showUsage(char **argv)
 	printf(" -i: with -l, human-readable sIze. (affects count, size, hardlinks in -f)\n");
 	printf(" "); printStr(label,  "-r"); printf(": show aggregate Results.\n");
 	printf(" "); printStr(normal, "-8"); printf(": output n:name and p:path fields in OSC 8 format. (Short/Long listing)\n");
-	printf("     -8:        execute default application.\n");
-	printf("     -8appname: execute appname application.\n");
+	printf("      -8:        execute default application.\n");
+	printf("      -8appname: execute appname application.\n");
 	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the "); printStr(paint,  "paint"); printf(" color. (-Rnumber)\n");
 	printf("     -i = -r = -R = -8\n");
 
@@ -2726,6 +2726,10 @@ void
 rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 {
 	debug printStr(label, "rowSort:\n");
+
+	if (fnamelist == NULL || nth == 0) {
+		return;
+	}
 
 	// sn など複数指定を行う、、、、reverse で処理する
 	for (int i=strlen(cfg.formatSortString) -1; i>=0; i--) {
@@ -3950,13 +3954,9 @@ main(int argc, char *argv[])
 		for (int i=0; i<ListCount; i++) {
 			colorlist[i][0] = '\0';
 		}
-	}
-
-	// --------------------------------------------------------------------------------
-	// 引数か、環境変数から色を指定する
-	// 色について共通の処理
-	if (cfg.no_color) {
 	} else {
+		// 引数か、環境変数から色を指定する
+		// 色について共通の処理
 		if (cfg.argv_color) {
 			initColor(cfg.color_txt);
 		} else {
@@ -4226,6 +4226,8 @@ main(int argc, char *argv[])
 				// --------------------------------------------------------------------------------
 			// printShort() なら DT_XXX で十分
 				fnamelist[j].kind[1] = '\0';
+				fnamelist[j].mode[0] = '\0';
+				fnamelist[j].mode[1] = '\0';
 
 				switch (direntlist[j]->d_type) {
 				  // DT_REG には Permission denied のファイルも含まれる

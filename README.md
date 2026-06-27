@@ -328,3 +328,4 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - chg `printLong()` の L, E のインデント変更
 - fix `countMatchedString()` で str の NULL 判定追加
 - chg `ogroups, ggroups` の初期値を変更
+- fix mode の初期化を追加
