@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "05/02"
-#define BTIME "17:34:04"
+#define BDATE "07/11"
+#define BTIME "18:11:18"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 06/27 13:05"
+// my-last-update-time "2026, 07/11 18:06"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -337,6 +337,7 @@ printStr(CLIST color, const char *str)
 }
 
 
+#ifdef DEBUG
 void
 colorUsage(void)
 {
@@ -355,6 +356,7 @@ colorUsage(void)
 
 	printf("\n");
 }
+#endif
 
 
 // 設定は、256 色 (5 で決め打ち、true color (2) の実装はしていない)
@@ -472,23 +474,24 @@ initColor(char *argcolor)
 
 	if (usage) {
 		// エラー
-		printStr(label, "initColor:\n");
-		printf("  item setting: %s\n", argcolor);
-		printf("  bad setting:  %s\n", p);
-
+		printf("initColor:\n");
+		fprintf(stderr, " bad setting:   %s\n", p);
+		printf(" setting color: ");
+		#define CLISTStrColor(name, string) printStr(name, #name); printf(" ");
+		CLISTStr(CLISTStrColor)
 		printf("\n");
-		colorUsage();
-		exit(EXIT_FAILURE);
 	}
 
-	debug printf(" ");
-	debug colorUsage();
+#ifdef DEBUG
+	printf(" ");
+	colorUsage();
+#endif
 }
 
 
 // ================================================================================
 // 表示するファイルの情報
-#define FNAMEItem(X) \
+#define DIGITSLISTStr(X) \
 	X('I', inode) \
 	X('i', inodec) \
 	X('h', nlink) \
@@ -558,7 +561,7 @@ struct FNAME {
 	int len[ListCountd];
 		// 各項目の長さ
 		#define FNAMEItemlist(initial, name) int name##l;
-		FNAMEItem(FNAMEItemlist)
+		DIGITSLISTStr(FNAMEItemlist)
 		int length;							// 純粋なファイル名の長さ strlen()
 
 #ifdef MD5
@@ -2575,33 +2578,6 @@ getTerminalSize(unsigned short int *x, unsigned short int *y)
 
 // ================================================================================
 // 複数のディレクトリ/ファイル引数対応の構造体、1 引数毎に管理する
-#define DIGITSLISTStr(X) \
-	X('I', inode) \
-	X('i', inodec) \
-	X('h', nlink) \
-	X('m', mode) \
-	X('o', owner) \
-	X('g', group) \
-	X('S', size) \
-	X('s', sizec) \
-	X('C', count) \
-	X('c', countc) \
-	X('d', date) \
-	X('D', datelong) \
-	X('t', time) \
-	X('T', timereadable) \
-	X('w', week) \
-	X('W', weeklong) \
-	X('p', path) \
-	X('u', unique) \
-	X('n', name) \
-	X('k', kind) \
-	X('l', linkname) \
-	X('e', errnostr) \
-	X('x', extension) \
-	X('j', jot)
-
-
 struct DENT {
 	// データ
 	char *path;							// 引数の指定ディレクトリ
