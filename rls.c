@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "07/28"
-#define BTIME "22:43:55"
+#define BDATE "08/02"
+#define BTIME "14:19:28"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 07/28 22:43"
+// my-last-update-time "2026, 08/02 09:54"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -752,6 +752,15 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 void
 makeDate(struct FNAME *p, time_t lt)
 {
+	if (p->isstat != 1) {
+		strcpy(p->datelong, "-");
+		strcpy(p->date, "-");
+		strcpy(p->weeklong, "-");
+		strcpy(p->week, "-");
+		strcpy(p->time, "-");
+		return;
+	}
+
 	struct tm *t = localtime(&(p->sb.st_mtime));
 	double dtime = difftime(lt, p->sb.st_mtime);
 
@@ -1177,6 +1186,12 @@ addFNamelist(struct FNAME *p, char *name)
 
 	p->owner = defstr;
 	p->group = defstr;
+	p->size[0] = '\0';
+	p->nlink[0] = '\0';
+	p->inode[0] = '\0';
+	p->count[0] = '\0';
+
+	p->isstat = 0;
 
 #ifdef MD5
 	p->md5[0] = '\0';
@@ -1257,6 +1272,10 @@ myMtimeSort(const void *a, const void *b)
 {
 	struct FNAME *s1 = (struct FNAME *)a;
 	struct FNAME *s2 = (struct FNAME *)b;
+
+	if (s1->isstat != 1 || s2->isstat != 1) {
+		return 0;
+	}
 
 	if (s1->sb.st_mtime > s2->sb.st_mtime) { return  1; }
 	if (s1->sb.st_mtime < s2->sb.st_mtime) { return -1; }
@@ -3126,11 +3145,6 @@ progressAlist(struct ALIST *cfg)
 {
 	debug printStr(label, "progressAlist:\n");
 
-	// -f で行う内容を決定
-	for (int i=0; cfg->formatListString[i] != '\0'; i++) {
-		formatOption(cfg, cfg->formatListString[i]);
-	}
-
 	// --------------------------------------------------------------------------------
 	// simple 表示は long にしない (ファイルの種類を問わず単色表示)
 	if (cfg->show_simple) {
@@ -3147,15 +3161,20 @@ progressAlist(struct ALIST *cfg)
 	}
 
 	// --------------------------------------------------------------------------------
-	// -F の sort で行う内容を決定
-	if (cfg->formatSortString[0] != '\0' || cfg->show_long) {
-		initSortFuncList();
+	// -f, -F で行う内容を決定
+	// -f で行う内容を決定 List
+	for (int i=0; cfg->formatListString[i] != '\0'; i++) {
+		formatOption(cfg, cfg->formatListString[i]);
 	}
 
-	for (int i=0; cfg->formatSortString[i] != '\0'; i++) {
-		// -F で行う内容を決定
-		formatOption(cfg, cfg->formatSortString[i]);
-		toggleFunction(cfg->formatSortString[i]);
+	if (cfg->formatSortString[0] != '\0' || cfg->show_long) {
+		initSortFuncList();
+
+		// -F で行う内容、sort を決定 Sort
+		for (int i=0; cfg->formatSortString[i] != '\0'; i++) {
+			formatOption(cfg, cfg->formatSortString[i]);
+			toggleFunction(cfg->formatSortString[i]);
+		}
 	}
 
 	// --------------------------------------------------------------------------------
@@ -4378,9 +4397,6 @@ main(int argc, char *argv[])
 
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
-					continue;
-				}
-				if (fnamelist[j].isstat == -1) {
 					continue;
 				}
 
