@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "08/02"
-#define BTIME "14:19:28"
+#define BDATE "08/03"
+#define BTIME "22:17:15"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 08/02 09:54"
+// my-last-update-time "2026, 08/03 21:12"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -752,15 +752,6 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 void
 makeDate(struct FNAME *p, time_t lt)
 {
-	if (p->isstat != 1) {
-		strcpy(p->datelong, "-");
-		strcpy(p->date, "-");
-		strcpy(p->weeklong, "-");
-		strcpy(p->week, "-");
-		strcpy(p->time, "-");
-		return;
-	}
-
 	struct tm *t = localtime(&(p->sb.st_mtime));
 	double dtime = difftime(lt, p->sb.st_mtime);
 
@@ -929,6 +920,11 @@ makeMD5(char *fname, char *md5)
 			fclose(fp);
 			return -1;
 		}
+	}
+	if (ferror(fp)) {
+		EVP_MD_CTX_free(mdctx);
+		fclose(fp);
+		return -1;
 	}
 	fclose(fp);
 
@@ -1613,8 +1609,9 @@ matchPercent(struct FNAME p1, struct FNAME p2)
 
 // ================================================================================
 // 漢字表示対策
+#define __USE_XOPEN
 #include <wchar.h>
-int wcwidth(wchar_t c);
+// int wcwidth(wchar_t c);
 
 
 int
@@ -3256,7 +3253,7 @@ progressAlist(struct ALIST *cfg)
 #endif
 		cfg->format_mode = 0;
 		cfg->format_size = 0;
-		cfg->format_date = 0;
+// 		cfg->format_date = 0;
 		cfg->format_unique = 0;
 		cfg->format_owner = 0;
 		cfg->format_group = 0;
@@ -4198,12 +4195,13 @@ main(int argc, char *argv[])
 						strcpy(fnamelist[j].sizec,  "-");
 						strcpy(fnamelist[j].count,  "-");
 						strcpy(fnamelist[j].countc, "-");
-						strcpy(fnamelist[j].date,   "-");
-						strcpy(fnamelist[j].time,   "-");
-						strcpy(fnamelist[j].timereadable, "-");
-						strcpy(fnamelist[j].week,   "-");
+
 						strcpy(fnamelist[j].datelong, "-");
+						strcpy(fnamelist[j].date, "-");
 						strcpy(fnamelist[j].weeklong, "-");
+						strcpy(fnamelist[j].week, "-");
+						strcpy(fnamelist[j].time, "-");
+						strcpy(fnamelist[j].timereadable, "-");
 #ifdef MD5
 						strcpy(fnamelist[j].md5,    "-");
 #endif
@@ -4397,6 +4395,9 @@ main(int argc, char *argv[])
 
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
+					continue;
+				}
+				if (fnamelist[j].isstat != 1) {
 					continue;
 				}
 
