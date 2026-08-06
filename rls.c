@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "08/03"
-#define BTIME "22:17:15"
+#define BDATE "08/06"
+#define BTIME "22:49:53"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 08/03 21:12"
+// my-last-update-time "2026, 08/06 22:27"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1061,13 +1061,12 @@ printUniqueOriginal(struct FNAME p, const char *dummy, struct ALIST cfg)
 
 // -p 対象文字列に何回該当したか、、、"aaaaaa" の場合 "aa" は 3 回該当の仕様
 int
-countMatchedString(const char *str)
+countMatchedString(const char *str, int length)
 {
 	if (paintStringLen == 0 || str == NULL) {
 		return 0;
 	}
 
-	int length = strlen(str);		// !! ここをどうにかしないと
 	// 比較用に小文字化
 	char name[length + 1];
 	for (int i=0; i<length; i++) {
@@ -1989,7 +1988,7 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 
 		// --------------------------------------------------------------------------------
 		for (int j=0; cfg.formatListString[j] != '\0'; j++) {
-			int len = data[i].len[j] + countMatchedString(data[i].info[j]) * cfg.tlen;
+			int len = data[i].len[j] + countMatchedString(data[i].info[j], data[i].len[j]) * cfg.tlen;
 
 			// --------------------------------------------------------------------------------
 			// 左寄せ項目
@@ -4872,14 +4871,14 @@ main(int argc, char *argv[])
 				calcFnameLength(&fnamelist[j]);
 
 				// 各項目の最大幅数の確定
-				#define DIGITSLISTsetmax(initial, name) p->name##_digits = MAX(p->name##_digits, countMatchedString(fnamelist[j].name) * cfg.tlen + fnamelist[j].name##l);
+				#define DIGITSLISTsetmax(initial, name) p->name##_digits = MAX(p->name##_digits, countMatchedString(fnamelist[j].name, fnamelist[j].name##l) * cfg.tlen + fnamelist[j].name##l);
 				DIGITSLISTStr(DIGITSLISTsetmax)
 
 #ifdef MD5
-				p->md5_digits    = MAX(p->md5_digits, countMatchedString(fnamelist[j].md5)  * cfg.tlen + fnamelist[j].md5l);
+				p->md5_digits    = MAX(p->md5_digits, countMatchedString(fnamelist[j].md5, fnamelist[j].md5l)  * cfg.tlen + fnamelist[j].md5l);
 #endif
 #ifdef GIT
-				p->git_digits    = MAX(p->git_digits, countMatchedString(fnamelist[j].git)  * cfg.tlen + fnamelist[j].gitl);
+				p->git_digits    = MAX(p->git_digits, countMatchedString(fnamelist[j].git, fnamelist[j].gitl)  * cfg.tlen + fnamelist[j].gitl);
 #endif
 
 			}
