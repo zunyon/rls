@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "08/06"
-#define BTIME "22:49:53"
+#define BDATE "08/08"
+#define BTIME "07:11:20"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 08/06 22:27"
+// my-last-update-time "2026, 08/08 07:09"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -859,7 +859,7 @@ countEntry(char *dname, char *path)
 {
 // 	debug printStr(label, "countEntry:\n");
 
-	char fullpath[FNAME_LENGTH];
+	char fullpath[PATH_MAX +1];
 	char *tmppath;
 
 	if (dname[0] ==  '/') {
@@ -1082,7 +1082,7 @@ countMatchedString(const char *str, int length)
 	const char *pos = name;
 	while ((pos = strstr(pos, paintString)) != NULL) {
 		ret++;
-		pos += (paintStringLen > 0) ? paintStringLen : 1; // 一致時のスキップ
+		pos += paintStringLen;			// 一致時のスキップ
 	}
 
 	return ret;
@@ -4410,7 +4410,7 @@ main(int argc, char *argv[])
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
 				}
-				if (fnamelist[j].isstat == -1) {
+				if (fnamelist[j].isstat != 1) {
 					continue;
 				}
 
@@ -4460,7 +4460,7 @@ main(int argc, char *argv[])
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
 				}
-				if (fnamelist[j].isstat == -1) {
+				if (fnamelist[j].isstat != 1) {
 					continue;
 				}
 
@@ -4487,7 +4487,7 @@ main(int argc, char *argv[])
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
 				}
-				if (fnamelist[j].isstat == -1) {
+				if (fnamelist[j].isstat != 1) {
 					continue;
 				}
 
