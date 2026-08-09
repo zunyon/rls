@@ -330,3 +330,11 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - chg `ogroups, ggroups` の初期値を変更
 - fix mode の初期化を追加
 - chg `socket` の enum などを `sock` へ変更（mac への対応）
+- chg `initColor()` の エラー時の挙動変更
+- chg #define の共通化
+- fix `progressAlist()` の formatOption() の引数修正 List -> Sort
+- fix `main()` の is_file の取り扱いを慎重に
+- fix `main()` extension の扱いを慎重に
+- fix `makeMD5()` エラーチェックの追加
+- chg `countMatchedString()` の呼び出しを変更
+- chg strncpy() から snprintf() に変更

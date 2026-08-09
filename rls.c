@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "08/08"
-#define BTIME "07:11:20"
+#define BDATE "08/09"
+#define BTIME "09:03:39"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 08/08 07:09"
+// my-last-update-time "2026, 08/09 08:52"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -528,7 +528,7 @@ struct FNAME {
 		char osc8[PATH_MAX + 1];			// OSC 8 の base path
 		char lowername[FNAME_LENGTH];		// 比較用
 		char kind[2];						// 種類
-		char linkname[PATH_MAX + 1];		// link 名、readlink() の後の strcat("/") 分
+		char linkname[PATH_MAX + 2];		// link 名、readlink() の後の strcat("/") 分
 		char errnostr[FNAME_LENGTH];		// lstat() のエラー
 		char extension[DATALEN];			// 拡張子
 		char jot[FNAME_LENGTH / 2];			// 分類分け
@@ -2840,14 +2840,7 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 
 	char argv[argc][FNAME_LENGTH +1];
 	for (int i=0; i<argc; i++) {
-		int len = strlen(argv_[i]);
-
-		if (len > FNAME_LENGTH) {
-			strncpy(argv[i], argv_[i], FNAME_LENGTH);
-			argv[i][FNAME_LENGTH] = '\0';
-		} else {
-			strcpy(argv[i], argv_[i]);
-		}
+		snprintf(argv[i], sizeof(argv[i]), "%s", argv_[i]);
 	}
 
 	int errc = 0;
@@ -3872,14 +3865,8 @@ main(int argc, char *argv[])
 	errc = initAlist(argc, argv, &cfg, argverr);
 	for (int i=1; i<argc; i++) {
 		if (cfg.dirarg[i] == 1) {
-			int len = strlen(argv[i]);
+			snprintf(dirarglist[dirarg], sizeof(dirarglist[dirarg]), "%s", argv[i]);
 
-			if (len > FNAME_LENGTH) {
-				strncpy(dirarglist[dirarg], argv[i], FNAME_LENGTH);
-				dirarglist[dirarg][FNAME_LENGTH] = '\0';
-			} else {
-				strcpy(dirarglist[dirarg], argv[i]);
-			}
 			dirarg++;
 		}
 	}
