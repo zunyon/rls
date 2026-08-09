@@ -338,3 +338,4 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - fix `makeMD5()` エラーチェックの追加
 - chg `countMatchedString()` の呼び出しを変更
 - chg strncpy() から snprintf() に変更
+- fix `scandirStdin()` の行の扱い修正

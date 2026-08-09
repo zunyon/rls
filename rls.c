@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "08/09"
-#define BTIME "09:03:39"
+#define BDATE "08/10"
+#define BTIME "05:20:11"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 08/09 08:52"
+// my-last-update-time "2026, 08/09 14:22"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -386,7 +386,6 @@ initColor(char *argcolor)
 
 		// strchr() の失敗チェックを先に行う
 		if (sscanf(p, fmt, name, valuechar) != 2) {
-// 		if (sscanf(p, "%[^=]=%s", name, valuechar) != 2) {
 			usage++;
 			break;
 		}
@@ -1227,6 +1226,8 @@ myAlphaSort(const void *a, const void *b)
 	struct FNAME *s1 = (struct FNAME *)a;
 	struct FNAME *s2 = (struct FNAME *)b;
 
+	// strcmp() と rls -al -fmogSdNLE -n で ls の出力
+// 	return strcmp(s1->sortc, s2->sortc);
 	return strcasecmp(s1->sortc, s2->sortc);
 }
 
@@ -1268,6 +1269,7 @@ myMtimeSort(const void *a, const void *b)
 	struct FNAME *s1 = (struct FNAME *)a;
 	struct FNAME *s2 = (struct FNAME *)b;
 
+	// sb が初期化されてない対策
 	if (s1->isstat != 1 || s2->isstat != 1) {
 		return 0;
 	}
@@ -2676,7 +2678,7 @@ debug_showArgvswitch(struct ALIST cfg)
 #endif
 
 
-// --------------------------------------------------------------------------------
+// ================================================================================
 void
 mySwap(int *a, int *b)
 {
@@ -2796,7 +2798,6 @@ calcFnameLength(struct FNAME *p)
 	p->uniquel    = strlen(p->unique);
 	p->linknamel  = strlen(p->linkname);
 	p->errnostrl  = strlen(p->errnostr);
-// 	p->extensionl = strlen(p->extension);
 	p->jotl = strlen(p->jot);
 }
 
@@ -3182,7 +3183,6 @@ progressAlist(struct ALIST *cfg)
 			char values[strl +1];
 
 			if (sscanf(str +1, fmt, jot, values) != 2) {
-// 			if (sscanf(str +1, "%[^=]=%s", jot, values) != 2) {
 				break;
 			}
 			// -F の sort で行う内容を決定
@@ -3624,15 +3624,18 @@ scandirStdin(struct dirent ***namelist)
 
 	while ((nread = getline(&line, &len, stdin)) != -1) {
 		if (nread > 0 && line[nread - 1] == '\n') {
-			line[nread - 1] = '\0';						// 改行削除
+			line[nread - 1] = '\0';
+			nread--;
 		}
-		if (nread > 0 && line[nread - 2] == '/') {
-			line[nread - 2] = '\0';						// `/` 削除
+		if (nread > 0 && line[nread - 1] == '/') {
+			line[nread - 1] = '\0';
+			nread--;
 		}
-		if (len > FNAME_LENGTH -1) {
+
+		size_t line_len = strlen(line);
+		if (line_len >= FNAME_LENGTH) {
 			fprintf(stderr, "scandirStdin: too long name [%s].\n", line);
-			len = FNAME_LENGTH -1;
-			line[len] = '\0';
+			line[FNAME_LENGTH - 1] = '\0';
 		}
 
 		// struct dirent を確保
@@ -4264,7 +4267,6 @@ main(int argc, char *argv[])
 	// ================================================================================
 	// データの加工
 	// fnamelist の処理、uniqueCheck() 対象のデータの選別
-	// !! sourcelist が do_emacs 用になっている
 	// sourcelist: unique check の対象にするか
 	// showlist:   printShort(), printLong() で表示する対象
 
@@ -4558,7 +4560,6 @@ main(int argc, char *argv[])
 					char jot[strl +1];
 					char values[strl +1];
 
-// 					if (sscanf(str +1, "%[^=]=%s", jot, values) != 2) {
 					if (sscanf(str +1, fmt, jot, values) != 2) {
 						break;
 					}
@@ -4672,7 +4673,6 @@ main(int argc, char *argv[])
 				// 2 回以上おなじ拡張子がある場合、uniqueCheck() の対象から外すため、拡張子を登録する
 				char *extension = fnamelist[j].extension;
 				if (extension) {
-// 					int len = strlen(extension);
 					int len = fnamelist[j].extensionl;
 
 					if (len) {
@@ -4958,6 +4958,7 @@ main(int argc, char *argv[])
 	debug_showArgvswitch(cfg);
 #endif
 
+	// --------------------------------------------------------------------------------
 	// 標準関数のカウント数の表示
 #ifdef COUNTFUNC
 	printf("\n");
