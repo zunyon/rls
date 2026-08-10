@@ -33,14 +33,14 @@
 #define INCDATE
 #define BYEAR "2026"
 #define BDATE "08/10"
-#define BTIME "05:20:11"
+#define BTIME "23:30:55"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 08/09 14:22"
+// my-last-update-time "2026, 08/10 23:02"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -87,6 +87,7 @@
 #define FNAME_LENGTH NAME_MAX +1		// ファイル/ディレクトリ名
 #define DATALEN 32						// mode, date, owner, group など
 #define UNIQUE_LENGTH 32				// unique かどうか、最長連続 32 文字までカウント
+#define MESSAGELEN 64
 
 #define ESCAPECHARACTER " ~#()\\$&"		// 表示時に \ でエスケープする文字、printUnique(), printLength: で共通
 
@@ -511,9 +512,9 @@ struct FNAME {
 		char mode[11];						// mode bits
 		char *owner;						// owner
 		char *group;						// group
-		char size[16];						// size の文字列
+		char size[24];						// size の文字列
 		char sizec[DATALEN];				// size の文字列、comma 表記
-		char count[16];						// ディレクトリに含まれているファイル数と、size の混合
+		char count[24];						// ディレクトリに含まれているファイル数と、size の混合
 		char countc[DATALEN];				// ディレクトリに含まれているファイル数と、size の混合、comma 表記
 		char date[14];						// mtime 日付
 		char datelong[19];					// mtime 日付、省略なし
@@ -528,9 +529,9 @@ struct FNAME {
 		char lowername[FNAME_LENGTH];		// 比較用
 		char kind[2];						// 種類
 		char linkname[PATH_MAX + 2];		// link 名、readlink() の後の strcat("/") 分
-		char errnostr[FNAME_LENGTH];		// lstat() のエラー
+		char errnostr[MESSAGELEN];			// lstat() のエラー
 		char extension[DATALEN];			// 拡張子
-		char jot[FNAME_LENGTH / 2];			// 分類分け
+		char jot[MESSAGELEN];				// 分類分け
 #ifdef MD5
 		char md5[33];						// 16 文字 * 2 バイト + '\0'
 #endif
@@ -1669,7 +1670,6 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 		  case 'k': case 'K': if (func(p.kind,   string)) { return 1; } break;
 		  case 'D':           if (func(p.datelong, string)) { return 1; } break;
 		  case 'W':           if (func(p.weeklong, string)) { return 1; } break;
-// 		  case 'x': case 'X': if (func(p.extension,      string)) { return 1; } break;
 		  case 'x': case 'X': if (strcasecmp(p.extension, string) == 0) { return 1; } break;
 		  case 'j': case 'J': if (func(p.jot,    string)) { return 1; } break;
 		  case 'l': case 'L': if (strcasestr(p.linkname, string)) { return 1; } break;
@@ -3980,25 +3980,19 @@ main(int argc, char *argv[])
 	for (int i=0; i<dirarg; i++) {
 		dent[i].path = dirarglist[i];
 
-// 	dent[i].direntlist = NULL;
-// 	dent[i].nth = 0;
-// 	dent[i].fnamelist = NULL;
-// 	dent[i].nthall = 0;
-// 	dent[i].is_file = 0;
-
 		memset(dent[i].is_filename, 0, sizeof(dent[i].is_filename));
 		// non-unique リストの初期化
 		dent[i].duplist = mallocDuplist("", 0);
 		showorder[i] = i;
 
-// 	#define DIGITSLISTdigitsset(initial, name) dent[i].name##_digits = 0;
-// 	DIGITSLISTStr(DIGITSLISTdigitsset)
-// #ifdef MD5
-// 	dent[i].md5_digits = 0;
-// #endif
-// #ifdef GIT
-// 	dent[i].git_digits = 0;
-// #endif
+#define DIGITSLISTdigitsset(initial, name) dent[i].name##_digits = 0;
+		DIGITSLISTStr(DIGITSLISTdigitsset)
+#ifdef MD5
+		dent[i].md5_digits = 0;
+#endif
+#ifdef GIT
+		dent[i].git_digits = 0;
+#endif
 
 	}
 
@@ -4517,7 +4511,7 @@ main(int argc, char *argv[])
 				char *extension = strrchr(fnamelist[j].name, '.');
 				if (extension) {
 					if (extension != fnamelist[j].name) {
-						strcpy(fnamelist[j].extension, extension + 1);
+						snprintf(fnamelist[j].extension, DATALEN, "%s", extension + 1);
 						fnamelist[j].extensionl = strlen(fnamelist[j].extension);
 						debug printf("ext:%s, %s\n", fnamelist[j].extension, fnamelist[j].name);
 					}
