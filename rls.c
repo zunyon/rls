@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "08/10"
-#define BTIME "23:30:55"
+#define BDATE "08/13"
+#define BTIME "06:39:59"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 08/10 23:02"
+// my-last-update-time "2026, 08/13 06:39"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -638,7 +638,7 @@ struct ALIST {
 
 	int show_help;
 	int show_version;
-	int show_color;
+	int show_setting;
 	int output_escape;
 
 	int from_stdin;
@@ -2589,11 +2589,58 @@ showUsage(char **argv)
 	printf(")\n");
 
 	printf(" -v, "); printStr(normal, "--version"); printf(": show Version.\n");
-	printf("     "); printStr(normal,"--color"); printf(":   show color setting.\n");
+	printf("     "); printStr(normal, "--setting"); printf(":   show setting information.\n");
 	printf("     "); printStr(normal,"--color="); printf(":  control escape sequence output. (default: --color=auto)\n");
 	printf("                 auto:   detect redirection.\n");
 	printf("                 always: always output.\n");
 	printf("                 never:  never output.\n");
+}
+
+
+void
+showSetting(int argc, char **argv, struct ALIST cfg)
+{
+	printf("%s:\n", argv[0]);
+	printf(" all default, argument, and environment settings.\n");
+	printf("\n");
+
+	printStr(label, "Argument Vector:\n");
+	for (int i=0; i<argc; i++) {
+		printf(" %s", argv[i]);
+	}
+	printf("\n");
+
+	printf("\n");
+	printStr(label, "Setting Parameter:\n");
+// 	printf("dir argv: %s\n", cfg.dirarg);
+
+	if (cfg.formatListString[0] != '\0') { printf(" -f format list: %s\n", cfg.formatListString); }
+	if (cfg.formatSortString[0] != '\0') { printf(" -F sort list: %s\n", cfg.formatSortString); }
+	if (cfg.jotString[0] != '\0') {        printf(" -J jot list: %s\n", cfg.jotString); }
+	if (cfg.osc8app[0] != '\0') {          printf(" -8 osc8 app: %s\n", cfg.osc8app); }
+	if (cfg.aggregate_length != 0) {       printf(" -R number: %d\n", cfg.aggregate_length); }
+	if (cfg.onlyPaintStr[0] != '\0') {     printf(" -P pickup str: %s\n", cfg.onlyPaintStr); }
+	if (paintString[0] != '\0') {          printf(" -p paint str: %s\n", paintString); }
+	if (cfg.color_txt[0] != '\0') {        printf(" -c color str: %s\n", cfg.color_txt); }
+	if (cfg.textbegin[0] != '\0') {        printf(" -n begin/end: %s/%s\n", cfg.textbegin, cfg.textend); }
+
+	printf("\n");
+	printStr(label, "Environment:\n");
+	{
+		char *from;
+		if ((from = getenv(ENVCOLOR)) != NULL) {
+			printf(" %s: %s\n", ENVCOLOR, from);
+		}
+
+	}
+	printf("\n");
+
+#ifdef DEBUG
+	showArgvswitch(cfg);
+	printf("\n");
+#endif
+
+	showColorUsage();
 }
 
 
@@ -2632,9 +2679,9 @@ getTerminalSize(unsigned short int *x, unsigned short int *y)
 #define showSwitch(name) if (cfg.name) printf(" %s: %d\n", #name, cfg.name)
 // 引数の全スイッチを表示
 void
-debug_showArgvswitch(struct ALIST cfg)
+showArgvswitch(struct ALIST cfg)
 {
-	printStr(label, "show all switch:\n");
+	printStr(label, "Switch:\n");
 	showSwitch(show_simple);
 	showSwitch(show_long);
 	showSwitch(format_list);
@@ -2671,7 +2718,7 @@ debug_showArgvswitch(struct ALIST cfg)
 
 	showSwitch(show_help);
 	showSwitch(show_version);
-	showSwitch(show_color);
+	showSwitch(show_setting);
 	showSwitch(output_escape);
 	showSwitch(from_stdin);
 }
@@ -2861,8 +2908,8 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 			continue;
 		}
 
-		if (strcmp(argv[i], "--color") == 0) {
-			cfg->show_color++;
+		if (strcmp(argv[i], "--setting") == 0) {
+			cfg->show_setting++;
 			continue;
 		}
 
@@ -3024,7 +3071,8 @@ initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
 				cfg->no_color = 1;
 				continue;
 			}
-			argverr[i] = error; errc++; 
+			argverr[i] = error; errc++;
+			continue;
 		}
 
 		// OSC8 ファイル指定
@@ -3940,6 +3988,10 @@ main(int argc, char *argv[])
 	// ================================================================================
 	// 引数表示
 	if (cfg.show_help || errc) {
+		if (errc) {
+			showSetting(argc, argv, cfg);
+			printf("\n");
+		}
 		showUsage(argv);
 		// -h 以外の引数が指定されていた場合
 		if (argc > 2 || errc) {
@@ -3964,11 +4016,15 @@ main(int argc, char *argv[])
 		exit(EXIT_SUCCESS);
 	}
 
-	// Color 表示
-	if (cfg.show_color) {
-		showColorUsage();
+	// 設定表示
+	if (cfg.show_setting) {
+		showSetting(argc, argv, cfg);
 		exit(EXIT_SUCCESS);
 	}
+
+#ifdef DEBUG
+	showArgvswitch(cfg);
+#endif
 
 	// ================================================================================
 	// 引数のディレクトリ分の準備、初期化
@@ -4155,7 +4211,7 @@ main(int argc, char *argv[])
 				continue;
 			}
 
-			if (cfg.format_size || cfg.format_date || cfg.format_mode) {
+			if (cfg.format_size || cfg.format_date || cfg.format_mode || cfg.from_stdin) {
 				fnamelist[j].isstat = (lstat(direntlist[j]->d_name, &fnamelist[j].sb) == 0) ? 1 : -1;
 				if (fnamelist[j].isstat == -1) {
 					// lstat() が失敗した時の処理 (-l /mnt/c/)
@@ -4201,7 +4257,7 @@ main(int argc, char *argv[])
 
 			if (cfg.format_mode == 0) {
 				// --------------------------------------------------------------------------------
-			// printShort() なら DT_XXX で十分
+				// printShort() なら DT_XXX で十分
 				fnamelist[j].kind[1] = '\0';
 				fnamelist[j].mode[0] = '\0';
 				fnamelist[j].mode[1] = '\0';
@@ -4946,11 +5002,6 @@ main(int argc, char *argv[])
 	// 表示終了後に free
 	debug printf("----------\n");
 	freeDENT(dent, dirarg);
-
-	// --------------------------------------------------------------------------------
-#ifdef DEBUG
-	debug_showArgvswitch(cfg);
-#endif
 
 	// --------------------------------------------------------------------------------
 	// 標準関数のカウント数の表示
