@@ -3,6 +3,7 @@
 [English README](README_english.md) | [日本語 README](README.md) 
 
 [![CI](https://github.com/zunyon/rls/actions/workflows/makefile.yml/badge.svg)](https://github.com/zunyon/rls/actions/workflows/makefile.yml)
+[![View Code Wiki](https://assets.codewiki.google/readme-badge/static.svg)](https://codewiki.google/github.com/zunyon/rls?utm_source=badge&utm_medium=github&utm_campaign=github.com/zunyon/rls)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/zunyon/rls)
 
 rls is a file listing command-line tool with a different design philosophy from ls.<br>
@@ -339,3 +340,8 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - chg `countMatchedString()` の呼び出しを変更
 - chg strncpy() から snprintf() に変更
 - fix `scandirStdin()` の行の扱い修正
+- add `showSetting()` の追加
+- chg `debug_showArgvswitch()` から showArgvswitch() に名称変更
+- fix `initAlist()` --color= 処理の continue 抜け修正
+- fix `--` 時の lstat 処理抜け修正
+- fix `matchPercent()` `-- -e` 時の別ディレクトリの同名ファイルに対応

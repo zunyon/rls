@@ -33,14 +33,14 @@
 #define INCDATE
 #define BYEAR "2026"
 #define BDATE "08/13"
-#define BTIME "06:39:59"
+#define BTIME "17:22:29"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 08/13 06:39"
+// my-last-update-time "2026, 08/13 16:49"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1594,13 +1594,14 @@ uniqueCheckFirstWord(struct FNAME *p, int j, int len, struct DLIST *duplist)
 
 // do_emacs で使用
 // p2 に対して、どれぐらいのマッチング率かを返す
+// -- の時は、別ディレクトリで同名ファイルがありうる
 float
 matchPercent(struct FNAME p1, struct FNAME p2)
 {
 	int i = 0;
 
 	// 二つの文字列を比較
-	while (p1.name[i] == p2.name[i]) {
+	while (i<p1.length && 1<p2.length && p1.name[i] == p2.name[i]) {
 		i++;
 	}
 
@@ -4193,6 +4194,7 @@ main(int argc, char *argv[])
 					strcpy(dirarglist[i], fnamelist[j].path);
 
 					fnamelist[j].name = str +1;
+					len--;
 					fnamelist[j].length = len;
 					for (int k=0; k<len; k++) {
 						fnamelist[j].lowername[k] = tolower(fnamelist[j].name[k]);

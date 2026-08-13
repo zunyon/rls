@@ -3,6 +3,7 @@
 [English README](README_english.md) | [日本語 README](README.md) 
 
 [![CI](https://github.com/zunyon/rls/actions/workflows/makefile.yml/badge.svg)](https://github.com/zunyon/rls/actions/workflows/makefile.yml)
+[![View Code Wiki](https://assets.codewiki.google/readme-badge/static.svg)](https://codewiki.google/github.com/zunyon/rls?utm_source=badge&utm_medium=github&utm_campaign=github.com/zunyon/rls)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/zunyon/rls)
 
 rls is a file listing command-line tool with a different design philosophy from ls.<br>
