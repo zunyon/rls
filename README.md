@@ -345,3 +345,7 @@ rls.fish, countfunction.c, countfunction.h などが含まれています。
 - fix `initAlist()` --color= 処理の continue 抜け修正
 - fix `--` 時の lstat 処理抜け修正
 - fix `matchPercent()` `-- -e` 時の別ディレクトリの同名ファイルに対応
+- add `initArray()`, `showArray()`, `searchArray()`, `freeArray()`, `addArray()` の追加，mode での利用
+- fix `matchPercent()` の条件修正
+- chg `main()` の format_mode, format_owner, format_group の扱い変更
+- chg `makeMode()` の呼び出し位置変更

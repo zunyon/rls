@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "08/13"
-#define BTIME "17:22:29"
+#define BDATE "09/01"
+#define BTIME "20:08:31"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 08/13 16:49"
+// my-last-update-time "2026, 09/01 20:05"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -85,9 +85,9 @@
 
 // ================================================================================
 #define FNAME_LENGTH NAME_MAX +1		// ファイル/ディレクトリ名
-#define DATALEN 32						// mode, date, owner, group など
+#define DATALEN 32						// inode, nlink, size など
 #define UNIQUE_LENGTH 32				// unique かどうか、最長連続 32 文字までカウント
-#define MESSAGELEN 64
+#define MESSAGELEN 64					// 文字列/文章などは 64 文字でカウント
 
 #define ESCAPECHARACTER " ~#()\\$&"		// 表示時に \ でエスケープする文字、printUnique(), printLength: で共通
 
@@ -509,7 +509,7 @@ struct FNAME {
 		char inode[DATALEN];				// inode
 		char inodec[DATALEN];				// inode の文字列、comma 表記
 		char nlink[DATALEN];				// hard links
-		char mode[11];						// mode bits
+		char *mode;							// mode bits
 		char *owner;						// owner
 		char *group;						// group
 		char size[24];						// size の文字列
@@ -664,7 +664,130 @@ struct ALIST {
 };
 
 
-// --------------------------------------------------------------------------------
+// ================================================================================
+// mode, st_uid, st_gid の共有配列
+struct ARRAY {
+	long int key;
+	char *value;
+	int length;
+};
+
+
+struct ARRAY *
+initArray(int n, int length)
+{
+	struct ARRAY *tbl = malloc(sizeof(struct ARRAY) * n);
+	if (tbl == NULL) {
+		exit(EXIT_FAILURE);
+		return NULL;
+	}
+
+// 	memset(tbl, 0, sizeof(struct ARRAY) * n);
+	for (int i=0; i<n; i++) {
+		tbl[i].value = malloc(sizeof(char) * length);
+		if (tbl[i].value == NULL) {
+			for (int j=0; j<i; j++) {
+				free(tbl[j].value);
+			}
+			free(tbl);
+			exit(EXIT_FAILURE);
+			return NULL;
+		}
+		tbl[i].key = -1;
+		tbl[i].value[0] = '\0';
+		tbl[i].length = 0;
+	}
+
+	return tbl;
+}
+
+
+// #ifdef DEBUG
+void
+showArray(struct ARRAY htable[], int last)
+{
+	printf("last:%d\n", last);
+
+	for (int i=0; i<last; i++) {
+		printf(" %6ld: %s\n", htable[i].key, htable[i].value);
+	}
+}
+// #endif
+
+
+int
+searchArray(struct ARRAY htable[], int last, long int key)
+{
+	for (int i=0; i<last; i++) {
+		if (htable[i].key == key) {
+// 			printf("searchArray key:%d, last:%d, val:%s\n", key, last, htable[i].value);
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+
+void
+freeArray(struct ARRAY htable[], int all)
+{
+	for (int i=0; i<all; i++) {
+		free(htable[i].value);
+	}
+	free(htable);
+}
+
+
+int
+addArray(struct ARRAY **atable, int *last, int *n, int length, long int key, char value[])
+{
+// 	printf("addArray *last:%d, key:%ld, value:[%s]\n", *last, key, value);
+
+	// 拡張が必要
+	if (*last == *n) {
+		int newn = *n * 2;
+		struct ARRAY *tbl = realloc(*atable, sizeof(struct ARRAY) * newn);
+		if (tbl == NULL) {
+			fprintf(stderr, "addArray: You have No Memory. realloc()\n");
+			freeArray(*atable, *n);
+			exit(EXIT_FAILURE);
+		}
+
+// 		memset(&tbl[*n], 0, sizeof(struct ARRAY) * (*n));
+		for (int i = *last; i<newn; i++) {
+			tbl[i].value = malloc(sizeof(char) * length);
+			if (tbl[i].value == NULL) {
+				fprintf(stderr, "addArray: You have No Memory. malloc()\n");
+				for (int j=0; j<i; j++) {
+					free(tbl[j].value);
+				}
+				free(tbl);
+				exit(EXIT_FAILURE);
+			}
+			tbl[i].key = -1;
+			tbl[i].value[0] = '\0';
+			tbl[i].length = 0;
+		}
+		*atable = tbl;
+		*n = newn;
+	}
+
+	(*atable)[*last].key = key;
+	strcpy((*atable)[*last].value, value);
+	(*atable)[*last].length = strlen(value);
+	(*last)++;
+
+	return *last -1;
+}
+
+
+// ================================================================================
+int mlast = 0;
+// int mgroups = 4;
+int mgroups = 16;
+struct ARRAY *mtable;
+
 void
 makeMode(struct FNAME *p, struct ALIST cfg)
 {
@@ -675,8 +798,8 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 		case S_IFDIR:  c = 'd'; p->color = dir;    p->kind[0] = '/'; break;		// dir
 		case S_IFBLK:  c = 'b'; p->color = device;                   break;		// block device      /dev/
 		case S_IFCHR:  c = 'c'; p->color = device;                   break;		// character device  /dev/
-		case S_IFIFO:  c = '|'; p->color = fifo;   p->kind[0] = '|'; break;		// FIFO/pipe         /tmp/fish.xxx/
-		case S_IFSOCK: c = 's'; p->color = sock;   p->kind[0] = '='; break;		// socket            /tmp/tmux-100/
+		case S_IFIFO:  c = '|'; p->color = fifo;   p->kind[0] = '|'; break;		// FIFO/pipe         mkfifo で
+		case S_IFSOCK: c = 's'; p->color = sock;   p->kind[0] = '='; break;		// socket            /tmp/tmux-1000/
 		case S_IFLNK: {															// symlink
 			c = 'l'; p->kind[0] = '@';
 			if (cfg.format_link) {
@@ -712,35 +835,44 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 	}
 
 	// --------------------------------------------------------------------------------
-	const char *modetxt[] = {
-		"---",
-		"--x",
-		"-w-",
-		"-wx",
-		"r--",
-		"r-x",
-		"rw-",
-		"rwx"
-	};
+	int ret = searchArray(mtable, mlast, st_mode);
+	if (ret == -1) {
+		const char *modetxt[] = {
+			"---",
+			"--x",
+			"-w-",
+			"-wx",
+			"r--",
+			"r-x",
+			"rw-",
+			"rwx"
+		};
 
-	sprintf(p->mode, "%c%s%s%s",
-			c,
-			modetxt[(st_mode & 0700) >> 6],
-			modetxt[(st_mode & 0070) >> 3],
-			modetxt[ st_mode & 0007      ]);
+		char tmpmode[24];
+		sprintf(tmpmode, "%c%s%s%s",
+				c,
+				modetxt[(st_mode & 0700) >> 6],
+				modetxt[(st_mode & 0070) >> 3],
+				modetxt[ st_mode & 0007      ]);
 
-	// --------------------------------------------------------------------------------
-	// setuid, setgid, sticky bit の対応
-	// /user/include/linux/stat.h
-	if (st_mode & S_ISUID) {
-		p->mode[3] = (p->mode[3] == 'x') ? 's' : 'S';		// /bin/umount
+		// --------------------------------------------------------------------------------
+		// setuid, setgid, sticky bit の対応
+		// /user/include/linux/stat.h
+		if (st_mode & S_ISUID) {
+			tmpmode[3] = (tmpmode[3] == 'x') ? 's' : 'S';		// /bin/umount
+		}
+		if (st_mode & S_ISGID) {
+			tmpmode[6] = (tmpmode[6] == 'x') ? 's' : 'S';		// /bin/write.ul
+		}
+		if (st_mode & S_ISVTX) {
+			tmpmode[9] = (tmpmode[9] == 'x') ? 't' : 'T';		// /tmp/
+		}
+// 		printf("add:%s, %u, last:%d\n", tmpmode, st_mode, mlast);
+		ret = addArray(&mtable, &mlast, &mgroups, 16, st_mode, tmpmode);
+// 		showArray(mtable, mlast);
 	}
-	if (st_mode & S_ISGID) {
-		p->mode[6] = (p->mode[6] == 'x') ? 's' : 'S';		// /bin/write.ul
-	}
-	if (st_mode & S_ISVTX) {
-		p->mode[9] = (p->mode[9] == 'x') ? 't' : 'T';		// /tmp/
-	}
+	p->mode = mtable[ret].value;
+	p->model = mtable[ret].length;
 }
 
 
@@ -1162,10 +1294,6 @@ printKind(struct FNAME p, const char *str, struct ALIST cfg)
 // ================================================================================
 // ファイル単位で管理
 
-// owner, group の共通管理
-char defstr[1] = "";
-char deferr[] = "-";
-
 
 void
 addFNamelist(struct FNAME *p, char *name)
@@ -1179,8 +1307,7 @@ addFNamelist(struct FNAME *p, char *name)
 	p->jot[0] = '\0';
 	p->date_f = 0;
 
-	p->owner = defstr;
-	p->group = defstr;
+	p->model = 0;
 	p->size[0] = '\0';
 	p->nlink[0] = '\0';
 	p->inode[0] = '\0';
@@ -1601,7 +1728,7 @@ matchPercent(struct FNAME p1, struct FNAME p2)
 	int i = 0;
 
 	// 二つの文字列を比較
-	while (i<p1.length && 1<p2.length && p1.name[i] == p2.name[i]) {
+	while (i<p1.length && i<p2.length && p1.name[i] == p2.name[i]) {
 		i++;
 	}
 
@@ -1644,8 +1771,9 @@ wcStrlen(char *name)
 
 // --------------------------------------------------------------------------------
 // 表示する -f 情報の中から、該当文字列を探す
-// -p は部分一致が良いし、-J (x) は完全一致が良い（下記のように h と sh を分ける場合など）
+// -p は部分一致、-J (x) は完全一致（下記のように h と sh を分ける場合など）
 // ./a.out -alr -fmogcdxjNkLE -JxSCRIPT=sh:xSRC=c,h
+// func: paint_string の時だけ、strcasestr 他は strstr
 int
 pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const char *, const char *))
 {
@@ -2141,6 +2269,7 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 			  // 表示しない場合あり
 			  case 'l': case 'L':
 				if (data[i].info[j][0] == '\0') {
+					// L が無くて、E の時、空白が 2 マス続く
 					if (haveAfterdataStr[j] == 0) {
 						break;
 					}
@@ -2204,7 +2333,6 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 			}
 		}
 
-		// --------------------------------------------------------------------------------
 		printEscapeColor(reset);
 		printf("\n");
 	}
@@ -2293,7 +2421,7 @@ printJSON(struct FNAME *data, int n, struct ALIST cfg, int dummy[])
 			printf(" : ");
 
 			// データがあるものはそのまま、無いものは null を表示
-			// !! 表示する文字が " か \ の時、printUnique() みたいに \ のエスケープシーケンスが必要
+			// 表示する文字が " か \ の時、printUnique() みたいに \ のエスケープシーケンスが必要
 			if (data[i].info[j] != NULL) {
 				if (data[i].info[j][0] != '\0') {
 					printf("\"");
@@ -2379,6 +2507,57 @@ printAggregate(struct FNAME *fnamelist, int nth, int aggregate_length)
 
 
 // ================================================================================
+#ifdef DEBUG
+#define showSwitch(name) if (cfg.name) printf(" %s: %d\n", #name, cfg.name)
+// 引数の全スイッチを表示
+void
+showArgvswitch(struct ALIST cfg)
+{
+	printStr(label, "Switch:\n");
+	showSwitch(show_simple);
+	showSwitch(show_long);
+	showSwitch(format_list);
+#ifdef MD5
+	showSwitch(format_md5);
+#endif
+#ifdef GIT
+	showSwitch(format_git);
+#endif
+	showSwitch(format_mode);
+	showSwitch(format_unique);
+	showSwitch(format_extension);
+	showSwitch(format_jot);
+
+	showSwitch(deep_unique);
+	showSwitch(beginning_word);
+	showSwitch(do_emacs);
+	showSwitch(paint_string);
+
+	showSwitch(do_uniquecheck);
+	showSwitch(show_dotfile);
+	showSwitch(only_directory);
+	showSwitch(only_file);
+	showSwitch(only_paint_string);
+
+	showSwitch(no_color);
+	showSwitch(argv_color);
+
+	showSwitch(no_sort);
+
+	showSwitch(readable_size);
+	showSwitch(aggregate_results);
+	showSwitch(aggregate_length);
+
+	showSwitch(show_help);
+	showSwitch(show_version);
+	showSwitch(show_setting);
+	showSwitch(output_escape);
+	showSwitch(from_stdin);
+}
+#endif
+
+
+// --------------------------------------------------------------------------------
 void
 showColorUsage(void)
 {
@@ -2636,10 +2815,10 @@ showSetting(int argc, char **argv, struct ALIST cfg)
 	}
 	printf("\n");
 
-#ifdef DEBUG
-	showArgvswitch(cfg);
-	printf("\n");
-#endif
+// #ifdef DEBUG
+// 	showArgvswitch(cfg);
+// 	printf("\n");
+// #endif
 
 	showColorUsage();
 }
@@ -2676,57 +2855,6 @@ getTerminalSize(unsigned short int *x, unsigned short int *y)
 
 // ================================================================================
 // 複数のディレクトリ/ファイル引数対応の構造体、1 引数毎に管理する
-#ifdef DEBUG
-#define showSwitch(name) if (cfg.name) printf(" %s: %d\n", #name, cfg.name)
-// 引数の全スイッチを表示
-void
-showArgvswitch(struct ALIST cfg)
-{
-	printStr(label, "Switch:\n");
-	showSwitch(show_simple);
-	showSwitch(show_long);
-	showSwitch(format_list);
-#ifdef MD5
-	showSwitch(format_md5);
-#endif
-#ifdef GIT
-	showSwitch(format_git);
-#endif
-	showSwitch(format_mode);
-	showSwitch(format_unique);
-	showSwitch(format_extension);
-	showSwitch(format_jot);
-
-	showSwitch(deep_unique);
-	showSwitch(beginning_word);
-	showSwitch(do_emacs);
-	showSwitch(paint_string);
-
-	showSwitch(do_uniquecheck);
-	showSwitch(show_dotfile);
-	showSwitch(only_directory);
-	showSwitch(only_file);
-	showSwitch(only_paint_string);
-
-	showSwitch(no_color);
-	showSwitch(argv_color);
-
-	showSwitch(no_sort);
-
-	showSwitch(readable_size);
-	showSwitch(aggregate_results);
-	showSwitch(aggregate_length);
-
-	showSwitch(show_help);
-	showSwitch(show_version);
-	showSwitch(show_setting);
-	showSwitch(output_escape);
-	showSwitch(from_stdin);
-}
-#endif
-
-
-// ================================================================================
 void
 mySwap(int *a, int *b)
 {
@@ -2815,14 +2943,12 @@ rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 void
 calcFnameLength(struct FNAME *p)
 {
-	// !! 特殊計測
-// 	p->length = strlen(p->name);
+// 	p->length = strlen(p->name);	// addFNamelist() で計算済み
 
 	// 固定長の項目も含め、lstat() が失敗した時は "-" になる
 	p->inodel  = strlen(p->inode);
 	p->inodecl = strlen(p->inodec);
 	p->nlinkl  = strlen(p->nlink);
-	p->model   = strlen(p->mode);	// 固定長
 	p->sizel   = strlen(p->size);
 	p->sizecl  = strlen(p->sizec);
 	p->countl  = strlen(p->count);
@@ -3292,12 +3418,12 @@ progressAlist(struct ALIST *cfg)
 #ifdef GIT
 		cfg->format_git = 0;
 #endif
-		cfg->format_mode = 0;
+// 		cfg->format_mode = 0;
 		cfg->format_size = 0;
 // 		cfg->format_date = 0;
 		cfg->format_unique = 0;
-		cfg->format_owner = 0;
-		cfg->format_group = 0;
+// 		cfg->format_owner = 0;
+// 		cfg->format_group = 0;
 		cfg->format_extension = 0;
 		cfg->format_jot = 0;
 	}
@@ -3666,7 +3792,7 @@ scandirStdin(struct dirent ***namelist)
 	int nth = 512;
 	int count = 0;
 
-	struct dirent **list = malloc(nth * sizeof(struct dirent *));
+	struct dirent **list = malloc(sizeof(struct dirent *) * nth);
 	if (list == NULL) {
 		return -1;
 	}
@@ -3729,64 +3855,12 @@ scandirStdin(struct dirent ***namelist)
 
 
 // ================================================================================
-// st_uid, st_gid のキャッシュ
-struct ARRAY {
-	int key;
-	char value[DATALEN];
-	int length;
-};
-
-
-#ifdef DEBUG
-void
-showArray(struct ARRAY htable[], int last)
-{
-	for (int i=0; i<last; i++) {
-		printf(" %6d: %s\n", htable[i].key, htable[i].value);
-	}
-}
-#endif
-
-
-int
-searchArray(struct ARRAY htable[], int last, int key)
-{
-	for (int i=0; i<last; i++) {
-		if (htable[i].key == key) {
-// 			printf("searchArray key:%d, last:%d, val:%s\n", key, last, htable[i].value);
-			return i;
-		}
-
-		if (htable[i].key == -1) {
-			return -1;
-		}
-	}
-
-	return -1;
-}
-
-
-int
-addArray(struct ARRAY atable[], int *last, int key, char value[])
-{
-// 	printf("addArray *last:%d, key:%d, vl:%s\n", *last, key, value);
-
-	atable[*last].key = key;
-	strcpy(atable[*last].value, value);
-	atable[*last].length = strlen(value);
-	(*last)++;
-
-	return *last -1;
-}
-
-
-// --------------------------------------------------------------------------------
 int
 countOgroups(void)
 {
 	int ogroups = 0;
 
-	setpwent();					// valgrid で引っかかる
+	setpwent();					// valgrind で引っかかる
 	while (getpwent()) {
 		ogroups++;
 	}
@@ -4111,6 +4185,33 @@ main(int argc, char *argv[])
 	}
 
 	// --------------------------------------------------------------------------------
+	// mode のキャッシュ
+	mlast = 0;
+	mtable = initArray(mgroups, 16);
+	addArray(&mtable, &mlast, &mgroups, 16, -2, "-");
+
+	// --------------------------------------------------------------------------------
+	// owner, group のキャッシュ
+	int olast = 0;
+	int glast = 0;
+
+// 	int ogroups = 4;
+// 	int ggroups = 4;
+	int ogroups = 16;
+	int ggroups = 16;
+
+	// -static の時、-fmcdNKLE と、og を飛ばせば動く
+	// +1 は "-" の分
+// 	if (cfg.format_owner) { ogroups = countOgroups() +1;}
+// 	if (cfg.format_group) { ggroups = countGgroups() +1;}
+
+	struct ARRAY *otable = initArray(ogroups, 32);
+	struct ARRAY *gtable = initArray(ggroups, 32);
+	// 0 が root で、-1 が失敗だから、それ以外の数値
+	addArray(&otable, &olast, &ogroups, 32, -2, "-");
+	addArray(&gtable, &glast, &ggroups, 32, -2, "-");
+
+	// --------------------------------------------------------------------------------
 	// データの取得、リストへの登録
 	for (int i=0; i<dirarg; i++) {
 		struct DENT *p;
@@ -4141,6 +4242,7 @@ main(int argc, char *argv[])
 		// --------------------------------------------------------------------------------
 		// 配列で fnamelist の確保
 		p->fnamelist = (struct FNAME *) malloc(sizeof(struct FNAME) * p->nth);
+
 		if (p->fnamelist == NULL) {
 			perror("malloc");
 			fprintf(stderr, " =>size:%zu\n", sizeof(struct FNAME) * p->nth);
@@ -4150,6 +4252,7 @@ main(int argc, char *argv[])
 			}
 			exit(EXIT_FAILURE);
 		}
+		memset(p->fnamelist, 0, sizeof(struct FNAME) * p->nth);
 
 		struct FNAME *fnamelist;
 		fnamelist = p->fnamelist;
@@ -4213,10 +4316,10 @@ main(int argc, char *argv[])
 				continue;
 			}
 
-			if (cfg.format_size || cfg.format_date || cfg.format_mode || cfg.from_stdin) {
+			if (cfg.format_size || cfg.format_date || cfg.format_mode || cfg.format_owner || cfg.format_group || cfg.from_stdin) {
 				fnamelist[j].isstat = (lstat(direntlist[j]->d_name, &fnamelist[j].sb) == 0) ? 1 : -1;
 				if (fnamelist[j].isstat == -1) {
-					// lstat() が失敗した時の処理 (-l /mnt/c/)
+					// lstat() が失敗した時の処理
 					// 失敗のエラーメッセージを errnostr に格納
 					strcpy(fnamelist[j].errnostr, strerror(errno));
 					fnamelist[j].color = error;
@@ -4225,11 +4328,13 @@ main(int argc, char *argv[])
 						strcpy(fnamelist[j].inode,  "-");
 						strcpy(fnamelist[j].inodec, "-");
 						strcpy(fnamelist[j].nlink,  "-");
-						strcpy(fnamelist[j].mode,   "-");
 
-						fnamelist[j].owner = deferr;
-						fnamelist[j].group = deferr;
+						fnamelist[j].mode = mtable[searchArray(mtable, mlast, -2)].value;
+						fnamelist[j].model = 1;
+
+						fnamelist[j].owner = otable[searchArray(otable, olast, -2)].value;
 						fnamelist[j].ownerl = 1;
+						fnamelist[j].group = gtable[searchArray(gtable, glast, -2)].value;
 						fnamelist[j].groupl = 1;
 
 						strcpy(fnamelist[j].size,   "-");
@@ -4251,18 +4356,58 @@ main(int argc, char *argv[])
 #endif
 						fnamelist[j].showlist = SHOW_LONG;
 					}
-					continue;
 				}
-				// only_directory の IS_DIRECTORY() で使用
-				makeMode(&fnamelist[j], cfg);
 			}
 
-			if (cfg.format_mode == 0) {
+		}
+
+		// --------------------------------------------------------------------------------
+		// cwd ディレクトリに戻る
+		if (chdir(cwd)) {
+// 			perror("chdir");
+			fprintf(stderr, "chdir: %s [%s]\n", strerror(errno), cwd);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	// --------------------------------------------------------------------------------
+	// makeMode()
+	for (int i=0; i<dirarg; i++) {
+		struct DENT *p;
+		p = &dent[i];
+
+		// 多分パス、移動に失敗したら次のパス
+		if (chdir(dirarglist[i]) != 0) {
+// 			perror("chdir");
+			fprintf(stderr, "chdir: %s [%s]\n", strerror(errno), dirarglist[i]);
+			continue;
+		}
+
+		// --------------------------------------------------------------------------------
+		struct FNAME *fnamelist;
+		fnamelist = p->fnamelist;
+
+		struct dirent **direntlist;
+		direntlist = p->direntlist;
+
+		// fnamelist に登録
+		for (int j=0; j<p->nth; j++) {
+			// -s はファイル名しか使用しない
+			if (cfg.show_simple) {
+				continue;
+			}
+
+			if (fnamelist[j].isstat == 1) {
+				// only_directory の IS_DIRECTORY() で使用
+				makeMode(&fnamelist[j], cfg);
+			} else {
 				// --------------------------------------------------------------------------------
 				// printShort() なら DT_XXX で十分
 				fnamelist[j].kind[1] = '\0';
-				fnamelist[j].mode[0] = '\0';
-				fnamelist[j].mode[1] = '\0';
+				// 個別に編集するからユニークな数値に
+				int ret = addArray(&mtable, &mlast, &mgroups, 16, (i+1) * 100000 + j, "-");
+				fnamelist[j].mode = mtable[ret].value;
+				fnamelist[j].model = mtable[ret].length;
 
 				switch (direntlist[j]->d_type) {
 				  // DT_REG には Permission denied のファイルも含まれる
@@ -4292,7 +4437,7 @@ main(int argc, char *argv[])
 							  fnamelist[j].kind[0] = '/';
 						  }
 					  }
-				  } break;
+				  }
 				}
 			}
 		}
@@ -4321,33 +4466,6 @@ main(int argc, char *argv[])
 	// fnamelist の処理、uniqueCheck() 対象のデータの選別
 	// sourcelist: unique check の対象にするか
 	// showlist:   printShort(), printLong() で表示する対象
-
-	// --------------------------------------------------------------------------------
-	// owner, group のキャッシュ
-	int olast = 0;
-	int glast = 0;
-
-	int ogroups = 10;
-	int ggroups = 10;
-
-	// -static の時、-fmcdNKLE と、og を飛ばせば動く
-	if (cfg.format_owner) { ogroups = countOgroups(); }
-	if (cfg.format_group) { ggroups = countGgroups(); }
-
-	struct ARRAY otable[ogroups];
-	struct ARRAY gtable[ggroups];
-
-	for (int i=0; i<ogroups; i++) {
-		otable[i].key = -1;
-		otable[i].value[0] = '\0';
-		otable[i].length = 0;
-	}
-
-	for (int i=0; i<ggroups; i++) {
-		gtable[i].key = -1;
-		gtable[i].value[0] = '\0';
-		gtable[i].length = 0;
-	}
 
 	// --------------------------------------------------------------------------------
 	for (int i=0; i<dirarg; i++) {
@@ -4502,6 +4620,8 @@ main(int argc, char *argv[])
 					continue;
 				}
 				if (fnamelist[j].isstat != 1) {
+					fnamelist[j].owner = otable[searchArray(otable, olast, -2)].value;
+					fnamelist[j].ownerl = 1;
 					continue;
 				}
 
@@ -4511,12 +4631,12 @@ main(int argc, char *argv[])
 					if ((pw = getpwuid(fnamelist[j].sb.st_uid)) == NULL) {
 						perror("getpwuid");
 						fprintf(stderr, " =>uid: %s\n", fnamelist[j].name);
-						ret = addArray(otable, &olast, fnamelist[j].sb.st_uid, "-");
+						ret = searchArray(otable, olast, -2);
 						fnamelist[j].owner = otable[ret].value;
 						fnamelist[j].ownerl = otable[ret].length;
 						continue;
 					}
-					ret = addArray(otable, &olast, fnamelist[j].sb.st_uid, pw->pw_name);
+					ret = addArray(&otable, &olast, &ogroups, 32, fnamelist[j].sb.st_uid, pw->pw_name);
 				}
 				fnamelist[j].owner = otable[ret].value;
 				fnamelist[j].ownerl = otable[ret].length;
@@ -4529,6 +4649,8 @@ main(int argc, char *argv[])
 					continue;
 				}
 				if (fnamelist[j].isstat != 1) {
+					fnamelist[j].group = gtable[searchArray(gtable, glast, -2)].value;
+					fnamelist[j].groupl = 1;
 					continue;
 				}
 
@@ -4538,12 +4660,12 @@ main(int argc, char *argv[])
 					if ((gr = getgrgid(fnamelist[j].sb.st_gid)) == NULL) {
 						perror("getgrgid");
 						fprintf(stderr, " =>gid: %s\n", fnamelist[j].name);
-						ret = addArray(gtable, &glast, fnamelist[j].sb.st_gid, "-");
+						ret = searchArray(gtable, glast, -2);
 						fnamelist[j].group = gtable[ret].value;
 						fnamelist[j].groupl = gtable[ret].length;
 						continue;
 					}
-					ret = addArray(gtable, &glast, fnamelist[j].sb.st_gid, gr->gr_name);
+					ret = addArray(&gtable, &glast, &ggroups, 32, fnamelist[j].sb.st_gid, gr->gr_name);
 				}
 				fnamelist[j].group = gtable[ret].value;
 				fnamelist[j].groupl = gtable[ret].length;
@@ -5004,6 +5126,16 @@ main(int argc, char *argv[])
 	// 表示終了後に free
 	debug printf("----------\n");
 	freeDENT(dent, dirarg);
+
+#ifdef DEBUG
+	showArray(otable, olast);
+	showArray(gtable, glast);
+	showArray(mtable, mlast);
+#endif
+
+	freeArray(mtable, mgroups);
+	freeArray(otable, ogroups);
+	freeArray(gtable, ggroups);
 
 	// --------------------------------------------------------------------------------
 	// 標準関数のカウント数の表示
