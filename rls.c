@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/01"
-#define BTIME "20:08:31"
+#define BDATE "09/06"
+#define BTIME "14:15:17"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/01 20:05"
+// my-last-update-time "2026, 09/06 08:49"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -907,11 +907,11 @@ makeDate(struct FNAME *p, time_t lt)
 	// readable time
 	// 30 日は 4week, 31 日は 1month
 	do {
-// 		if (dtime < 30) {          strcpy( p->timereadable,    "just now"); break; }
+/*		if (dtime < 30) {          strcpy( p->timereadable,    "just now"); break; } */
 		if (dtime < 60) {          sprintf(p->timereadable,   "%dsec ago", (int) dtime); break; }
 		if (dtime < 3600) {        sprintf(p->timereadable,   "%dmin ago", (int) dtime / 60); break; }
 		if (dtime < 3600*24) {     sprintf(p->timereadable,  "%dhour ago", (int) dtime / 3600); break; }
-// 		if (dtime < 3600*24*2) {   strcpy( p->timereadable,   "yesterday"); break; }
+/*		if (dtime < 3600*24*2) {   strcpy( p->timereadable,   "yesterday"); break; } */
 		if (dtime < 3600*24*7) {   sprintf(p->timereadable,   "%dday ago", (int) dtime / (3600*24)); break; }
 		if (dtime < 3600*24*31) {  sprintf(p->timereadable,  "%dweek ago", (int) dtime / (3600*24*7)); break; }
 		if (dtime < 3600*24*365) { sprintf(p->timereadable, "%dmonth ago", (int) dtime / (3600*24*31)); break; }
@@ -1308,6 +1308,8 @@ addFNamelist(struct FNAME *p, char *name)
 	p->date_f = 0;
 
 	p->model = 0;
+	p->ownerl = 0;
+	p->groupl = 0;
 	p->size[0] = '\0';
 	p->nlink[0] = '\0';
 	p->inode[0] = '\0';
@@ -4565,6 +4567,9 @@ main(int argc, char *argv[])
 
 		// --------------------------------------------------------------------------------
 		if (cfg.format_size) {
+#ifdef OMP
+#pragma omp parallel for num_threads( (p->nth > 512) ? 32 : 3)
+#endif
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
