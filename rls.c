@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/06"
-#define BTIME "14:15:17"
+#define BDATE "09/07"
+#define BTIME "21:21:11"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/06 08:49"
+// my-last-update-time "2026, 09/07 21:13"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -997,7 +997,10 @@ countEntry(char *dname, char *path)
 	if (dname[0] ==  '/') {
 		tmppath = dname;
 	} else {
-		sprintf(fullpath, "%s%s/", path, dname);
+		int n = sprintf(fullpath, "%s%s/", path, dname);
+		if (n < 0 || (size_t) n >= sizeof(fullpath)) {
+			return -1;
+		}
 		tmppath = fullpath;
 	}
 
@@ -1698,6 +1701,10 @@ uniqueCheck(struct FNAME *p, int j, int len, struct DLIST *duplist)
 void
 uniqueCheckFirstWord(struct FNAME *p, int j, int len, struct DLIST *duplist)
 {
+	if (p[j].length < len) {
+		return;
+	}
+
 	if (p[j].length == len) {
 		if (searchDuplist(duplist, p[j].lowername, len, -1) == 0) {
 			addDuplist(duplist, p[j].lowername, len, -1);
@@ -2945,8 +2952,6 @@ rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 void
 calcFnameLength(struct FNAME *p)
 {
-// 	p->length = strlen(p->name);	// addFNamelist() で計算済み
-
 	// 固定長の項目も含め、lstat() が失敗した時は "-" になる
 	p->inodel  = strlen(p->inode);
 	p->inodecl = strlen(p->inodec);
@@ -2985,12 +2990,12 @@ freeDENT(struct DENT *dent, int dirarg)
 	debug printStr(label, "freeDENT:\n");
 
 	for (int i=0; i<dirarg; i++) {
-		if (dent[i].fnamelist) {
-			if (dent[i].nth) {
+// 		if (dent[i].fnamelist) {
+// 			if (dent[i].nth) {
 				free(dent[i].fnamelist);
 // 				dent[i].fnamelist = NULL;
-			}
-		}
+// 			}
+// 		}
 
 		if (dent[i].direntlist) {
 			for (int j=0; j<dent[i].nth; j++) {
@@ -3011,14 +3016,9 @@ freeDENT(struct DENT *dent, int dirarg)
 
 // ================================================================================
 int
-initAlist(int argc, char *argv_[], struct ALIST *cfg, int argverr[])
+initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 {
 	debug printStr(label, "initAlist:\n");
-
-	char argv[argc][FNAME_LENGTH +1];
-	for (int i=0; i<argc; i++) {
-		snprintf(argv[i], sizeof(argv[i]), "%s", argv_[i]);
-	}
 
 	int errc = 0;
 
@@ -3459,11 +3459,16 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		struct FNAME *fnamelist;
 		fnamelist = p->fnamelist;
 
-		struct FNAME *newlist = (struct FNAME *) malloc(sizeof(struct FNAME) * p->nth);
-		if (newlist == NULL) {
-			perror("malloc");
-			fprintf(stderr, " doOUTPUT: You have no memory. %zu\n", sizeof(struct FNAME) * p->nth);
-			exit(EXIT_FAILURE);
+		struct FNAME *newlist;
+		if (p->nth == 0) {
+			newlist = NULL;
+		} else {
+			newlist = (struct FNAME *) malloc(sizeof(struct FNAME) * p->nth);
+			if (newlist == NULL) {
+				perror("malloc");
+				fprintf(stderr, " doOUTPUT: You have no memory. %zu\n", sizeof(struct FNAME) * p->nth);
+				exit(EXIT_FAILURE);
+			}
 		}
 
 		int newnth = 0;
@@ -3804,7 +3809,7 @@ scandirStdin(struct dirent ***namelist)
 			line[nread - 1] = '\0';
 			nread--;
 		}
-		if (nread > 0 && line[nread - 1] == '/') {
+		if (nread > 1 && line[nread - 1] == '/') {		// "/" の時は 1
 			line[nread - 1] = '\0';
 			nread--;
 		}
@@ -4243,18 +4248,21 @@ main(int argc, char *argv[])
 
 		// --------------------------------------------------------------------------------
 		// 配列で fnamelist の確保
-		p->fnamelist = (struct FNAME *) malloc(sizeof(struct FNAME) * p->nth);
-
-		if (p->fnamelist == NULL) {
-			perror("malloc");
-			fprintf(stderr, " =>size:%zu\n", sizeof(struct FNAME) * p->nth);
-			// cwd を試みる
-			if (chdir(cwd)) {
-				printf("chdir: %s [%s]\n", strerror(errno), cwd);
+		if (p->nth == 0) {
+			p->fnamelist = NULL;
+		} else {
+			p->fnamelist = (struct FNAME *) malloc(sizeof(struct FNAME) * p->nth);
+			if (p->fnamelist == NULL) {
+				perror("malloc");
+				fprintf(stderr, " =>size:%zu\n", sizeof(struct FNAME) * p->nth);
+				// cwd を試みる
+				if (chdir(cwd)) {
+					fprintf(stderr, "chdir: %s [%s]\n", strerror(errno), cwd);
+				}
+				exit(EXIT_FAILURE);
 			}
-			exit(EXIT_FAILURE);
+			memset(p->fnamelist, 0, sizeof(struct FNAME) * p->nth);
 		}
-		memset(p->fnamelist, 0, sizeof(struct FNAME) * p->nth);
 
 		struct FNAME *fnamelist;
 		fnamelist = p->fnamelist;
@@ -4753,14 +4761,14 @@ main(int argc, char *argv[])
 						if (token == NULL) {
 // 							printf(" value:%s\n", values);
 							if (pickupString(fnamelist[j], values, chk, strstr) == 1) {
-								strcpy(fnamelist[j].jot, jot);
+								snprintf(fnamelist[j].jot, sizeof(fnamelist[j].jot), "%s", jot);
 							}
 						}
 						// , 対応
 						while (token != NULL) {
 // 							printf(" value:%s\n", token);
 							if (pickupString(fnamelist[j], token, chk, strstr) == 1) {
-								strcpy(fnamelist[j].jot, jot);
+								snprintf(fnamelist[j].jot, sizeof(fnamelist[j].jot), "%s", jot);
 							}
 							token = strtok_r(NULL, ",", &saveptr2);
 						}
