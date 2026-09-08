@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/07"
-#define BTIME "21:21:11"
+#define BDATE "09/08"
+#define BTIME "22:22:53"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/07 21:13"
+// my-last-update-time "2026, 09/08 21:25"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -377,19 +377,17 @@ initColor(char *argcolor)
 	strcpy(masterstr, from);
 	from = masterstr;
 
-	char fmt[strl +1];
-	snprintf(fmt, sizeof(fmt), "%%%d[^=]=%%%ds", strl, strl);
-
 	p = strtok(from, DELIMITER);
 	while (p) {
-		char name[strl +1];
-		char valuechar[strl +1];
-
 		// strchr() の失敗チェックを先に行う
-		if (sscanf(p, fmt, name, valuechar) != 2) {
+		char *eq = strchr(p, '=');
+		if (eq == NULL || eq == p +1 || eq[1] == '\0') {
 			usage++;
 			break;
 		}
+		*eq = '\0';
+		char *name = p;
+		char *valuechar = eq +1;
 
 		debug printf(" name:[%s],\tvalue:[%s],\t%s\n", name, valuechar, p);
 
@@ -672,19 +670,28 @@ struct ARRAY {
 	int length;
 };
 
+#define STRING16 16
+
+struct ARRAYStruct {
+	struct ARRAY *table;
+	int last;
+	int groups;
+	int strlength;
+};
+
 
 struct ARRAY *
-initArray(int n, int length)
+initArray(struct ARRAYStruct arrstruct)
 {
-	struct ARRAY *tbl = malloc(sizeof(struct ARRAY) * n);
+	struct ARRAY *tbl = malloc(sizeof(struct ARRAY) * arrstruct.groups);
 	if (tbl == NULL) {
 		exit(EXIT_FAILURE);
 		return NULL;
 	}
 
-// 	memset(tbl, 0, sizeof(struct ARRAY) * n);
-	for (int i=0; i<n; i++) {
-		tbl[i].value = malloc(sizeof(char) * length);
+// 	memset(tbl, 0, sizeof(struct ARRAY) * arrstruct.groups);
+	for (int i=0; i<arrstruct.groups; i++) {
+		tbl[i].value = malloc(sizeof(char) * arrstruct.strlength);
 		if (tbl[i].value == NULL) {
 			for (int j=0; j<i; j++) {
 				free(tbl[j].value);
@@ -704,22 +711,24 @@ initArray(int n, int length)
 
 // #ifdef DEBUG
 void
-showArray(struct ARRAY htable[], int last)
+showArray(struct ARRAYStruct arrstruct)
 {
-	printf("last:%d\n", last);
+	printf("last:%d\n", arrstruct.last);
 
-	for (int i=0; i<last; i++) {
-		printf(" %6ld: %s\n", htable[i].key, htable[i].value);
+	for (int i=0; i<arrstruct.last; i++) {
+		printf(" %6ld: %s\n", arrstruct.table[i].key, arrstruct.table[i].value);
 	}
 }
 // #endif
 
 
+
+// !! 最新から試した方が速く見つかるかも
 int
-searchArray(struct ARRAY htable[], int last, long int key)
+searchArray(struct ARRAYStruct arrstruct, long int key)
 {
-	for (int i=0; i<last; i++) {
-		if (htable[i].key == key) {
+	for (int i=0; i<arrstruct.last; i++) {
+		if (arrstruct.table[i].key == key) {
 // 			printf("searchArray key:%d, last:%d, val:%s\n", key, last, htable[i].value);
 			return i;
 		}
@@ -730,33 +739,38 @@ searchArray(struct ARRAY htable[], int last, long int key)
 
 
 void
-freeArray(struct ARRAY htable[], int all)
+freeArray(struct ARRAYStruct arrstruct)
 {
-	for (int i=0; i<all; i++) {
-		free(htable[i].value);
+	for (int i=0; i<arrstruct.groups; i++) {
+		free(arrstruct.table[i].value);
 	}
-	free(htable);
+	free(arrstruct.table);
 }
 
 
 int
-addArray(struct ARRAY **atable, int *last, int *n, int length, long int key, char value[])
+addArray(struct ARRAYStruct *arrstruct, long int key, char value[])
 {
 // 	printf("addArray *last:%d, key:%ld, value:[%s]\n", *last, key, value);
 
 	// 拡張が必要
-	if (*last == *n) {
-		int newn = *n * 2;
-		struct ARRAY *tbl = realloc(*atable, sizeof(struct ARRAY) * newn);
+	if (arrstruct->last == arrstruct->groups) {
+		int newn = arrstruct->groups * 2;
+		struct ARRAY *tbl = realloc(arrstruct->table, sizeof(struct ARRAY) * newn);
 		if (tbl == NULL) {
 			fprintf(stderr, "addArray: You have No Memory. realloc()\n");
-			freeArray(*atable, *n);
+			// !!!!
+// 			freeArray(arrstruct->table, *n);
+			for (int i=0; i<arrstruct->groups; i++) {
+				free(tbl[i].value);
+			}
+			free(tbl);
 			exit(EXIT_FAILURE);
 		}
 
 // 		memset(&tbl[*n], 0, sizeof(struct ARRAY) * (*n));
-		for (int i = *last; i<newn; i++) {
-			tbl[i].value = malloc(sizeof(char) * length);
+		for (int i = arrstruct->last; i<newn; i++) {
+			tbl[i].value = malloc(sizeof(char) * arrstruct->strlength);
 			if (tbl[i].value == NULL) {
 				fprintf(stderr, "addArray: You have No Memory. malloc()\n");
 				for (int j=0; j<i; j++) {
@@ -769,24 +783,21 @@ addArray(struct ARRAY **atable, int *last, int *n, int length, long int key, cha
 			tbl[i].value[0] = '\0';
 			tbl[i].length = 0;
 		}
-		*atable = tbl;
-		*n = newn;
+		arrstruct->table = tbl;
+		arrstruct->groups = newn;
 	}
 
-	(*atable)[*last].key = key;
-	strcpy((*atable)[*last].value, value);
-	(*atable)[*last].length = strlen(value);
-	(*last)++;
+	arrstruct->table[arrstruct->last].key = key;
+	strcpy(arrstruct->table[arrstruct->last].value, value);
+	arrstruct->table[arrstruct->last].length = strlen(value);
+	arrstruct->last++;
 
-	return *last -1;
+	return arrstruct->last -1;
 }
 
 
 // ================================================================================
-int mlast = 0;
-// int mgroups = 4;
-int mgroups = 16;
-struct ARRAY *mtable;
+struct ARRAYStruct marray;
 
 void
 makeMode(struct FNAME *p, struct ALIST cfg)
@@ -835,7 +846,7 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 	}
 
 	// --------------------------------------------------------------------------------
-	int ret = searchArray(mtable, mlast, st_mode);
+	int ret = searchArray(marray, st_mode);
 	if (ret == -1) {
 		const char *modetxt[] = {
 			"---",
@@ -868,11 +879,11 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 			tmpmode[9] = (tmpmode[9] == 'x') ? 't' : 'T';		// /tmp/
 		}
 // 		printf("add:%s, %u, last:%d\n", tmpmode, st_mode, mlast);
-		ret = addArray(&mtable, &mlast, &mgroups, 16, st_mode, tmpmode);
+		ret = addArray(&marray, st_mode, tmpmode);
 // 		showArray(mtable, mlast);
 	}
-	p->mode = mtable[ret].value;
-	p->model = mtable[ret].length;
+	p->mode = marray.table[ret].value;
+	p->model = marray.table[ret].length;
 }
 
 
@@ -1681,7 +1692,8 @@ uniqueCheck(struct FNAME *p, int j, int len, struct DLIST *duplist)
 
 		for (int k=0; k<len; k++) {
 			// 漢字が含まれている || '()' だとエスケープできないから飛ばす、tolower() 後の文字列で
-			if (isprint((int) tmp[k]) == 0 || strchr(SKIP_LIST, tmp[k])) {
+			char ch = (unsigned char) tmp[k];
+			if (isprint(ch) == 0 || strchr(SKIP_LIST, ch) != NULL) {
 				brk = 1;
 				addDuplist(duplist, tmp, len, -1);
 				break;
@@ -1716,7 +1728,8 @@ uniqueCheckFirstWord(struct FNAME *p, int j, int len, struct DLIST *duplist)
 
 	for (int k=0; k<len; k++) {
 		// 漢字が含まれている || '()' だとエスケープできないから飛ばす、tolower() 後の文字列で
-		if (isprint((int) tmp[k]) == 0 || strchr(SKIP_LIST, tmp[k])) {
+		char ch = (unsigned char) tmp[k];
+		if (isprint(ch) == 0 || strchr(SKIP_LIST, ch) != NULL) {
 			addDuplist(duplist, tmp, len, -1);
 			return;
 		}
@@ -3351,15 +3364,10 @@ progressAlist(struct ALIST *cfg)
 		char string[strl +1];
 		strcpy(string, cfg->jotString);
 
-		char fmt[strl +1];
-		snprintf(fmt, sizeof(fmt), "%%%d[^=]=%%%ds", strl, strl);
-
 		char *str = strtok(string, DELIMITER);
 		while (str != NULL) {
-			char jot[strl +1];
-			char values[strl +1];
-
-			if (sscanf(str +1, fmt, jot, values) != 2) {
+			char *eq = strchr(str +1, '=');
+			if (eq == NULL || eq == str +1 || eq[1] == '\0') {
 				break;
 			}
 			// -F の sort で行う内容を決定
@@ -3862,6 +3870,7 @@ scandirStdin(struct dirent ***namelist)
 
 
 // ================================================================================
+#if 0
 int
 countOgroups(void)
 {
@@ -3882,6 +3891,7 @@ countGgroups(void)
 {
 	return getgroups(0, NULL);
 }
+#endif
 
 
 // ================================================================================
@@ -4193,30 +4203,44 @@ main(int argc, char *argv[])
 
 	// --------------------------------------------------------------------------------
 	// mode のキャッシュ
-	mlast = 0;
-	mtable = initArray(mgroups, 16);
-	addArray(&mtable, &mlast, &mgroups, 16, -2, "-");
+	marray.last = 0;
+	marray.groups = 16;
+	marray.strlength = STRING16;
+	marray.table = initArray(marray);
+
+	// 0 が root で、-1 が失敗だから、それ以外の数値
+	addArray(&marray, -2, "-");
 
 	// --------------------------------------------------------------------------------
-	// owner, group のキャッシュ
-	int olast = 0;
-	int glast = 0;
-
-// 	int ogroups = 4;
-// 	int ggroups = 4;
-	int ogroups = 16;
-	int ggroups = 16;
-
 	// -static の時、-fmcdNKLE と、og を飛ばせば動く
-	// +1 は "-" の分
-// 	if (cfg.format_owner) { ogroups = countOgroups() +1;}
-// 	if (cfg.format_group) { ggroups = countGgroups() +1;}
+	// owner のキャッシュ
+	struct ARRAYStruct oarray;
 
-	struct ARRAY *otable = initArray(ogroups, 32);
-	struct ARRAY *gtable = initArray(ggroups, 32);
+	oarray.last = 0;
+	oarray.groups = 16;
+	oarray.strlength = LOGIN_NAME_MAX;
+
+	// +1 は "-" の分
+// 	if (cfg.format_owner) { oarray.groups = countOgroups() +1;}
+
+	oarray.table = initArray(oarray);
 	// 0 が root で、-1 が失敗だから、それ以外の数値
-	addArray(&otable, &olast, &ogroups, 32, -2, "-");
-	addArray(&gtable, &glast, &ggroups, 32, -2, "-");
+	addArray(&oarray, -2, "-");
+
+	// --------------------------------------------------------------------------------
+	// group のキャッシュ
+	struct ARRAYStruct garray;
+
+	garray.last = 0;
+	garray.groups = 16;
+	garray.strlength = LOGIN_NAME_MAX;
+
+	// +1 は "-" の分
+// 	if (cfg.format_group) { garray.groups = countGgroups() +1;}
+
+	garray.table = initArray(garray);
+	// 0 が root で、-1 が失敗だから、それ以外の数値
+	addArray(&garray, -2, "-");
 
 	// --------------------------------------------------------------------------------
 	// データの取得、リストへの登録
@@ -4339,12 +4363,11 @@ main(int argc, char *argv[])
 						strcpy(fnamelist[j].inodec, "-");
 						strcpy(fnamelist[j].nlink,  "-");
 
-						fnamelist[j].mode = mtable[searchArray(mtable, mlast, -2)].value;
+						fnamelist[j].mode = marray.table[searchArray(marray, -2)].value;
 						fnamelist[j].model = 1;
-
-						fnamelist[j].owner = otable[searchArray(otable, olast, -2)].value;
+						fnamelist[j].owner = oarray.table[searchArray(oarray, -2)].value;
 						fnamelist[j].ownerl = 1;
-						fnamelist[j].group = gtable[searchArray(gtable, glast, -2)].value;
+						fnamelist[j].group = garray.table[searchArray(garray, -2)].value;
 						fnamelist[j].groupl = 1;
 
 						strcpy(fnamelist[j].size,   "-");
@@ -4415,9 +4438,9 @@ main(int argc, char *argv[])
 				// printShort() なら DT_XXX で十分
 				fnamelist[j].kind[1] = '\0';
 				// 個別に編集するからユニークな数値に
-				int ret = addArray(&mtable, &mlast, &mgroups, 16, (i+1) * 100000 + j, "-");
-				fnamelist[j].mode = mtable[ret].value;
-				fnamelist[j].model = mtable[ret].length;
+				int ret = addArray(&marray, (i+1) * 100000 + j, "-");
+				fnamelist[j].mode = marray.table[ret].value;
+				fnamelist[j].model = marray.table[ret].length;
 
 				switch (direntlist[j]->d_type) {
 				  // DT_REG には Permission denied のファイルも含まれる
@@ -4633,26 +4656,26 @@ main(int argc, char *argv[])
 					continue;
 				}
 				if (fnamelist[j].isstat != 1) {
-					fnamelist[j].owner = otable[searchArray(otable, olast, -2)].value;
+					fnamelist[j].owner = oarray.table[searchArray(oarray, -2)].value;
 					fnamelist[j].ownerl = 1;
 					continue;
 				}
 
-				int ret = searchArray(otable, olast, fnamelist[j].sb.st_uid);
+				int ret = searchArray(oarray, fnamelist[j].sb.st_uid);
 				if (ret == -1) {
 					struct passwd *pw;
 					if ((pw = getpwuid(fnamelist[j].sb.st_uid)) == NULL) {
 						perror("getpwuid");
 						fprintf(stderr, " =>uid: %s\n", fnamelist[j].name);
-						ret = searchArray(otable, olast, -2);
-						fnamelist[j].owner = otable[ret].value;
-						fnamelist[j].ownerl = otable[ret].length;
+						ret = searchArray(oarray, -2);
+						fnamelist[j].owner = oarray.table[ret].value;
+						fnamelist[j].ownerl = oarray.table[ret].length;
 						continue;
 					}
-					ret = addArray(&otable, &olast, &ogroups, 32, fnamelist[j].sb.st_uid, pw->pw_name);
+					ret = addArray(&oarray, fnamelist[j].sb.st_uid, pw->pw_name);
 				}
-				fnamelist[j].owner = otable[ret].value;
-				fnamelist[j].ownerl = otable[ret].length;
+				fnamelist[j].owner = oarray.table[ret].value;
+				fnamelist[j].ownerl = oarray.table[ret].length;
 			}
 		}
 
@@ -4662,35 +4685,35 @@ main(int argc, char *argv[])
 					continue;
 				}
 				if (fnamelist[j].isstat != 1) {
-					fnamelist[j].group = gtable[searchArray(gtable, glast, -2)].value;
+					fnamelist[j].group = garray.table[searchArray(garray, -2)].value;
 					fnamelist[j].groupl = 1;
 					continue;
 				}
 
-				int ret = searchArray(gtable, glast, fnamelist[j].sb.st_gid);
+				int ret = searchArray(garray, fnamelist[j].sb.st_gid);
 				if (ret == -1) {
 					struct group *gr;
 					if ((gr = getgrgid(fnamelist[j].sb.st_gid)) == NULL) {
 						perror("getgrgid");
 						fprintf(stderr, " =>gid: %s\n", fnamelist[j].name);
-						ret = searchArray(gtable, glast, -2);
-						fnamelist[j].group = gtable[ret].value;
-						fnamelist[j].groupl = gtable[ret].length;
+						ret = searchArray(garray, -2);
+						fnamelist[j].group = garray.table[ret].value;
+						fnamelist[j].groupl = garray.table[ret].length;
 						continue;
 					}
-					ret = addArray(&gtable, &glast, &ggroups, 32, fnamelist[j].sb.st_gid, gr->gr_name);
+					ret = addArray(&garray, fnamelist[j].sb.st_gid, gr->gr_name);
 				}
-				fnamelist[j].group = gtable[ret].value;
-				fnamelist[j].groupl = gtable[ret].length;
+				fnamelist[j].group = garray.table[ret].value;
+				fnamelist[j].groupl = garray.table[ret].length;
 			}
 		}
 
 #ifdef DEBUG
 		printf("idCache:\n");
 		printf(" olast:%d, glast:%d\n", olast, glast);
-		showArray(otable, olast);
+		showArray(oarray);
 		printf("\n");
-		showArray(gtable, glast);
+		showArray(garray);
 #endif
 
 		// --------------------------------------------------------------------------------
@@ -4863,8 +4886,6 @@ main(int argc, char *argv[])
 					int len = fnamelist[j].extensionl;
 
 					if (len) {
-						extension++;
-
 						if (len > UNIQUE_LENGTH) {
 							len = UNIQUE_LENGTH;
 						}
@@ -5141,15 +5162,14 @@ main(int argc, char *argv[])
 	freeDENT(dent, dirarg);
 
 #ifdef DEBUG
-	showArray(otable, olast);
-	showArray(gtable, glast);
-	showArray(mtable, mlast);
+	showArray(oarray);
+	showArray(garray);
+// 	showArray(marray);
 #endif
 
-	freeArray(mtable, mgroups);
-	freeArray(otable, ogroups);
-	freeArray(gtable, ggroups);
-
+	freeArray(marray);
+	freeArray(oarray);
+	freeArray(garray);
 	// --------------------------------------------------------------------------------
 	// 標準関数のカウント数の表示
 #ifdef COUNTFUNC
