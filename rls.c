@@ -33,14 +33,14 @@
 #define INCDATE
 #define BYEAR "2026"
 #define BDATE "09/08"
-#define BTIME "22:31:17"
+#define BTIME "22:46:02"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/08 22:30"
+// my-last-update-time "2026, 09/08 22:44"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -114,6 +114,9 @@
 
 #define MAX(a, b) (((unsigned int)a) > ((unsigned int)b) ? ((unsigned int)a) : ((unsigned int)b))
 
+#ifndef LOGIN_NAME_MAX
+	#define LOGIN_NAME_MAX 256
+#endif
 
 // --------------------------------------------------------------------------------
 #ifdef DEBUG
