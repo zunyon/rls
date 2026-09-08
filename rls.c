@@ -33,14 +33,14 @@
 #define INCDATE
 #define BYEAR "2026"
 #define BDATE "09/08"
-#define BTIME "22:22:53"
+#define BTIME "22:31:17"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/08 21:25"
+// my-last-update-time "2026, 09/08 22:30"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -4710,7 +4710,7 @@ main(int argc, char *argv[])
 
 #ifdef DEBUG
 		printf("idCache:\n");
-		printf(" olast:%d, glast:%d\n", olast, glast);
+		printf(" olast:%d, glast:%d\n", oarray.last, garray.last);
 		showArray(oarray);
 		printf("\n");
 		showArray(garray);
