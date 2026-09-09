@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/08"
-#define BTIME "22:46:02"
+#define BDATE "09/09"
+#define BTIME "22:45:17"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/08 22:44"
+// my-last-update-time "2026, 09/09 21:20"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -765,9 +765,9 @@ addArray(struct ARRAYStruct *arrstruct, long int key, char value[])
 			// !!!!
 // 			freeArray(arrstruct->table, *n);
 			for (int i=0; i<arrstruct->groups; i++) {
-				free(tbl[i].value);
+				free(arrstruct->table[i].value);
 			}
-			free(tbl);
+			free(arrstruct);
 			exit(EXIT_FAILURE);
 		}
 
@@ -2447,14 +2447,12 @@ printJSON(struct FNAME *data, int n, struct ALIST cfg, int dummy[])
 
 			// データがあるものはそのまま、無いものは null を表示
 			// 表示する文字が " か \ の時、printUnique() みたいに \ のエスケープシーケンスが必要
-			if (data[i].info[j] != NULL) {
-				if (data[i].info[j][0] != '\0') {
-					printf("\"");
-					printMatchedString(data[i], data[i].info[j], cfg);
-					printf("\"");
-				} else {
-					printf("null");
-				}
+			if (data[i].info[j] == NULL || data[i].info[j][0] == '\0') {
+				printf("null");
+			} else {
+				printf("\"");
+				printMatchedString(data[i], data[i].info[j], cfg);
+				printf("\"");
 			}
 
 			if (cfg.formatListString[j+1] != '\0') {
