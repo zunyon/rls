@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/09"
-#define BTIME "22:45:17"
+#define BDATE "09/10"
+#define BTIME "23:13:22"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/09 21:20"
+// my-last-update-time "2026, 09/10 13:52"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -523,7 +523,7 @@ struct FNAME {
 		char timereadable[DATALEN];			// 日時 human-readable
 		char week[4];						// 曜日
 		char weeklong[10];					// 曜日、省略なし
-		char path[FNAME_LENGTH];			// 絶対パス/相対パスで指定されたパス名
+		char path[PATH_MAX + 1];			// 絶対パス/相対パスで指定されたパス名
 		char unique[UNIQUE_LENGTH];			// ユニーク文字列
 		char *name;							// 表示用ファイル名
 		char osc8[PATH_MAX + 1];			// OSC 8 の base path
@@ -767,7 +767,7 @@ addArray(struct ARRAYStruct *arrstruct, long int key, char value[])
 			for (int i=0; i<arrstruct->groups; i++) {
 				free(arrstruct->table[i].value);
 			}
-			free(arrstruct);
+			free(arrstruct->table);
 			exit(EXIT_FAILURE);
 		}
 
@@ -1011,7 +1011,7 @@ countEntry(char *dname, char *path)
 	if (dname[0] ==  '/') {
 		tmppath = dname;
 	} else {
-		int n = sprintf(fullpath, "%s%s/", path, dname);
+		int n = snprintf(fullpath, sizeof(fullpath), "%s%s/", path, dname);
 		if (n < 0 || (size_t) n >= sizeof(fullpath)) {
 			return -1;
 		}
@@ -3452,6 +3452,13 @@ progressAlist(struct ALIST *cfg)
 			cfg->do_uniquecheck = 0;
 			cfg->do_emacs = 0;
 		}
+
+		if (cfg->no_color == 1) {
+			cfg->do_uniquecheck = 0;
+			cfg->deep_unique = 0;
+			cfg->beginning_word = 0;
+			cfg->do_emacs = 0;
+		}
 	}
 }
 
@@ -3750,12 +3757,14 @@ makeGit(struct DENT *p)
 
 	git_repository *repo = NULL;
 	if (git_repository_open_ext(&repo, p->path, 0, NULL) != 0) {
+		git_libgit2_shutdown();
 		return -1;
 	}
 
 	const char *workdir = git_repository_workdir(repo);
 	if (!workdir) {
 		git_repository_free(repo);
+		git_libgit2_shutdown();
 		return -1;
 	}
 
@@ -3763,12 +3772,14 @@ makeGit(struct DENT *p)
 	char abs_path[PATH_MAX];
 	if (realpath(p->path, abs_path) == NULL) {
 		git_repository_free(repo);
+		git_libgit2_shutdown();
 		return -1;
 	}
 
 	char abs_workdir[PATH_MAX];
 	if (realpath(workdir, abs_workdir) == NULL) {
 		git_repository_free(repo);
+		git_libgit2_shutdown();
 		return -1;
 	}
 
@@ -4009,7 +4020,11 @@ main(int argc, char *argv[])
 	errc = initAlist(argc, argv, &cfg, argverr);
 	for (int i=1; i<argc; i++) {
 		if (cfg.dirarg[i] == 1) {
-			snprintf(dirarglist[dirarg], sizeof(dirarglist[dirarg]), "%s", argv[i]);
+			if (argv[i][0] == '\0') {		// "" だった時
+				snprintf(dirarglist[dirarg], sizeof(dirarglist[dirarg]), "%s", "/");
+			} else {
+				snprintf(dirarglist[dirarg], sizeof(dirarglist[dirarg]), "%s", argv[i]);
+			}
 
 			dirarg++;
 		}
@@ -4224,6 +4239,7 @@ main(int argc, char *argv[])
 	// +1 は "-" の分
 // 	if (cfg.format_owner) { oarray.groups = countOgroups() +1;}
 
+	oarray.table = NULL;
 	oarray.table = initArray(oarray);
 	// 0 が root で、-1 が失敗だから、それ以外の数値
 	addArray(&oarray, -2, "-");
@@ -4239,6 +4255,7 @@ main(int argc, char *argv[])
 	// +1 は "-" の分
 // 	if (cfg.format_group) { garray.groups = countGgroups() +1;}
 
+	garray.table = NULL;
 	garray.table = initArray(garray);
 	// 0 が root で、-1 が失敗だから、それ以外の数値
 	addArray(&garray, -2, "-");
@@ -4322,8 +4339,8 @@ main(int argc, char *argv[])
 				if (str) {
 					int len = strlen(str);
 
-					if (len > UNIQUE_LENGTH) {
-						len = UNIQUE_LENGTH;
+					if (len > PATH_MAX) {
+						len = PATH_MAX;
 					}
 
 					int pl = strlen(direntlist[j]->d_name) - len;
