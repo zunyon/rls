@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/10"
-#define BTIME "23:13:22"
+#define BDATE "09/13"
+#define BTIME "06:44:30"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/10 13:52"
+// my-last-update-time "2026, 09/12 07:21"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -519,7 +519,7 @@ struct FNAME {
 		char countc[DATALEN];				// ディレクトリに含まれているファイル数と、size の混合、comma 表記
 		char date[14];						// mtime 日付
 		char datelong[19];					// mtime 日付、省略なし
-		char time[21];						// 日時
+		char time[24];						// 日時
 		char timereadable[DATALEN];			// 日時 human-readable
 		char week[4];						// 曜日
 		char weeklong[10];					// 曜日、省略なし
@@ -2988,12 +2988,12 @@ calcFnameLength(struct FNAME *p)
 #endif
 
 	// lstat() が失敗しても、"-" にならない
-	p->kindl  = strlen(p->kind);	// 固定長
-	p->pathl  = wcStrlen(p->path);
-	p->uniquel    = strlen(p->unique);
-	p->linknamel  = strlen(p->linkname);
-	p->errnostrl  = strlen(p->errnostr);
-	p->jotl = strlen(p->jot);
+	p->kindl     = p->kind[0]     == '\0' ? 0: strlen(p->kind);	// 固定長
+	p->pathl     = p->path[0]     == '\0' ? 0: wcStrlen(p->path);
+	p->uniquel   = p->unique[0]   == '\0' ? 0: strlen(p->unique);
+	p->linknamel = p->linkname[0] == '\0' ? 0: strlen(p->linkname);
+	p->errnostrl = p->errnostr[0] == '\0' ? 0: strlen(p->errnostr);
+	p->jotl      = p->jot[0]      == '\0' ? 0: strlen(p->jot);
 }
 
 
@@ -3453,12 +3453,12 @@ progressAlist(struct ALIST *cfg)
 			cfg->do_emacs = 0;
 		}
 
-		if (cfg->no_color == 1) {
-			cfg->do_uniquecheck = 0;
-			cfg->deep_unique = 0;
-			cfg->beginning_word = 0;
-			cfg->do_emacs = 0;
-		}
+// 		if (cfg->no_color == 1) {
+// 			cfg->do_uniquecheck = 0;
+// 			cfg->deep_unique = 0;
+// 			cfg->beginning_word = 0;
+// 			cfg->do_emacs = 0;
+// 		}
 	}
 }
 
