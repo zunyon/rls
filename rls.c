@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/13"
-#define BTIME "10:40:28"
+#define BDATE "09/14"
+#define BTIME "05:22:20"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/13 10:38"
+// my-last-update-time "2026, 09/14 05:14"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -526,8 +526,8 @@ struct FNAME {
 		char path[PATH_MAX + 1];			// 絶対パス/相対パスで指定されたパス名
 		char unique[UNIQUE_LENGTH + 1];			// ユニーク文字列
 		char *name;							// 表示用ファイル名
-		char osc8[PATH_MAX + 1];			// OSC 8 の base path
-		char lowername[FNAME_LENGTH];		// 比較用
+		char osc8[PATH_MAX + FNAME_LENGTH + 8];	// OSC 8 の base path
+		char lowername[FNAME_LENGTH + 1];	// 比較用
 		char kind[2];						// 種類
 		char linkname[PATH_MAX + 2];		// link 名、readlink() の後の strcat("/") 分
 		char errnostr[MESSAGELEN];			// lstat() のエラー
@@ -575,7 +575,7 @@ struct DENT {
 
 	// 引数の処理
 	int is_file;						// その引数はファイル
-	char is_filename[FNAME_LENGTH];		// パスから切り離したファイル名
+	char is_filename[FNAME_LENGTH + 1];	// パスから切り離したファイル名
 
 	// インデント用、文字列の最大桁数
 	#define DIGITSLISTdigits(initial, name) int name##_digits;
@@ -651,9 +651,9 @@ struct ALIST {
 
 	char formatListString[ListCountd + 1];
 	char formatSortString[ListCountd + 1];
-	char jotString[FNAME_LENGTH];
+	char jotString[FNAME_LENGTH + 1];
 
-	char osc8app[FNAME_LENGTH];
+	char osc8app[FNAME_LENGTH + 8];
 
 	char color_txt[sizeof(default_color_txt)];
 	char onlyPaintStr[FNAME_LENGTH + 1];
@@ -4574,8 +4574,12 @@ main(int argc, char *argv[])
 					strcpy(fnamelist[j].md5,  "-");
 					continue;
 				}
-				char fullpath[FNAME_LENGTH];
-				sprintf(fullpath, "%s%s", fnamelist[j].path, fnamelist[j].name);
+				char fullpath[PATH_MAX + 1];
+				int n = snprintf(fullpath, sizeof(fullpath), "%s%s", fnamelist[j].path, fnamelist[j].name);
+				if (n < 0 || (size_t)n >= sizeof(fullpath)) {
+					strcpy(fnamelist[j].md5, "-");
+					continue;
+				}
 
 				if (makeMD5(fullpath, fnamelist[j].md5) == -1) {
 					strcpy(fnamelist[j].md5,  "-");
