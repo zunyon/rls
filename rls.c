@@ -33,14 +33,14 @@
 #define INCDATE
 #define BYEAR "2026"
 #define BDATE "09/13"
-#define BTIME "06:44:30"
+#define BTIME "10:40:28"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/12 07:21"
+// my-last-update-time "2026, 09/13 10:38"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -524,7 +524,7 @@ struct FNAME {
 		char week[4];						// 曜日
 		char weeklong[10];					// 曜日、省略なし
 		char path[PATH_MAX + 1];			// 絶対パス/相対パスで指定されたパス名
-		char unique[UNIQUE_LENGTH];			// ユニーク文字列
+		char unique[UNIQUE_LENGTH + 1];			// ユニーク文字列
 		char *name;							// 表示用ファイル名
 		char osc8[PATH_MAX + 1];			// OSC 8 の base path
 		char lowername[FNAME_LENGTH];		// 比較用
@@ -658,7 +658,7 @@ struct ALIST {
 	char color_txt[sizeof(default_color_txt)];
 	char onlyPaintStr[FNAME_LENGTH + 1];
 
-	int dirarg[FNAME_LENGTH];
+	int *dirarg;
 
 	unsigned short int termlen;
 	unsigned short int termhei;
@@ -1621,8 +1621,8 @@ runUniqueCheck(struct FNAME *fnamelist, int pnth, struct DLIST *duplist, void (*
 {
 	debug printStr(label, "runUniqueCheck:\n");
 
-	for (int i=1; i<UNIQUE_LENGTH; i++) {
-		int count_chklen[UNIQUE_LENGTH] = {0};
+	for (int i=1; i<=UNIQUE_LENGTH; i++) {
+		int count_chklen[UNIQUE_LENGTH +1] = {0};
 
 		debug printf(" uniqueCheck len:%d\n", i);
 		for (int j=0; j<pnth; j++) {
@@ -3608,6 +3608,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 					// 必要な項目のコピー
 					data[count].name = fnamelist[j].name;
 					strcpy(data[count].osc8, fnamelist[j].osc8);
+					strcpy(data[count].path, fnamelist[j].path);
 					strcpy(data[count].kind, fnamelist[j].kind);
 					strcpy(data[count].lowername, fnamelist[j].lowername);
 
@@ -3854,6 +3855,7 @@ scandirStdin(struct dirent ***namelist)
 
 		// d_name にコピー
 		strcpy(ent->d_name, line);
+		ent->d_type = DT_UNKNOWN;
 
 		// 配列が足りない
 		if (count == nth) {
@@ -3926,9 +3928,9 @@ main(int argc, char *argv[])
 
 	// ================================================================================
 	// 毎回 fullpath を作成するのではなく cd する
-	char cwd[FNAME_LENGTH];
+	char cwd[PATH_MAX +1];
 
-	if (getcwd(cwd, FNAME_LENGTH) == NULL) {
+	if (getcwd(cwd, sizeof(cwd)) == NULL) {
 		perror("getcwd");
 		exit(EXIT_FAILURE);
 	}
@@ -3990,6 +3992,10 @@ main(int argc, char *argv[])
 		.do_uniquecheck = 1,												// uniqueCheck(), uniqueCheckFirstWord() を実行する
 // 		.jotString = "xrls prj=c,h,md:xMovie=mov,avi,mp4:xText=txt:nText=Makefile:xGraph=gif,jpg,jpeg,bmp:ICORE=26177172834116508"
 	};
+
+	int dirarg_flags[argc];
+	memset(dirarg_flags, 0, sizeof(dirarg_flags));
+	cfg.dirarg = dirarg_flags;
 
 	for (int i=0; i<ListCount; i++) {
 		colorlist[i][0] = '\0';
