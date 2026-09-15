@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/14"
-#define BTIME "05:22:20"
+#define BDATE "09/15"
+#define BTIME "22:52:54"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/14 05:14"
+// my-last-update-time "2026, 09/15 22:52"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -762,8 +762,6 @@ addArray(struct ARRAYStruct *arrstruct, long int key, char value[])
 		struct ARRAY *tbl = realloc(arrstruct->table, sizeof(struct ARRAY) * newn);
 		if (tbl == NULL) {
 			fprintf(stderr, "addArray: You have No Memory. realloc()\n");
-			// !!!!
-// 			freeArray(arrstruct->table, *n);
 			for (int i=0; i<arrstruct->groups; i++) {
 				free(arrstruct->table[i].value);
 			}
@@ -773,7 +771,7 @@ addArray(struct ARRAYStruct *arrstruct, long int key, char value[])
 
 // 		memset(&tbl[*n], 0, sizeof(struct ARRAY) * (*n));
 		for (int i = arrstruct->last; i<newn; i++) {
-			tbl[i].value = malloc(sizeof(char) * arrstruct->strlength);
+			tbl[i].value = malloc(sizeof(char) * (arrstruct->strlength +1));
 			if (tbl[i].value == NULL) {
 				fprintf(stderr, "addArray: You have No Memory. malloc()\n");
 				for (int j=0; j<i; j++) {
@@ -818,7 +816,12 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 			c = 'l'; p->kind[0] = '@';
 			if (cfg.format_link) {
 				// symlink 先のファイル名
-				ssize_t rlen = readlink(p->name, p->linkname, sizeof(p->linkname) - 1);
+				char fullpath[PATH_MAX + PATH_MAX +2];
+				char *fullpathp;
+				snprintf(fullpath, sizeof(fullpath), "%s%s", p->path, p->name);
+				fullpathp = fullpath;
+
+				ssize_t rlen = readlink(fullpathp, p->linkname, sizeof(p->linkname) - 1);
 				if (rlen == -1) {
 					strcpy(p->errnostr, strerror(errno));
 					p->color = error;
@@ -829,7 +832,14 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 
 				struct stat sb;
 				// link 先の sb を取得、link 先がディレクトリか
-				if (lstat(p->linkname, &sb) == -1) {
+				if (p->linkname[0] != '/') {
+					snprintf(fullpath, sizeof(fullpath), "%s%s", p->path, p->linkname);
+					fullpathp = fullpath;
+				} else {
+					fullpathp = p->linkname;
+				}
+
+				if (lstat(fullpathp, &sb) == -1) {
 					// データが取れなかったから異常
 					strcpy(p->errnostr, strerror(errno));
 					p->color = error;
@@ -3004,21 +3014,13 @@ freeDENT(struct DENT *dent, int dirarg)
 	debug printStr(label, "freeDENT:\n");
 
 	for (int i=0; i<dirarg; i++) {
-// 		if (dent[i].fnamelist) {
-// 			if (dent[i].nth) {
-				free(dent[i].fnamelist);
-// 				dent[i].fnamelist = NULL;
-// 			}
-// 		}
+		free(dent[i].fnamelist);
 
 		if (dent[i].direntlist) {
 			for (int j=0; j<dent[i].nth; j++) {
 				free(dent[i].direntlist[j]);
 			}
-			if (dent[i].nth) {
-				free(dent[i].direntlist);
-// 				dent[i].direntlist = NULL;
-			}
+			free(dent[i].direntlist);
 		}
 
 		debug printf(" path: %s\n", dent[i].path);
@@ -3927,16 +3929,6 @@ main(int argc, char *argv[])
 #endif
 
 	// ================================================================================
-	// 毎回 fullpath を作成するのではなく cd する
-	char cwd[PATH_MAX +1];
-
-	if (getcwd(cwd, sizeof(cwd)) == NULL) {
-		perror("getcwd");
-		exit(EXIT_FAILURE);
-	}
-	debug printf("cwd:%s\n", cwd);
-
-	// ================================================================================
 	// wcStrlen() 用の初期化
 	if (setlocale(LC_ALL, "") == NULL) {
 		perror("setlocale");
@@ -4273,16 +4265,19 @@ main(int argc, char *argv[])
 		p = &dent[i];
 
 		// 多分パス、移動に失敗したら次のパス
-		if (chdir(dirarglist[i]) != 0) {
-// 			perror("chdir");
-			fprintf(stderr, "chdir: %s [%s]\n", strerror(errno), dirarglist[i]);
-			continue;
+		{
+			DIR *dr = opendir(dirarglist[i]);
+			if (dr == NULL) {
+				fprintf(stderr, "opendir: %s [%s]\n", strerror(errno), dirarglist[i]);
+				continue;
+			}
+			closedir(dr);
 		}
 
 		// --------------------------------------------------------------------------------
 		// データリストの取得
 		if (cfg.from_stdin == 0) {
-			p->nth = scandir("./", &p->direntlist, NULL, NULL);
+			p->nth = scandir(dirarglist[i], &p->direntlist, NULL, NULL);
 		} else {
 			// stdin からファイル名を読み込む
 			p->nth = scandirStdin(&p->direntlist);
@@ -4303,10 +4298,6 @@ main(int argc, char *argv[])
 			if (p->fnamelist == NULL) {
 				perror("malloc");
 				fprintf(stderr, " =>size:%zu\n", sizeof(struct FNAME) * p->nth);
-				// cwd を試みる
-				if (chdir(cwd)) {
-					fprintf(stderr, "chdir: %s [%s]\n", strerror(errno), cwd);
-				}
 				exit(EXIT_FAILURE);
 			}
 			memset(p->fnamelist, 0, sizeof(struct FNAME) * p->nth);
@@ -4336,6 +4327,14 @@ main(int argc, char *argv[])
 
 			// osc8 base path
 			if (cfg.show_osc8) {
+				char cwd[PATH_MAX +1];
+
+				if (getcwd(cwd, sizeof(cwd)) == NULL) {
+					perror("getcwd");
+					exit(EXIT_FAILURE);
+				}
+				debug printf("cwd:%s\n", cwd);
+
 				sprintf(fnamelist[j].osc8, "%s://%s", cfg.osc8app, cwd);		// Ubunts
 // 				sprintf(fnamelist[j].osc8, "%s://c:/%s", cfg.osc8app, cwd +7);	// WSL で解釈が windows の時
 			}
@@ -4374,8 +4373,11 @@ main(int argc, char *argv[])
 				continue;
 			}
 
-			if (cfg.format_size || cfg.format_date || cfg.format_mode || cfg.format_owner || cfg.format_group || cfg.from_stdin) {
-				fnamelist[j].isstat = (lstat(direntlist[j]->d_name, &fnamelist[j].sb) == 0) ? 1 : -1;
+			if (cfg.format_size || cfg.format_date || cfg.format_mode || cfg.format_link || cfg.format_owner || cfg.format_group || cfg.from_stdin) {
+				char fullpath[PATH_MAX + FNAME_LENGTH + 2];
+				snprintf(fullpath, sizeof(fullpath), "%s%s", fnamelist[j].path, fnamelist[j].name);
+				fnamelist[j].isstat = (lstat(fullpath, &fnamelist[j].sb) == 0) ? 1 : -1;
+
 				if (fnamelist[j].isstat == -1) {
 					// lstat() が失敗した時の処理
 					// 失敗のエラーメッセージを errnostr に格納
@@ -4417,14 +4419,6 @@ main(int argc, char *argv[])
 			}
 
 		}
-
-		// --------------------------------------------------------------------------------
-		// cwd ディレクトリに戻る
-		if (chdir(cwd)) {
-// 			perror("chdir");
-			fprintf(stderr, "chdir: %s [%s]\n", strerror(errno), cwd);
-			exit(EXIT_FAILURE);
-		}
 	}
 
 	// --------------------------------------------------------------------------------
@@ -4432,13 +4426,6 @@ main(int argc, char *argv[])
 	for (int i=0; i<dirarg; i++) {
 		struct DENT *p;
 		p = &dent[i];
-
-		// 多分パス、移動に失敗したら次のパス
-		if (chdir(dirarglist[i]) != 0) {
-// 			perror("chdir");
-			fprintf(stderr, "chdir: %s [%s]\n", strerror(errno), dirarglist[i]);
-			continue;
-		}
 
 		// --------------------------------------------------------------------------------
 		struct FNAME *fnamelist;
@@ -4473,7 +4460,12 @@ main(int argc, char *argv[])
 				  case DT_SOCK: fnamelist[j].kind[0] = '='; fnamelist[j].color = sock; break;
 				  case DT_LNK: {fnamelist[j].kind[0] = '@'; fnamelist[j].mode[0] = 'l'; 
 					  // symlink 先のファイル名
-					  ssize_t rlen = readlink(fnamelist[j].name, fnamelist[j].linkname, sizeof(fnamelist[j].linkname) - 1);
+					  char fullpath[PATH_MAX + PATH_MAX +2];
+					  char *fullpathp;
+
+					  snprintf(fullpath, sizeof(fullpath), "%s%s", fnamelist[j].path, fnamelist[j].name);
+					  fullpathp = fullpath;
+					  ssize_t rlen = readlink(fullpathp, fnamelist[j].linkname, sizeof(fnamelist[j].linkname) - 1);
 					  if (rlen == -1) {
 						  fnamelist[j].color = error;
 						  fnamelist[j].linkname[0] = '\0';
@@ -4483,7 +4475,13 @@ main(int argc, char *argv[])
 
 					  struct stat sb;
 					  // link 先の sb を取得、link 先がディレクトリか
-					  if (lstat(fnamelist[j].linkname, &sb) == -1) {
+					  if (fnamelist[j].linkname[0] != '/') {
+						  snprintf(fullpath, sizeof(fullpath), "%s%s", fnamelist[j].path, fnamelist[j].linkname);
+						  fullpathp = fullpath;
+					  } else {
+						  fullpathp = fnamelist[j].linkname;
+					  }
+					  if (lstat(fullpathp, &sb) == -1) {
 						  // データが取れなかったから異常
 						  fnamelist[j].color = error;
 					  } else {
@@ -4497,14 +4495,6 @@ main(int argc, char *argv[])
 				  }
 				}
 			}
-		}
-
-		// --------------------------------------------------------------------------------
-		// cwd ディレクトリに戻る
-		if (chdir(cwd)) {
-// 			perror("chdir");
-			fprintf(stderr, "chdir: %s [%s]\n", strerror(errno), cwd);
-			exit(EXIT_FAILURE);
 		}
 	}
 
