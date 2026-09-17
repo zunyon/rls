@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/15"
-#define BTIME "22:52:54"
+#define BDATE "09/17"
+#define BTIME "22:43:28"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/15 22:52"
+// my-last-update-time "2026, 09/17 22:43"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -149,7 +149,7 @@
 	// ユニーク文字列を計算するときに、- と _ を同等の扱いにする為に統一
 	const char *upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ-";
 	const char *lower = "abcdefghijklmnopqrstuvwxyz_";
-	int map[UCHAR_MAX + 1];
+	int map[UCHAR_MAX +1];
 
 	#undef tolower
 	#define tolower(i) map[(unsigned char)i]
@@ -194,7 +194,7 @@ myStrcasestr(const char *haystack, const char *needle)
 // ================================================================================
 // 重複文字列リスト、、、unique 文字列の管理
 struct DLIST {
-	char dupword[UNIQUE_LENGTH + 1];
+	char dupword[UNIQUE_LENGTH +1];
 	struct DLIST *left;
 	struct DLIST *right;
 	int fnamelistNumber;				// unique な fnamelist の [] 番目、-1 なら複数存在 (unique でない)
@@ -412,7 +412,7 @@ initColor(char *argcolor)
 					} else {
 						// 追記する記載
 						sprintf(ctxt, ";%c8;5;%sm", valuechar[0], valuechar + 1);
-						colorlist[i][strlen(colorlist[i]) - 1] = '\0';		// 最後の 'm' を削除
+						colorlist[i][strlen(colorlist[i]) -1] = '\0';		// 最後の 'm' を削除
 					}
 				} else {
 					// 8 色や、追記の属性
@@ -421,7 +421,7 @@ initColor(char *argcolor)
 					} else {
 						// 追記する記載
 						sprintf(ctxt, ";%sm", valuechar);
-						colorlist[i][strlen(colorlist[i]) - 1] = '\0';		// 最後の 'm' を削除
+						colorlist[i][strlen(colorlist[i]) -1] = '\0';		// 最後の 'm' を削除
 					}
 				}
 
@@ -523,13 +523,13 @@ struct FNAME {
 		char timereadable[DATALEN];			// 日時 human-readable
 		char week[4];						// 曜日
 		char weeklong[10];					// 曜日、省略なし
-		char path[PATH_MAX + 1];			// 絶対パス/相対パスで指定されたパス名
-		char unique[UNIQUE_LENGTH + 1];			// ユニーク文字列
+		char path[PATH_MAX +1];				// 絶対パス/相対パスで指定されたパス名
+		char unique[UNIQUE_LENGTH +1];		// ユニーク文字列
 		char *name;							// 表示用ファイル名
-		char osc8[PATH_MAX + FNAME_LENGTH + 8];	// OSC 8 の base path
-		char lowername[FNAME_LENGTH + 1];	// 比較用
+		char osc8[PATH_MAX + FNAME_LENGTH +8];			// OSC 8 の base path
+		char lowername[FNAME_LENGTH +1];	// 比較用
 		char kind[2];						// 種類
-		char linkname[PATH_MAX + 2];		// link 名、readlink() の後の strcat("/") 分
+		char linkname[PATH_MAX +2];			// link 名、readlink() の後の strcat("/") 分
 		char errnostr[MESSAGELEN];			// lstat() のエラー
 		char extension[DATALEN];			// 拡張子
 		char jot[MESSAGELEN];				// 分類分け
@@ -575,7 +575,7 @@ struct DENT {
 
 	// 引数の処理
 	int is_file;						// その引数はファイル
-	char is_filename[FNAME_LENGTH + 1];	// パスから切り離したファイル名
+	char is_filename[FNAME_LENGTH +1];	// パスから切り離したファイル名
 
 	// インデント用、文字列の最大桁数
 	#define DIGITSLISTdigits(initial, name) int name##_digits;
@@ -649,14 +649,14 @@ struct ALIST {
 	char textend[DATALEN];
 	int tlen;
 
-	char formatListString[ListCountd + 1];
-	char formatSortString[ListCountd + 1];
-	char jotString[FNAME_LENGTH + 1];
+	char formatListString[ListCountd +1];
+	char formatSortString[ListCountd +1];
+	char jotString[FNAME_LENGTH +1];
 
-	char osc8app[FNAME_LENGTH + 8];
+	char osc8app[FNAME_LENGTH +8];
 
 	char color_txt[sizeof(default_color_txt)];
-	char onlyPaintStr[FNAME_LENGTH + 1];
+	char onlyPaintStr[FNAME_LENGTH +1];
 
 	int *dirarg;
 
@@ -694,7 +694,7 @@ initArray(struct ARRAYStruct arrstruct)
 
 // 	memset(tbl, 0, sizeof(struct ARRAY) * arrstruct.groups);
 	for (int i=0; i<arrstruct.groups; i++) {
-		tbl[i].value = malloc(sizeof(char) * arrstruct.strlength);
+		tbl[i].value = malloc(sizeof(char) * (arrstruct.strlength +1));
 		if (tbl[i].value == NULL) {
 			for (int j=0; j<i; j++) {
 				free(tbl[j].value);
@@ -1110,7 +1110,7 @@ makeMD5(char *fname, char *md5)
 
 // ================================================================================
 void (*printName)(struct FNAME, const char *, struct ALIST);
-char paintString[FNAME_LENGTH];
+char paintString[FNAME_LENGTH +1];
 int paintStringLen;
 
 
@@ -1227,7 +1227,7 @@ countMatchedString(const char *str, int length)
 	}
 
 	// 比較用に小文字化
-	char name[length + 1];
+	char name[length +1];
 	for (int i=0; i<length; i++) {
 		name[i] = tolower(str[i]);
 	}
@@ -1259,7 +1259,7 @@ printMatchedString(struct FNAME dummy, const char *str, struct ALIST cfg)
 	}
 
 	int length = strlen(str);
-	char name[length + 1];
+	char name[length +1];
 	// 比較用に小文字化
 	for (int i=0; i<length; i++) {
 		name[i] = tolower(str[i]);
@@ -1783,7 +1783,7 @@ int
 wcStrlen(char *name)
 {
 	// ワイド文字列に変換
-	wchar_t wstr[FNAME_LENGTH + 1];
+	wchar_t wstr[FNAME_LENGTH +1];
 	size_t wlen = mbstowcs(wstr, name, sizeof(wstr) / sizeof(wchar_t) - 1);
 	if (wlen == (size_t) -1) {
 		// 変換失敗時はバイト長を返す
@@ -1936,7 +1936,7 @@ printShort(struct FNAME *data, int n, struct ALIST cfg)
 		memset(rowcolumnlist, -1, sizeof(rowcolumnlist));
 
 		// 1 行のレイアウト + 番兵
-		int columnlist[row + 1];
+		int columnlist[row +1];
 		memset(columnlist, -1, sizeof(columnlist));
 
 		// --------------------------------------------------------------------------------
@@ -2133,7 +2133,7 @@ printLong(struct FNAME *data, int n, struct ALIST cfg, int digits[])
 
 		// --------------------------------------------------------------------------------
 		// formatListString[k] 番目と、&fnamelist[j].xxx でデータが続くか確認して、haveAfterdataStr[k] に 0, 1 を入れる
-		char haveAfterdataStr[ListCountd + 1] = "";
+		char haveAfterdataStr[ListCountd +1] = "";
 		int flen = strlen(cfg.formatListString);
 
 		for (int j=0; j<flen; j++) {
@@ -2493,7 +2493,7 @@ printAggregate(struct FNAME *fnamelist, int nth, int aggregate_length)
 	debug printStr(label, "printAggregate:\n");
 
 	int hitcount = 0, displaycount = 0;
-	int count_chklen[UNIQUE_LENGTH] = {0};
+	int count_chklen[UNIQUE_LENGTH +1] = {0};
 
 	// 表示しないものを nth から引く
 	for (int i=0; i<nth; i++) {
@@ -2541,7 +2541,7 @@ printAggregate(struct FNAME *fnamelist, int nth, int aggregate_length)
 
 // ================================================================================
 #ifdef DEBUG
-#define showSwitch(name) if (cfg.name) printf(" %s: %d\n", #name, cfg.name)
+#define showSwitch(name) if (cfg.name) printf("  %s: %d\n", #name, cfg.name)
 // 引数の全スイッチを表示
 void
 showArgvswitch(struct ALIST cfg)
@@ -2966,6 +2966,7 @@ rowSort(struct FNAME *fnamelist, int nth, struct ALIST cfg)
 		}
 
 		if (sortfunclist[(int)c].func && skip == 0) {
+			// qsort って stable sort じゃない、、、、そこまでは不要だよね ?
 			qsort(fnamelist, nth, sizeof(struct FNAME), sortfunclist[(int)c].func);
 		}
 	}
@@ -3515,7 +3516,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 	if (count_is_file) {
 		int k = 0;
 		if (cfg.show_long) {
-			int digits[UCHAR_MAX + 1] = {0};
+			int digits[UCHAR_MAX +1] = {0};
 
 			// is_file たちのそれぞれの最大桁数を記録する
 			for (int i=0; i<dirarg; i++) {
@@ -3659,7 +3660,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		fnamelist = p->fnamelist;
 
 		// 各 digis に対応するポインタを配列に格納
-		int digits[UCHAR_MAX + 1] = {0};
+		int digits[UCHAR_MAX +1] = {0};
 		if (cfg.show_long) {
 			#define DIGITSLISTset(initial, name) digits[initial] = p->name##_digits;
 			DIGITSLISTStr(DIGITSLISTset)
@@ -3914,7 +3915,7 @@ countGgroups(void)
 int
 main(int argc, char *argv[])
 {
-	char dirarglist[argc][FNAME_LENGTH +1];	// 引数の dir のリスト
+	char dirarglist[argc][PATH_MAX +1];		// 引数の dir のリスト
 	int dirarg = 0;
 	int argverr[argc];						// argv のエラー記録
 
@@ -4019,7 +4020,7 @@ main(int argc, char *argv[])
 	for (int i=1; i<argc; i++) {
 		if (cfg.dirarg[i] == 1) {
 			if (argv[i][0] == '\0') {		// "" だった時
-				snprintf(dirarglist[dirarg], sizeof(dirarglist[dirarg]), "%s", "/");
+				snprintf(dirarglist[dirarg], sizeof(dirarglist[dirarg]), "%s", "./");
 			} else {
 				snprintf(dirarglist[dirarg], sizeof(dirarglist[dirarg]), "%s", argv[i]);
 			}
@@ -4204,11 +4205,17 @@ main(int argc, char *argv[])
 		if (p->is_file) {
 			if (strrchr(dirarglist[i], '/')) {
 				// ディレクトリとファイル名を '/' で分割する
-				strcpy(p->is_filename, strrchr(dirarglist[i], '/') + 1);
-				dirarglist[i][strlen(dirarglist[i]) - strlen(p->is_filename)] = '\0';
+				int n = snprintf(p->is_filename, sizeof(p->is_filename), "%s", strrchr(dirarglist[i], '/') + 1);
+				if (n < 0 || (size_t) n >= sizeof(p->is_filename)) {
+					fprintf(stderr, "%s is too long. (strrchr)\n", strrchr(dirarglist[i], '/') + 1);
+				}
+				dirarglist[i][strlen(dirarglist[i]) - strlen(strrchr(dirarglist[i], '/') + 1)] = '\0';
 			} else {
 				// カレントディレクトリと推測
-				strcpy(p->is_filename, dirarglist[i]);
+				int n = snprintf(p->is_filename, sizeof(p->is_filename), "%s", dirarglist[i]);
+				if (n < 0 || (size_t) n >= sizeof(p->is_filename)) {
+					fprintf(stderr, "%s is too long.\n", dirarglist[i]);
+				}
 				strcpy(dirarglist[i], "./");
 			}
 			debug printf("dir:[%s], fname[%s]\n", dirarglist[i], p->is_filename);
@@ -4236,7 +4243,6 @@ main(int argc, char *argv[])
 
 	// +1 は "-" の分
 // 	if (cfg.format_owner) { oarray.groups = countOgroups() +1;}
-
 	oarray.table = NULL;
 	oarray.table = initArray(oarray);
 	// 0 が root で、-1 が失敗だから、それ以外の数値
@@ -4374,7 +4380,7 @@ main(int argc, char *argv[])
 			}
 
 			if (cfg.format_size || cfg.format_date || cfg.format_mode || cfg.format_link || cfg.format_owner || cfg.format_group || cfg.from_stdin) {
-				char fullpath[PATH_MAX + FNAME_LENGTH + 2];
+				char fullpath[PATH_MAX + FNAME_LENGTH +2];
 				snprintf(fullpath, sizeof(fullpath), "%s%s", fnamelist[j].path, fnamelist[j].name);
 				fnamelist[j].isstat = (lstat(fullpath, &fnamelist[j].sb) == 0) ? 1 : -1;
 
@@ -4564,7 +4570,7 @@ main(int argc, char *argv[])
 					strcpy(fnamelist[j].md5,  "-");
 					continue;
 				}
-				char fullpath[PATH_MAX + 1];
+				char fullpath[PATH_MAX +1];
 				int n = snprintf(fullpath, sizeof(fullpath), "%s%s", fnamelist[j].path, fnamelist[j].name);
 				if (n < 0 || (size_t)n >= sizeof(fullpath)) {
 					strcpy(fnamelist[j].md5, "-");
@@ -4616,6 +4622,7 @@ main(int argc, char *argv[])
 
 		// --------------------------------------------------------------------------------
 		if (cfg.format_size) {
+
 #ifdef OMP
 #pragma omp parallel for num_threads( (p->nth > 512) ? 32 : 3)
 #endif
@@ -5131,8 +5138,8 @@ main(int argc, char *argv[])
 				}
 
 				// 各文字に対応するポインタを配列に格納
-				char *info_pointers[UCHAR_MAX + 1] = {NULL};
-				int len_pointers[UCHAR_MAX + 1] = {0};
+				char *info_pointers[UCHAR_MAX +1] = {NULL};
+				int len_pointers[UCHAR_MAX +1] = {0};
 
 				#define DIGITSLISTStrset(initial, name) info_pointers[initial] = fnamelist[j].name; len_pointers[initial] = fnamelist[j].name##l;
 				DIGITSLISTStr(DIGITSLISTStrset)
