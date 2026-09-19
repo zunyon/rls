@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/17"
-#define BTIME "22:43:28"
+#define BDATE "09/19"
+#define BTIME "23:13:58"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/17 22:43"
+// my-last-update-time "2026, 09/19 23:09"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -653,7 +653,7 @@ struct ALIST {
 	char formatSortString[ListCountd +1];
 	char jotString[FNAME_LENGTH +1];
 
-	char osc8app[FNAME_LENGTH +8];
+	char osc8app[FNAME_LENGTH +1];
 
 	char color_txt[sizeof(default_color_txt)];
 	char onlyPaintStr[FNAME_LENGTH +1];
@@ -909,6 +909,17 @@ void
 makeDate(struct FNAME *p, time_t lt)
 {
 	struct tm *t = localtime(&(p->sb.st_mtime));
+	if (t == NULL) {
+		strcpy(p->datelong, "-");
+		strcpy(p->weeklong, "-");
+		strcpy(p->date, "-");
+		strcpy(p->week, "-");
+		strcpy(p->time, "-");
+		strcpy(p->timereadable, "-");
+		p->date_f = 0;
+		return;
+	}
+
 	double dtime = difftime(lt, p->sb.st_mtime);
 
 	// 未来、/proc, /sys
@@ -1805,9 +1816,7 @@ wcStrlen(char *name)
 
 
 // --------------------------------------------------------------------------------
-// 表示する -f 情報の中から、該当文字列を探す
-// -p は部分一致、-J (x) は完全一致（下記のように h と sh を分ける場合など）
-// ./a.out -alr -fmogcdxjNkLE -JxSCRIPT=sh:xSRC=c,h
+// 表示する -f 情報の中から、該当文字列を探す（-p は部分一致）
 // func: paint_string の時だけ、strcasestr 他は strstr
 int
 pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const char *, const char *))
@@ -1834,16 +1843,23 @@ pickupString(struct FNAME p, char *string, char orderlist[], char *(*func)(const
 		  case 'k': case 'K': if (func(p.kind,   string)) { return 1; } break;
 		  case 'D':           if (func(p.datelong, string)) { return 1; } break;
 		  case 'W':           if (func(p.weeklong, string)) { return 1; } break;
-		  case 'x': case 'X': if (strcasecmp(p.extension, string) == 0) { return 1; } break;
 		  case 'j': case 'J': if (func(p.jot,    string)) { return 1; } break;
-		  case 'l': case 'L': if (strcasestr(p.linkname, string)) { return 1; } break;
-		  case 'e': case 'E': if (strcasestr(p.errnostr, string)) { return 1; } break;
 #ifdef MD5
 		  case '5':           if (func(p.md5, string)) { return 1; } break;
 #endif
 #ifdef GIT
 		  case '6':           if (func(p.git, string)) { return 1; } break;
 #endif
+
+		  // ----------------------------------------
+		  case 'l': case 'L': if (strcasestr(p.linkname, string)) { return 1; } break;
+		  case 'e': case 'E': if (strcasestr(p.errnostr, string)) { return 1; } break;
+
+		  // ----------------------------------------
+		  // 拡張子は完全一致
+		  // -J (x) は下記のように h と sh を分ける場合など
+		  // ./a.out -alr -fmogcdxjNkLE -JxSCRIPT=sh:xSRC=c,h
+		  case 'x': case 'X': if (strcasecmp(p.extension, string) == 0) { return 1; } break;
 		}
 	}
 
@@ -3838,6 +3854,11 @@ scandirStdin(struct dirent ***namelist)
 			nread--;
 		}
 
+		// 空行
+		if (line[0] == '\0') {
+			continue;
+		}
+
 		size_t line_len = strlen(line);
 		if (line_len >= FNAME_LENGTH) {
 			fprintf(stderr, "scandirStdin: too long name [%s].\n", line);
@@ -3967,6 +3988,8 @@ main(int argc, char *argv[])
 		.color_txt = 
 		   // 8 色
 		   "base=37:normal=34:dir=36:fifo=33:sock=35:device=33:error=31:paint=32:"					// 文字色
+// 		   "base=37:normal=4:dir=4:fifo=4:sock=4:device=4:error=4:paint=7:"							// 文字色（白黒）
+
 // 		   "base=100:"																					// 背景色
 
 		   // 256 色、3000 は fore, 4000 は back
@@ -4341,8 +4364,8 @@ main(int argc, char *argv[])
 				}
 				debug printf("cwd:%s\n", cwd);
 
-				sprintf(fnamelist[j].osc8, "%s://%s", cfg.osc8app, cwd);		// Ubunts
-// 				sprintf(fnamelist[j].osc8, "%s://c:/%s", cfg.osc8app, cwd +7);	// WSL で解釈が windows の時
+				snprintf(fnamelist[j].osc8, sizeof(fnamelist[j].osc8), "%s://%s", cfg.osc8app, cwd);		// Ubunts
+// 				snprintf(fnamelist[j].osc8, sizeof(fnamelist[j].osc8), "%s://c:/%s", cfg.osc8app, cwd +7);	// WSL で解釈が windows の時
 			}
 
 			if (cfg.from_stdin) {
