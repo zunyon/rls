@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/19"
-#define BTIME "23:13:58"
+#define BDATE "09/23"
+#define BTIME "16:35:07"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/19 23:09"
+// my-last-update-time "2026, 09/23 14:45"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1716,7 +1716,7 @@ uniqueCheck(struct FNAME *p, int j, int len, struct DLIST *duplist)
 
 		for (int k=0; k<len; k++) {
 			// 漢字が含まれている || '()' だとエスケープできないから飛ばす、tolower() 後の文字列で
-			char ch = (unsigned char) tmp[k];
+			unsigned char ch = (unsigned char) tmp[k];
 			if (isprint(ch) == 0 || strchr(SKIP_LIST, ch) != NULL) {
 				brk = 1;
 				addDuplist(duplist, tmp, len, -1);
@@ -1752,7 +1752,7 @@ uniqueCheckFirstWord(struct FNAME *p, int j, int len, struct DLIST *duplist)
 
 	for (int k=0; k<len; k++) {
 		// 漢字が含まれている || '()' だとエスケープできないから飛ばす、tolower() 後の文字列で
-		char ch = (unsigned char) tmp[k];
+		unsigned char ch = (unsigned char) tmp[k];
 		if (isprint(ch) == 0 || strchr(SKIP_LIST, ch) != NULL) {
 			addDuplist(duplist, tmp, len, -1);
 			return;
@@ -2713,7 +2713,7 @@ showUsage(char **argv)
 
 	printf("\n");
 	printStr(label, "Listing format options:\n");
-	printf(" -s: Short listing format. (no kind, single color)\n");
+	printf(" -s: Short listing format. (no lstat)\n");
 	printf(" -l: Long listing format.\n");
 	printf(" -j: JSON format.\n");
 	printf(" "); printStr(normal, "-f"); printf(": with -l, change Format order. (default: -fmogcdNKLE)\n");
@@ -2791,10 +2791,9 @@ showUsage(char **argv)
 	printf("\n");
 	printStr(label, "Output data options:\n");
 	printf(" -a: show All dot files.\n");
-	printf(" -o: with -a, show Only directories. (-s > -o > [FILE])\n");
-	printf(" -O: show Only files.\n");
+	printf(" -o: toggle show Only files or directories. (-s > -o > [FILE/DIRECTORY])\n");
 	printf(" "); printStr(normal, "-P"); printf(": like -p, Pick up only matched string. (-Pstring, case sensitive)\n");
-	printf("     -O = -P > -o > -a\n");
+	printf("     -P > -o > -a\n");
 
 	printf("\n");
 	printStr(label, "Additional options:\n");
@@ -3273,8 +3272,7 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 					case 'e': cfg->do_emacs++;          break;	// emacs 系ファイル名対応
 
 					case 'a': cfg->show_dotfile++;      break;	// '.' から始まるファイルを表示
-					case 'o': cfg->only_directory++;    break;	// ディレクトリのみ表示
-					case 'O': cfg->only_file++;         break;	// ファイルのみ表示
+					case 'o': cfg->only_directory++;    break;	// ファイルのみ/ディレクトリのみ表示
 
 					case 'S': cfg->no_sort++;           break;	// ソート無し
 
@@ -3351,6 +3349,7 @@ progressAlist(struct ALIST *cfg)
 		cfg->show_long = 0;
 		cfg->readable_size = 0;
 		cfg->format_list = 0;
+		strcpy(cfg->formatListString, "nk");
 	}
 
 	// --------------------------------------------------------------------------------
@@ -3409,14 +3408,15 @@ progressAlist(struct ALIST *cfg)
 	}
 
 	// ================================================================================
-	// only_file の時は、ディレクトリ表示を行わない
+	// only_file / only_directory 表示切替
 	if (cfg->only_file) {
-		cfg->only_directory = 0;
-	}
-
-	// only_directory の時は、'.' から始まるディレクトリも表示する
-	if (cfg->only_directory) {
-		cfg->show_dotfile++;
+		if ((cfg->only_file % 2) == 1) {
+			cfg->only_file = 1;
+			cfg->only_directory = 0;
+		} else {
+			cfg->only_directory = 1;
+			cfg->only_file = 0;
+		}
 	}
 
 	// -p 指定文字列で色付け
@@ -3645,7 +3645,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 				}
 			}
 
-			printShort(data, count_is_file, cfg);
+			printShort(data, count, cfg);
 		}
 
 #ifdef DEBUG
@@ -4465,15 +4465,7 @@ main(int argc, char *argv[])
 
 		// fnamelist に登録
 		for (int j=0; j<p->nth; j++) {
-			// -s はファイル名しか使用しない
-			if (cfg.show_simple) {
-				continue;
-			}
-
-			if (fnamelist[j].isstat == 1) {
-				// only_directory の IS_DIRECTORY() で使用
-				makeMode(&fnamelist[j], cfg);
-			} else {
+			{
 				// --------------------------------------------------------------------------------
 				// printShort() なら DT_XXX で十分
 				fnamelist[j].kind[1] = '\0';
@@ -4488,6 +4480,11 @@ main(int argc, char *argv[])
 				  case DT_FIFO: fnamelist[j].kind[0] = '|'; fnamelist[j].color = fifo; break;
 				  case DT_SOCK: fnamelist[j].kind[0] = '='; fnamelist[j].color = sock; break;
 				  case DT_LNK: {fnamelist[j].kind[0] = '@'; fnamelist[j].mode[0] = 'l'; 
+					  // -s はファイル名しか使用しない
+					  if (cfg.show_simple) {
+						  continue;
+					  }
+
 					  // symlink 先のファイル名
 					  char fullpath[PATH_MAX + PATH_MAX +2];
 					  char *fullpathp;
@@ -4523,6 +4520,16 @@ main(int argc, char *argv[])
 					  }
 				  }
 				}
+			}
+
+			// -s はファイル名しか使用しない
+			if (cfg.show_simple) {
+				continue;
+			}
+
+			if (fnamelist[j].isstat == 1) {
+				// only_directory の IS_DIRECTORY() で使用
+				makeMode(&fnamelist[j], cfg);
 			}
 		}
 	}
