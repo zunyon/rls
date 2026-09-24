@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/23"
-#define BTIME "16:35:07"
+#define BDATE "09/24"
+#define BTIME "23:36:41"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/23 14:45"
+// my-last-update-time "2026, 09/24 23:35"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1710,25 +1710,22 @@ uniqueCheck(struct FNAME *p, int j, int len, struct DLIST *duplist)
 	}
 
 	// 1 文字目から、len 文字ずつ最後まで繰り返す
+	int id = j;
+	// 1 文字目から、len 文字ずつ最後まで繰り返す
 	for (int i=0; i<=l; i++) {
 		char *tmp = p[j].lowername + i;
-		int brk = 0;
-
 		for (int k=0; k<len; k++) {
 			// 漢字が含まれている || '()' だとエスケープできないから飛ばす、tolower() 後の文字列で
 			unsigned char ch = (unsigned char) tmp[k];
 			if (isprint(ch) == 0 || strchr(SKIP_LIST, ch) != NULL) {
-				brk = 1;
-				addDuplist(duplist, tmp, len, -1);
+				id = -1;
 				break;
 			}
 		}
-		if (brk) {
-			continue;
-		}
 
-		if (searchDuplist(duplist, tmp, len, j) == 0) {
-			addDuplist(duplist, tmp, len, j);
+		// 重複がなければ追加
+		if (searchDuplist(duplist, tmp, len, id) == 0) {
+			addDuplist(duplist, tmp, len, id);
 		}
 	}
 }
@@ -1749,18 +1746,20 @@ uniqueCheckFirstWord(struct FNAME *p, int j, int len, struct DLIST *duplist)
 	}
 
 	char *tmp = p[j].lowername;
+	int id = j;
 
 	for (int k=0; k<len; k++) {
 		// 漢字が含まれている || '()' だとエスケープできないから飛ばす、tolower() 後の文字列で
 		unsigned char ch = (unsigned char) tmp[k];
 		if (isprint(ch) == 0 || strchr(SKIP_LIST, ch) != NULL) {
-			addDuplist(duplist, tmp, len, -1);
-			return;
+			id = -1;
+			break;
 		}
 	}
 
-	if (searchDuplist(duplist, tmp, len, j) == 0) {
-		addDuplist(duplist, tmp, len, j);
+	// 重複がなければ追加
+	if (searchDuplist(duplist, tmp, len, id) == 0) {
+		addDuplist(duplist, tmp, len, id);
 	}
 }
 
