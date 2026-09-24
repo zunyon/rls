@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/24"
-#define BTIME "23:36:41"
+#define BDATE "09/25"
+#define BTIME "05:22:28"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/24 23:35"
+// my-last-update-time "2026, 09/25 05:20"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -1710,10 +1710,9 @@ uniqueCheck(struct FNAME *p, int j, int len, struct DLIST *duplist)
 	}
 
 	// 1 文字目から、len 文字ずつ最後まで繰り返す
-	int id = j;
-	// 1 文字目から、len 文字ずつ最後まで繰り返す
 	for (int i=0; i<=l; i++) {
 		char *tmp = p[j].lowername + i;
+		int id = j;
 		for (int k=0; k<len; k++) {
 			// 漢字が含まれている || '()' だとエスケープできないから飛ばす、tolower() 後の文字列で
 			unsigned char ch = (unsigned char) tmp[k];
