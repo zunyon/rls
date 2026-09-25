@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/25"
-#define BTIME "05:22:28"
+#define BDATE "09/26"
+#define BTIME "07:49:59"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/25 05:20"
+// my-last-update-time "2026, 09/25 05:29"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -89,7 +89,7 @@
 #define UNIQUE_LENGTH 32				// unique かどうか、最長連続 32 文字までカウント
 #define MESSAGELEN 64					// 文字列/文章などは 64 文字でカウント
 
-#define ESCAPECHARACTER " ~#()\\$&"		// 表示時に \ でエスケープする文字、printUnique(), printLength: で共通
+#define ESCAPECHARACTER " ~#()\\$&<>|\'\";:"		// 表示時に \ でエスケープする文字、printUnique(), printLength: で共通
 
 #define DELIMITER ":"					// -c の区切り
 #define COLOR_TEXT 64					// -c の区切りの最大属性文字列数
@@ -103,7 +103,7 @@
 
 #define SEP ','							// makeSize() のセパレート文字
 
-#define SKIP_LIST "()"					// uniqueCheck で SKIP 対象文字列
+#define SKIP_LIST "(){}*?"				// uniqueCheck で SKIP 対象文字列
 
 
 // 表示属性の切り替え
@@ -1348,6 +1348,7 @@ addFNamelist(struct FNAME *p, char *name)
 	p->model = 0;
 	p->ownerl = 0;
 	p->groupl = 0;
+	p->extensionl = 0;
 	p->size[0] = '\0';
 	p->nlink[0] = '\0';
 	p->inode[0] = '\0';
