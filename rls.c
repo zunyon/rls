@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "09/26"
-#define BTIME "07:49:59"
+#define BDATE "10/04"
+#define BTIME "20:57:23"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 09/25 05:29"
+// my-last-update-time "2026, 10/04 09:32"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -80,6 +80,10 @@
 
 #ifdef GIT
 #include <git2.h>
+#endif
+
+#ifdef OMP
+	#include <omp.h>
 #endif
 
 
@@ -872,7 +876,7 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 			"rwx"
 		};
 
-		char tmpmode[24];
+		char tmpmode[STRING16];
 		sprintf(tmpmode, "%c%s%s%s",
 				c,
 				modetxt[(st_mode & 0700) >> 6],
@@ -908,7 +912,8 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 void
 makeDate(struct FNAME *p, time_t lt)
 {
-	struct tm *t = localtime(&(p->sb.st_mtime));
+	struct tm t_buf;
+	struct tm *t = localtime_r(&(p->sb.st_mtime), &t_buf);
 	if (t == NULL) {
 		strcpy(p->datelong, "-");
 		strcpy(p->weeklong, "-");
@@ -3497,7 +3502,7 @@ doOUTPUT(struct DENT *dent, int showorder[], int dirarg, struct ALIST cfg, int c
 		if (p->nth == 0) {
 			newlist = NULL;
 		} else {
-			newlist = (struct FNAME *) malloc(sizeof(struct FNAME) * p->nth);
+			newlist = malloc(sizeof(struct FNAME) * p->nth);
 			if (newlist == NULL) {
 				perror("malloc");
 				fprintf(stderr, " doOUTPUT: You have no memory. %zu\n", sizeof(struct FNAME) * p->nth);
@@ -4322,7 +4327,7 @@ main(int argc, char *argv[])
 		if (p->nth == 0) {
 			p->fnamelist = NULL;
 		} else {
-			p->fnamelist = (struct FNAME *) malloc(sizeof(struct FNAME) * p->nth);
+			p->fnamelist = malloc(sizeof(struct FNAME) * p->nth);
 			if (p->fnamelist == NULL) {
 				perror("malloc");
 				fprintf(stderr, " =>size:%zu\n", sizeof(struct FNAME) * p->nth);
@@ -4445,7 +4450,6 @@ main(int argc, char *argv[])
 					}
 				}
 			}
-
 		}
 	}
 
