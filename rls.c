@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "10/04"
-#define BTIME "20:57:23"
+#define BDATE "10/12"
+#define BTIME "16:35:14"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 10/04 09:32"
+// my-last-update-time "2026, 10/12 15:25"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -93,8 +93,6 @@
 #define UNIQUE_LENGTH 32				// unique かどうか、最長連続 32 文字までカウント
 #define MESSAGELEN 64					// 文字列/文章などは 64 文字でカウント
 
-#define ESCAPECHARACTER " ~#()\\$&<>|\'\";:"		// 表示時に \ でエスケープする文字、printUnique(), printLength: で共通
-
 #define DELIMITER ":"					// -c の区切り
 #define COLOR_TEXT 64					// -c の区切りの最大属性文字列数
 #define ENVCOLOR "RLS_COLORS"			// 環境変数名
@@ -108,6 +106,8 @@
 #define SEP ','							// makeSize() のセパレート文字
 
 #define SKIP_LIST "(){}*?"				// uniqueCheck で SKIP 対象文字列
+
+char ESCAPECHARACTER[] = " ~#()\\$&<>|\'\";:";		// 表示時に \ でエスケープする文字、printUnique(), printLength: で共通
 
 
 // 表示属性の切り替え
@@ -1180,45 +1180,6 @@ printUnique(struct FNAME p, const char *dummy, struct ALIST cfg)
 		// 普通の文字表示
 		printf("%c", p.name[i]);
 	}
-	printEscapeColor(reset);
-
-	// --------------------------------------------------------------------------------
-	printEscapeColor(base);
-	printf("%s", cfg.textend);
-	// あれば uniqueend 後を表示
-	printf("%s", p.name + p.uniqueend + 1);
-	printEscapeColor(reset);
-
-	// dummy
-	if (dummy == NULL) {
-	}
-}
-
-
-// -- で使用、'-', '_' の置換を行わない表示
-void
-printUniqueOriginal(struct FNAME p, const char *dummy, struct ALIST cfg)
-{
-	// unique が無いので、そのまま表示
-	if (p.uniquebegin == -1) {
-		printStr(base, p.name);
-		return;
-	}
-
-	printEscapeColor(base);
-	// --------------------------------------------------------------------------------
-	// あれば uniquebegin までを表示
-	if (p.uniquebegin > 0) {
-		printf("%.*s", p.uniquebegin, p.name);
-	}
-
-	// --------------------------------------------------------------------------------
-	// 色付け開始
-	printf("%s", cfg.textbegin);
-	printEscapeColor(p.color);
-
-	// unique 部分表示
-	printf("%.*s", (p.uniqueend - p.uniquebegin) +1, p.name + p.uniquebegin);
 	printEscapeColor(reset);
 
 	// --------------------------------------------------------------------------------
@@ -3912,31 +3873,6 @@ scandirStdin(struct dirent ***namelist)
 
 
 // ================================================================================
-#if 0
-int
-countOgroups(void)
-{
-	int ogroups = 0;
-
-	setpwent();					// valgrind で引っかかる
-	while (getpwent()) {
-		ogroups++;
-	}
-	endpwent();
-
-	return ogroups;
-}
-
-
-int
-countGgroups(void)
-{
-	return getgroups(0, NULL);
-}
-#endif
-
-
-// ================================================================================
 int
 main(int argc, char *argv[])
 {
@@ -4084,7 +4020,11 @@ main(int argc, char *argv[])
 	// stdin からの入力は、ユニーク文字列の処理系が fish じゃ無くなる
 	// 差分文字列からの補完ができるように '-', '_' の補完をやめる
 	if (cfg.from_stdin) {
-		printName = printUniqueOriginal;
+		printName = printUnique;
+
+		// 下記の count を増やさないように
+		// fnamelist[j].namel = wcStrlen(fnamelist[j].name) + count;
+		ESCAPECHARACTER[0] = '\0';
 	}
 
 	// --------------------------------------------------------------------------------
@@ -4268,8 +4208,6 @@ main(int argc, char *argv[])
 	oarray.groups = 16;
 	oarray.strlength = LOGIN_NAME_MAX;
 
-	// +1 は "-" の分
-// 	if (cfg.format_owner) { oarray.groups = countOgroups() +1;}
 	oarray.table = NULL;
 	oarray.table = initArray(oarray);
 	// 0 が root で、-1 が失敗だから、それ以外の数値
@@ -4282,9 +4220,6 @@ main(int argc, char *argv[])
 	garray.last = 0;
 	garray.groups = 16;
 	garray.strlength = LOGIN_NAME_MAX;
-
-	// +1 は "-" の分
-// 	if (cfg.format_group) { garray.groups = countGgroups() +1;}
 
 	garray.table = NULL;
 	garray.table = initArray(garray);
