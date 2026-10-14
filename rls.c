@@ -32,8 +32,8 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "10/12"
-#define BTIME "16:35:14"
+#define BDATE "10/14"
+#define BTIME "23:40:20"
 
 #define RELTYPE "[CURRENT]"
 
@@ -4293,20 +4293,6 @@ main(int argc, char *argv[])
 			// path の登録
 			strcpy(fnamelist[j].path, dirarglist[i]);
 
-			// osc8 base path
-			if (cfg.show_osc8) {
-				char cwd[PATH_MAX +1];
-
-				if (getcwd(cwd, sizeof(cwd)) == NULL) {
-					perror("getcwd");
-					exit(EXIT_FAILURE);
-				}
-				debug printf("cwd:%s\n", cwd);
-
-				snprintf(fnamelist[j].osc8, sizeof(fnamelist[j].osc8), "%s://%s", cfg.osc8app, cwd);		// Ubunts
-// 				snprintf(fnamelist[j].osc8, sizeof(fnamelist[j].osc8), "%s://c:/%s", cfg.osc8app, cwd +7);	// WSL で解釈が windows の時
-			}
-
 			if (cfg.from_stdin) {
 				char *str = strrchr(fnamelist[j].name, '/');
 				if (str) {
@@ -4568,6 +4554,23 @@ main(int argc, char *argv[])
 			}
 		}
 #endif
+
+		// --------------------------------------------------------------------------------
+		// osc8 base path
+		if (cfg.show_osc8) {
+			char cwd[PATH_MAX +1];
+
+			if (getcwd(cwd, sizeof(cwd)) == NULL) {
+				perror("getcwd");
+				exit(EXIT_FAILURE);
+			}
+			for (int j=0; j<p->nth; j++) {
+				debug printf("cwd:%s\n", cwd);
+
+// 				snprintf(fnamelist[j].osc8, sizeof(fnamelist[j].osc8), "%s://%s", cfg.osc8app, cwd);		// Ubunts
+				snprintf(fnamelist[j].osc8, sizeof(fnamelist[j].osc8), "%s://c:/%s", cfg.osc8app, cwd +7);	// WSL で解釈が windows の時
+			}
+		}
 
 		// --------------------------------------------------------------------------------
 		// makeDate() は pickupString() より前に実施
