@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "10/25"
-#define BTIME "17:13:14"
+#define BDATE "10/26"
+#define BTIME "05:35:00"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 10/25 17:12"
+// my-last-update-time "2026, 10/26 05:34"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -418,7 +418,7 @@ initColor(char *argcolor)
 			break;
 		}
 
-		debug printf(" name:[%s],\tvalue:[%s],\tp:%s\n", name, valuechar, p);
+		debug printf(" name:[%s],\tvalue:[%s],\tp:%s\n", name, valuechar, p != NULL ? p : "(null)");
 
 		int found = 0;
 		for (int i=0; i<(int) (sizeof(cname) / sizeof(cname[0])); i++) {
@@ -596,6 +596,7 @@ struct DENT {
 	struct FNAME *fnamelist;			// 全エントリのファイル情報
 	int nthall;							// エントリ数
 	struct FNAME *fnamelistall;			// 全エントリのファイル情報
+	char **pathlist;					// scandirStdin 用のパスリスト
 
 	// 引数の処理
 	int is_file;						// その引数はファイル
@@ -3014,6 +3015,15 @@ freeDENT(struct DENT *dent, int dirarg)
 {
 	debug printStr(label, "freeDENT:\n");
 
+	// scandirStdin(): i は 0 のみ
+	if (dent[0].pathlist) {
+		for (int j=0; j<dent[0].nth; j++) {
+			free(dent[0].pathlist[j]);
+// 			printf("j:%d\n", j);
+		}
+		free(dent[0].pathlist);
+	}
+
 	for (int i=0; i<dirarg; i++) {
 		free(dent[i].fnamelist);
 
@@ -3815,80 +3825,124 @@ makeGit(struct DENT *p)
 // ================================================================================
 // stdin からファイルリストを読み込む、| で使用
 int
-scandirStdin(struct dirent ***namelist)
+scandirStdin(struct dirent ***namelist, char ***pathlist)
 {
 	debug printStr(label, "scandirStdin:\n");
 
-	char *line = NULL;
-	size_t len = 0;
+	size_t dummy = PATH_MAX + FNAME_LENGTH +1;
+	char *line = malloc(dummy);
+	if (line == NULL) {
+		dummy = 0;
+	}
 	ssize_t nread;
 
 	int nth = 512;
 	int count = 0;
 
-	struct dirent **list = malloc(sizeof(struct dirent *) * nth);
+	char **list = malloc(sizeof(char *) * nth);
 	if (list == NULL) {
+		if (line) {
+			free(line);
+		}
 		return -1;
 	}
 
-	while ((nread = getline(&line, &len, stdin)) != -1) {
-		if (nread > 0 && line[nread - 1] == '\n') {
-			line[nread - 1] = '\0';
-			nread--;
-		}
-		if (nread > 1 && line[nread - 1] == '/') {		// "/" の時は 1
-			line[nread - 1] = '\0';
-			nread--;
-		}
-
+	// 2 次元配列に詰め込む
+	while ((nread = getline(&line, &dummy, stdin)) != -1) {
 		// 空行
-		if (line[0] == '\0') {
+		if (line[0] == '\n' || line[0] == '\0') {
 			continue;
 		}
 
-		size_t line_len = strlen(line);
-		if (line_len >= FNAME_LENGTH) {
-			fprintf(stderr, "scandirStdin: too long name [%s].\n", line);
-			line[FNAME_LENGTH - 1] = '\0';
+		size_t len = strlen(line);
+		if (line[len - 1] == '\n') {
+			line[len - 1] = '\0';
+			len--;
+		}
+		if (len > 1 && line[len - 1] == '/') {		// "/" の時は 1
+			line[len - 1] = '\0';
+			len--;
 		}
 
-		// struct dirent を確保
-		struct dirent *ent = malloc(sizeof(struct dirent));
-		if (ent == NULL) {
-			free(line);
-			// 途中まで確保したものを解放
-			for (int i = 0; i < count; i++) {
+		list[count] = malloc(sizeof(char) * (len + 3));		// strlen() とは関係なしで "./" をコピーするから 1 -> 3
+		if (list[count] == NULL) {
+			for (int i=0; i<count; i++) {
 				free(list[i]);
 			}
 			free(list);
+			free(line);
 			return -1;
 		}
 
-		// d_name にコピー
-		strcpy(ent->d_name, line);
-		ent->d_type = DT_UNKNOWN;
+		strcpy(list[count], line);
+		count++;
 
 		// 配列が足りない
 		if (count == nth) {
 			nth *= 2;
-			struct dirent **tmp = realloc(list, nth * sizeof(struct dirent *));
+			char **tmp = realloc(list, sizeof(char *) * nth);
 			if (tmp == NULL) {
-				free(ent);
-				free(line);
-
-				for (int i = 0; i < count; i++) {
+				for (int i=0; i<count; i++) {
 					free(list[i]);
 				}
 				free(list);
+				free(line);
 				return -1;
 			}
 			list = tmp;
 		}
-		list[count++] = ent;
+	}
+	free(line);
+
+// 	for (int i=0; i<count; i++) {
+// 		printf(" ->[%s]\n", list[i]);
+// 	}
+
+	// 読み込んだ実際の行を設定
+	*pathlist = list;
+
+	// --------------------------------------------------------------------------------
+	// dirent に詰め込む
+	struct dirent **nlist = malloc(sizeof(struct dirent *) * count);
+	if (nlist == NULL) {
+		for (int i=0; i<count; i++) {
+			free(list[i]);
+		}
+		free(list);
+		return -1;
+	}
+	for (int i=0; i<count; i++) {
+		nlist[i] = malloc(sizeof(struct dirent));
+		if (nlist[i] == NULL) {
+			for (int j=0; j<count; j++) {
+				free(list[j]);
+			}
+			free(list);
+
+			// 途中まで確保したものを解放
+			for (int j=0; j<i; j++) {
+				free(nlist[j]);
+			}
+			free(nlist);
+			return -1;
+		}
 	}
 
-	free(line);
-	*namelist = list;
+	for (int i=0; i<count; i++) {
+// printf("[%s]  ->", list[i]);
+		char *str = strrchr(list[i], '/');
+		if (str) {
+			strcpy(nlist[i]->d_name, str +1);
+			list[i][strlen(list[i]) - strlen(str) +1] = '\0';
+// 			*str = '\0';
+		} else {
+			strcpy(nlist[i]->d_name, list[i]);
+			strcpy(list[i], "./");
+		}
+		nlist[i]->d_type = DT_UNKNOWN;
+// printf("[%s]:[%s]\n", list[i], nlist[i]->d_name);
+	}
+	*namelist = nlist;
 
 	return count;
 }
@@ -4270,7 +4324,7 @@ main(int argc, char *argv[])
 			p->nth = scandir(dirarglist[i], &p->direntlist, NULL, NULL);
 		} else {
 			// stdin からファイル名を読み込む
-			p->nth = scandirStdin(&p->direntlist);
+			p->nth = scandirStdin(&p->direntlist, &p->pathlist);
 		}
 
 		if (p->nth == -1) {
@@ -4316,32 +4370,14 @@ main(int argc, char *argv[])
 			strcpy(fnamelist[j].path, dirarglist[i]);
 
 			if (cfg.from_stdin) {
-				char *str = strrchr(fnamelist[j].name, '/');
-				if (str) {
-					int len = strlen(str);
-
-					if (len > PATH_MAX) {
-						len = PATH_MAX;
-					}
-
-					int pl = strlen(direntlist[j]->d_name) - len;
-					strcpy(fnamelist[j].path, direntlist[j]->d_name);
-					fnamelist[j].path[pl +1] = '\0';
-					strcpy(dirarglist[i], fnamelist[j].path);
-
-					fnamelist[j].name = str +1;
-					len--;
-					fnamelist[j].length = len;
-					for (int k=0; k<len; k++) {
-						fnamelist[j].lowername[k] = tolower(fnamelist[j].name[k]);
-					}
-					fnamelist[j].lowername[len] = '\0';
-				} else {
-					// ls | rls -- -alr などの時
-					fnamelist[j].name = direntlist[j]->d_name;
-					strcpy(fnamelist[j].path, "./");
-					strcpy(dirarglist[i], "./");
+				strcpy(fnamelist[j].path, p->pathlist[j]);
+				strcpy(dirarglist[i], p->pathlist[j]);
+				int len = strlen(fnamelist[j].name);
+				fnamelist[j].length = len;
+				for (int k=0; k<len; k++) {
+					fnamelist[j].lowername[k] = tolower(fnamelist[j].name[k]);
 				}
+				fnamelist[j].lowername[len] = '\0';
 			}
 
 			// -s はファイル名しか使用しない
@@ -4809,10 +4845,8 @@ main(int argc, char *argv[])
 							}
 						}
 					} else {
-						if (values[0] != '\0') {
-							if (pickupString(fnamelist[j], values, chk, strstr) == 1) {
-								snprintf(fnamelist[j].jot, sizeof(fnamelist[j].jot), "%s", label +1);
-							}
+						if (pickupString(fnamelist[j], values, chk, strstr) == 1) {
+							snprintf(fnamelist[j].jot, sizeof(fnamelist[j].jot), "%s", label +1);
 						}
 					}
 				}
