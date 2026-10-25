@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "10/14"
-#define BTIME "23:40:20"
+#define BDATE "10/25"
+#define BTIME "17:13:14"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 10/12 15:25"
+// my-last-update-time "2026, 10/25 17:12"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -347,6 +347,35 @@ printStr(CLIST color, const char *str)
 }
 
 
+char *
+splitStr(char *org, char *del, char left[], char right[])
+{
+	if (org == NULL || *org == '\0') {
+		return NULL;
+	}
+
+// 	printf("splitStr, org:%s, del:%s\n", org, del);
+
+	char *pos = strstr(org, del);
+	if (pos != NULL) {
+		int len = pos - org;
+// 		printf(" len:%d\n", len);
+		strncpy(left, org, len);
+		left[len] = '\0';
+
+		char *p = pos + strlen(del);
+		strcpy(right, p);
+
+		return p;
+	} else {
+		strcpy(left, org);
+		right[0] = '\0';
+
+		return NULL;
+	}
+}
+
+
 // 設定は、256 色 (5 で決め打ち、true color (2) の実装はしていない)
 void
 initColor(char *argcolor)
@@ -359,44 +388,37 @@ initColor(char *argcolor)
 	};
 
 	// --------------------------------------------------------------------------------
-	char *from;
+	char *p;
 	if (argcolor[0] == '\0') {
 		// 引数が無ければ getenv() で色を設定
-		if ((from = getenv(ENVCOLOR)) == NULL) {
+		if ((p = getenv(ENVCOLOR)) == NULL) {
 			debug printf(" env %s: empty.\n", ENVCOLOR);
 			return;
 		}
-		debug printf("getenv(\"%s\"): %s\n", ENVCOLOR, from);
+		debug printf("getenv(\"%s\"): %s\n", ENVCOLOR, p);
 	} else {
 		// 引数の色指定
-		from = argcolor;
-		debug printf(" argv: %s\n", from);
+		p = argcolor;
+		debug printf(" argv: %s\n", p);
 	}
-	char *p;
 	int usage = 0;
 
 	int overwritelist[ListCount];
 	memset(overwritelist, -1, sizeof(overwritelist));
+	int strl = strlen(p);
+	while (p != NULL) {
+		char tmp[strl +1], dummy[strl +1];
+		char name[strl +1], valuechar[strl +1];
+		p = splitStr(p, DELIMITER, tmp, dummy);		// ":" で分離
+		splitStr(tmp, "=", name, valuechar);		// "=" で分離
 
-	int strl = strlen(from);
-	// 加工前の文字列
-	char masterstr[strl +1];
-	strcpy(masterstr, from);
-	from = masterstr;
-
-	p = strtok(from, DELIMITER);
-	while (p) {
 		// strchr() の失敗チェックを先に行う
-		char *eq = strchr(p, '=');
-		if (eq == NULL || eq == p +1 || eq[1] == '\0') {
+		if (valuechar[0] == '\0') {
 			usage++;
 			break;
 		}
-		*eq = '\0';
-		char *name = p;
-		char *valuechar = eq +1;
 
-		debug printf(" name:[%s],\tvalue:[%s],\t%s\n", name, valuechar, p);
+		debug printf(" name:[%s],\tvalue:[%s],\tp:%s\n", name, valuechar, p);
 
 		int found = 0;
 		for (int i=0; i<(int) (sizeof(cname) / sizeof(cname[0])); i++) {
@@ -440,8 +462,6 @@ initColor(char *argcolor)
 			usage++;
 			break;
 		}
-
-		p = strtok(NULL, DELIMITER);
 	}
 
 #ifdef DEBUG
@@ -3284,7 +3304,7 @@ formatOption(struct ALIST *cfg, int c)
 		case 'o': case 'O': cfg->format_owner++;  break;
 		case 'g': case 'G': cfg->format_group++;  break;
 		case 'x': case 'X': cfg->format_extension++; break;
-		case 'j': case 'J': cfg->format_jot++;    break;
+// 		case 'j': case 'J': cfg->format_jot++;    break;
 
 		// makeDate() で処理
 		case 'd': case 'D':
@@ -3342,21 +3362,23 @@ progressAlist(struct ALIST *cfg)
 	}
 
 	// --------------------------------------------------------------------------------
-	// jot -J の sort で行う内容を決定
+	// jot -J の sort で行う内容を決定（最初の 1 文字が項目）
 	if (cfg->jotString[0] != '\0') {
 		int strl = strlen(cfg->jotString);
-		char string[strl +1];
-		strcpy(string, cfg->jotString);
+		cfg->format_jot++;
 
-		char *str = strtok(string, DELIMITER);
-		while (str != NULL) {
-			char *eq = strchr(str +1, '=');
-			if (eq == NULL || eq == str +1 || eq[1] == '\0') {
+		char *p = cfg->jotString;
+		while (p != NULL) {
+			char tmp[strl +1], dummy[strl +1];
+			char tmp2[strl +1], dummy2[strl +1];
+			p = splitStr(p, ":", tmp, dummy);
+			splitStr(tmp, "=", tmp2, dummy2);
+
+			if (dummy2[0] == '\0') {
 				break;
 			}
 			// -F の sort で行う内容を決定
-			formatOption(cfg, str[0]);
-			str = strtok(NULL, DELIMITER);
+			formatOption(cfg, tmp2[0]);
 		}
 	}
 
@@ -4718,6 +4740,10 @@ main(int argc, char *argv[])
 				if (fnamelist[j].showlist == SHOW_NONE) {
 					continue;
 				}
+// 				// ディレクトリに拡張子はない
+// 				if (IS_DIRECTORY(fnamelist[j])) {
+// 					continue;
+// 				}
 
 				// 最後の '.' 以降
 				char *extension = strrchr(fnamelist[j].name, '.');
@@ -4746,10 +4772,6 @@ main(int argc, char *argv[])
 			debug printStr(label, "jot:\n");
 			debug printf("jotString:[%s]\n", cfg.jotString);
 			int strl = strlen(cfg.jotString);
-			char string[strl +1];
-
-			char fmt[strl +1];
-			snprintf(fmt, sizeof(fmt), "%%%d[^=]=%%%ds", strl, strl);
 
 			for (int j=0; j<p->nth; j++) {
 				if (fnamelist[j].showlist == SHOW_NONE) {
@@ -4759,37 +4781,38 @@ main(int argc, char *argv[])
 				char chk[2];
 				chk[1] = '\0';
 
-				strcpy(string, cfg.jotString);
+				char *jp = cfg.jotString;
+				while (jp != NULL) {
+					char tmp[strl +1], dummy[strl +1];
+					char label[strl +1], values[strl +1];
+					jp = splitStr(jp, ":", tmp, dummy);
+					splitStr(tmp, "=", label, values);
 
-				char *str = strtok(string, DELIMITER);
-				while(str != NULL) {
-					char jot[strl +1];
-					char values[strl +1];
-
-					if (sscanf(str +1, fmt, jot, values) != 2) {
+					if (values[0] == '\0') {
 						break;
 					}
-					chk[0] = str[0];
-					str = strtok(NULL, DELIMITER);
+					chk[0] = tmp[0];
 
-					debug printf(" chk:[%s], jot:[%s], value[%s]\n", chk, jot, values);
-					{
-						char *saveptr2;
-						char *token = strtok_r(values, ",", &saveptr2);
-						// , は無かった
-						if (token == NULL) {
-// 							printf(" value:%s\n", values);
-							if (pickupString(fnamelist[j], values, chk, strstr) == 1) {
-								snprintf(fnamelist[j].jot, sizeof(fnamelist[j].jot), "%s", jot);
+					debug printf(" chk:[%s], label:[%s], value[%s]\n", chk, label, values);
+
+					if (strchr(values, ',') != NULL) {
+						char *q = values;
+						while (q != NULL) {
+							char value[strl +1], values2[strl +1];
+							q = splitStr(q, ",", value, values2);
+
+							if (pickupString(fnamelist[j], value, chk, strstr) == 1) {
+								snprintf(fnamelist[j].jot, sizeof(fnamelist[j].jot), "%s", label +1);
+							}
+							if (values2[0] == '\0') {
+								break;
 							}
 						}
-						// , 対応
-						while (token != NULL) {
-// 							printf(" value:%s\n", token);
-							if (pickupString(fnamelist[j], token, chk, strstr) == 1) {
-								snprintf(fnamelist[j].jot, sizeof(fnamelist[j].jot), "%s", jot);
+					} else {
+						if (values[0] != '\0') {
+							if (pickupString(fnamelist[j], values, chk, strstr) == 1) {
+								snprintf(fnamelist[j].jot, sizeof(fnamelist[j].jot), "%s", label +1);
 							}
-							token = strtok_r(NULL, ",", &saveptr2);
 						}
 					}
 				}
