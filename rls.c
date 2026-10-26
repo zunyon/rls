@@ -33,14 +33,14 @@
 #define INCDATE
 #define BYEAR "2026"
 #define BDATE "10/26"
-#define BTIME "05:35:00"
+#define BTIME "21:51:11"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 10/26 05:34"
+// my-last-update-time "2026, 10/26 21:49"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -864,7 +864,7 @@ makeMode(struct FNAME *p, struct ALIST cfg)
 					fullpathp = p->linkname;
 				}
 
-				if (lstat(fullpathp, &sb) == -1) {
+				if (stat(fullpathp, &sb) == -1) {
 					// データが取れなかったから異常
 					strcpy(p->errnostr, strerror(errno));
 					p->color = error;
@@ -4489,7 +4489,7 @@ main(int argc, char *argv[])
 					  } else {
 						  fullpathp = fnamelist[j].linkname;
 					  }
-					  if (lstat(fullpathp, &sb) == -1) {
+					  if (stat(fullpathp, &sb) == -1) {
 						  // データが取れなかったから異常
 						  fnamelist[j].color = error;
 					  } else {
