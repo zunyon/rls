@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "10/26"
-#define BTIME "21:51:11"
+#define BDATE "10/31"
+#define BTIME "08:47:55"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 10/26 21:49"
+// my-last-update-time "2026, 10/31 08:44"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -327,9 +327,6 @@ char colorlist[ListCount][COLOR_TEXT];
 
 // --------------------------------------------------------------------------------
 // ファイルの種類による色分け
-char default_color_txt[ListCount * COLOR_TEXT];
-
-
 void
 printStr(CLIST color, const char *str)
 {
@@ -423,7 +420,7 @@ initColor(char *argcolor)
 		int found = 0;
 		for (int i=0; i<(int) (sizeof(cname) / sizeof(cname[0])); i++) {
 			if (strcmp(name, cname[i]) == 0) {
-				char ctxt[COLOR_TEXT *2];
+				char ctxt[strlen(valuechar) +12];		// エスケープシーケンス分
 
 				// 指定された項目は、1 回目は default を上書き、それ以降は追記
 				if (overwritelist[i] == -1) {
@@ -438,7 +435,6 @@ initColor(char *argcolor)
 					} else {
 						// 追記する記載
 						sprintf(ctxt, ";%c8;5;%sm", valuechar[0], valuechar + 1);
-						colorlist[i][strlen(colorlist[i]) -1] = '\0';		// 最後の 'm' を削除
 					}
 				} else {
 					// 8 色や、追記の属性
@@ -447,11 +443,18 @@ initColor(char *argcolor)
 					} else {
 						// 追記する記載
 						sprintf(ctxt, ";%sm", valuechar);
-						colorlist[i][strlen(colorlist[i]) -1] = '\0';		// 最後の 'm' を削除
 					}
 				}
 
-				strcat(colorlist[i], ctxt);
+				if (strlen(colorlist[i]) + strlen(ctxt) < COLOR_TEXT) {
+					if (colorlist[i][0] != '\0') {
+						colorlist[i][strlen(colorlist[i]) -1] = '\0';		// 追記するから最後の 'm' を削除
+					}
+					strcat(colorlist[i], ctxt);
+				} else {
+					usage++;
+					break;
+				}
 				found = 1;
 				break;
 			}
@@ -485,7 +488,7 @@ initColor(char *argcolor)
 	if (usage) {
 		// エラー
 		printf("initColor:\n");
-		fprintf(stderr, " bad setting:   %s\n", p);
+		fprintf(stderr, " bad setting:   %s\n", (argcolor[0] == '\0' ? getenv(ENVCOLOR) : argcolor));
 		printf(" setting color: ");
 
 		#define CLISTStrColor(name, string) printStr(name, #name); printf(" ");
@@ -680,7 +683,7 @@ struct ALIST {
 
 	char osc8app[FNAME_LENGTH +1];
 
-	char color_txt[sizeof(default_color_txt)];
+	char *color_txt;
 	char onlyPaintStr[FNAME_LENGTH +1];
 
 	int *dirarg;
@@ -2594,11 +2597,11 @@ showArgvswitch(struct ALIST cfg)
 
 // --------------------------------------------------------------------------------
 void
-showColorUsage(void)
+showColorUsage(struct ALIST cfg)
 {
 	printStr(label, "Colors:\n");
 	printf(" set custom color, same as -c option format, same restrictions.\n");
-	printf("  default setting: %s\n", default_color_txt);
+	printf("  default setting: %s\n", cfg.color_txt);
 
 	char *from = getenv(ENVCOLOR);
 	if (from) {
@@ -2854,7 +2857,7 @@ showSetting(int argc, char **argv, struct ALIST cfg)
 // 	printf("\n");
 // #endif
 
-	showColorUsage();
+	showColorUsage(cfg);
 }
 
 
@@ -3111,12 +3114,8 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 			if (len == 2) { argverr[i] = error; errc++; continue; }
 
 			cfg->argv_color++;
-			if (len - 2 > ListCount * COLOR_TEXT) {
-				len = ListCount * COLOR_TEXT + 2;
-			}
 			// 後の指定が優先 (上書き) される
-			strncpy(cfg->color_txt, argv[i] + 2, len - 2);
-			cfg->color_txt[len -2] = '\0';
+			cfg->color_txt = argv[i] +2;
 			debug printf("argv color:[%s]\n", cfg->color_txt);
 			continue;
 		}
@@ -3997,27 +3996,6 @@ main(int argc, char *argv[])
 		.onlyPaintStr[0] = '\0',
 		.formatListString = "mogcdNKLE",
 		.formatSortString = "nn",																		// -f の sort 指定
-
-		// --------------------------------------------------------------------------------
-		// Control Sequence Introducer
-		// 属性 太=1, (細=2), イタリック=3, 下線=4, 点滅=5, (速い点滅=6), 文字/背景の反転=7, (隠す=8), 取消=9, 2重下線=21, 上線=53
-		.color_txt = 
-		   // 8 色
-		   "base=37:normal=34:dir=36:fifo=33:sock=35:device=33:error=31:paint=32:"					// 文字色
-// 		   "base=37:normal=4:dir=4:fifo=4:sock=4:device=4:error=4:paint=7:"							// 文字色（白黒）
-
-// 		   "base=100:"																					// 背景色
-
-		   // 256 色、3000 は fore, 4000 は back
-// 		   "base=3007:normal=3012:dir=3014:fifo=3011:sock=3009:device=3011:error=3009:paint=3032"		// 文字色
-
-// 		   "normal=1:dir=1:sock=1:device=1:label=1:error=1:paint=1:"									// 属性
-// 		   "paint=95:paint=5:"	// 点滅させるためには、明るい色を指定する必要あり
-
-		   "reset=0"
-		   ,
-		// --------------------------------------------------------------------------------
-
 		.termlen = 0,
 		.termhei = 0,
 		.aggregate_length = 0,
@@ -4025,6 +4003,25 @@ main(int argc, char *argv[])
 // 		.jotString = "xrls prj=c,h,md:xMovie=mov,avi,mp4:xText=txt:nText=Makefile:xGraph=gif,jpg,jpeg,bmp:ICORE=26177172834116508"
 	};
 
+	cfg.color_txt = 
+	// Control Sequence Introducer
+	// 属性 太=1, (細=2), イタリック=3, 下線=4, 点滅=5, (速い点滅=6), 文字/背景の反転=7, (隠す=8), 取消=9, 2重下線=21, 上線=53
+	// 8 色
+	"base=37:normal=34:dir=36:fifo=33:sock=35:device=33:error=31:paint=32:"						// 文字色
+// 	"base=37:normal=4:dir=4:fifo=4:sock=4:device=4:error=4:paint=7:"							// 文字色（白黒）
+
+// 	"base=100:"																					// 背景色
+
+// 	// 256 色、3000 は fore, 4000 は back
+// 	"base=3007:normal=3012:dir=3014:fifo=3011:sock=3009:device=3011:error=3009:paint=3032"		// 文字色
+
+// 	"normal=1:dir=1:sock=1:device=1:label=1:error=1:paint=1:"									// 属性
+// 	"paint=95:paint=5:"	// 点滅させるためには、明るい色を指定する必要あり
+
+	"reset=0"
+	;
+
+	// --------------------------------------------------------------------------------
 	int dirarg_flags[argc];
 	memset(dirarg_flags, 0, sizeof(dirarg_flags));
 	cfg.dirarg = dirarg_flags;
@@ -4042,8 +4039,6 @@ main(int argc, char *argv[])
 	showlong = printLong;				// long listing の初期表示は printLong()
 
 	// --------------------------------------------------------------------------------
-	// default color text を格納
-	strcpy(default_color_txt, cfg.color_txt);
 	initColor(cfg.color_txt);
 
 	// --------------------------------------------------------------------------------
