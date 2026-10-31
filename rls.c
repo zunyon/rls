@@ -33,14 +33,14 @@
 #define INCDATE
 #define BYEAR "2026"
 #define BDATE "11/01"
-#define BTIME "06:07:40"
+#define BTIME "06:24:28"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 11/01 06:06"
+// my-last-update-time "2026, 11/01 06:14"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -3933,9 +3933,11 @@ scandirStdin(struct dirent ***namelist, char ***pathlist)
 		if (str) {
 			str++;
 			strncpy(nlist[i]->d_name, str, sizeof(nlist[i]->d_name) -1);
+			nlist[i]->d_name[sizeof(nlist[i]->d_name) -1] = '\0';
 			*str = '\0';
 		} else {
 			strncpy(nlist[i]->d_name, list[i], sizeof(nlist[i]->d_name) -1);
+			nlist[i]->d_name[sizeof(nlist[i]->d_name) -1] = '\0';
 			strcpy(list[i], "./");
 		}
 		nlist[i]->d_type = DT_UNKNOWN;
