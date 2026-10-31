@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "10/31"
-#define BTIME "08:47:55"
+#define BDATE "11/01"
+#define BTIME "06:07:40"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 10/31 08:44"
+// my-last-update-time "2026, 11/01 06:06"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -3931,11 +3931,11 @@ scandirStdin(struct dirent ***namelist, char ***pathlist)
 // printf("[%s]  ->", list[i]);
 		char *str = strrchr(list[i], '/');
 		if (str) {
-			strcpy(nlist[i]->d_name, str +1);
-			list[i][strlen(list[i]) - strlen(str) +1] = '\0';
-// 			*str = '\0';
+			str++;
+			strncpy(nlist[i]->d_name, str, sizeof(nlist[i]->d_name) -1);
+			*str = '\0';
 		} else {
-			strcpy(nlist[i]->d_name, list[i]);
+			strncpy(nlist[i]->d_name, list[i], sizeof(nlist[i]->d_name) -1);
 			strcpy(list[i], "./");
 		}
 		nlist[i]->d_type = DT_UNKNOWN;
