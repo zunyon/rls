@@ -33,14 +33,14 @@
 #define INCDATE
 #define BYEAR "2026"
 #define BDATE "11/03"
-#define BTIME "12:13:02"
+#define BTIME "12:44:55"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 11/03 10:24"
+// my-last-update-time "2026, 11/03 12:44"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -4302,19 +4302,16 @@ main(int argc, char *argv[])
 		struct DENT *p;
 		p = &dent[i];
 
-		// 多分パス、移動に失敗したら次のパス
-		{
+		// データリストの取得
+		if (cfg.from_stdin == 0) {
+			// 多分パス、オープンに失敗したら次のパス
 			DIR *dr = opendir(dirarglist[i]);
 			if (dr == NULL) {
 				fprintf(stderr, "opendir: %s [%s]\n", strerror(errno), dirarglist[i]);
 				continue;
 			}
 			closedir(dr);
-		}
 
-		// --------------------------------------------------------------------------------
-		// データリストの取得
-		if (cfg.from_stdin == 0) {
 			p->nth = scandir(dirarglist[i], &p->direntlist, NULL, NULL);
 		} else {
 			// stdin からファイル名を読み込む
