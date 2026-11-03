@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "11/01"
-#define BTIME "06:24:28"
+#define BDATE "11/03"
+#define BTIME "12:13:02"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 11/01 06:14"
+// my-last-update-time "2026, 11/03 10:24"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -994,28 +994,25 @@ makeDate(struct FNAME *p, time_t lt)
 void
 makeSize(char *digits, long int n)
 {
-	if (n < 1000) {
-		sprintf(digits, "%ld", n);
-		return;
-	}
+	char tmp[DATALEN];
+	int len = 0;
 
-	char str[DATALEN];
-	sprintf(str, "%ld", n);
-	int len = strlen(str);
-	int c = 3 - len % 3;
-	if (c == 3) {
-		c = 0;
-	}
+	// 逆順
+	do {
+		tmp[len++] = (n % 10) + '0';
+		n /= 10;
+	} while (n);
 
-	int j=0;
-	for (int i=0; i<len; i++, j++, c++) {
-		if (c == 3) {
-			c = 0;
-			digits[j] = SEP;
-			j++;
+	int j = 0;
+	// ひっくり返す
+	for (int i=len-1; i>=0; i--) {
+		digits[j++] = tmp[i];
+
+		if (i>0 && i%3 == 0) {
+			digits[j++] = SEP;
 		}
-		digits[j] = str[i];
 	}
+
 	digits[j] = '\0';
 }
 
@@ -4667,7 +4664,7 @@ main(int argc, char *argv[])
 				// countsize data
 				if (IS_DIRECTORY(fnamelist[j])) {
 					// ディレクトリの場合は、最大エントリー数を記載
-					int ret = countEntry(fnamelist[j].name, dirarglist[i]);
+					int ret = countEntry(fnamelist[j].name, fnamelist[j].path);
 
 					if (ret != -1) {
 						// -2: "." と ".." を除く
