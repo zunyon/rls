@@ -33,14 +33,14 @@
 #define INCDATE
 #define BYEAR "2026"
 #define BDATE "11/03"
-#define BTIME "12:44:55"
+#define BTIME "22:30:20"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 11/03 12:44"
+// my-last-update-time "2026, 11/03 22:14"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -5091,7 +5091,7 @@ main(int argc, char *argv[])
 						count++;
 					}
 				}
-				count += cfg.tlen;
+				count += countMatchedString(fnamelist[j].name, fnamelist[j].length) * cfg.tlen;
 			}
 			fnamelist[j].namel = wcStrlen(fnamelist[j].name) + count;
 		}
