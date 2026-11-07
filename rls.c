@@ -32,15 +32,15 @@
 // build date
 #define INCDATE
 #define BYEAR "2026"
-#define BDATE "11/03"
-#define BTIME "22:30:20"
+#define BDATE "11/07"
+#define BTIME "19:13:08"
 
 #define RELTYPE "[CURRENT]"
 
 
 // --------------------------------------------------------------------------------
 // Last Update:
-// my-last-update-time "2026, 11/03 22:14"
+// my-last-update-time "2026, 11/07 19:12"
 
 // 一覧リスト表示
 //   ファイル名のユニークな部分の識別表示
@@ -107,7 +107,8 @@
 
 #define SKIP_LIST "(){}*?"				// uniqueCheck で SKIP 対象文字列
 
-char ESCAPECHARACTER[] = " ~#()\\$&<>|\'\";:";		// 表示時に \ でエスケープする文字、printUnique(), printLength: で共通
+char ESCAPECHARACTER[] = " ~#()\\$&<>|\'\";:\t\n";		// 表示時に \ でエスケープする文字、printUnique(), printLength: で共通
+char STDIN_DELIMITER = '\n';
 
 
 // 表示属性の切り替え
@@ -326,6 +327,32 @@ char colorlist[ListCount][COLOR_TEXT];
 
 
 // --------------------------------------------------------------------------------
+// ファイル名に \t と \n が入っている時の対処
+void
+escapePrintf(const char *str, int length)
+{
+	for (int i=0; i<length; i++) {
+		if (str[i] == '\t') {
+			printEscapeColor(label);
+			printf("\\t");
+			printEscapeColor(reset);
+			printEscapeColor(base);
+			continue;
+		}
+
+		if (str[i] == '\n') {
+			printEscapeColor(label);
+			printf("\\n");
+			printEscapeColor(reset);
+			printEscapeColor(base);
+			continue;
+		}
+
+		printf("%c", str[i]);
+	}
+}
+
+
 // ファイルの種類による色分け
 void
 printStr(CLIST color, const char *str)
@@ -334,11 +361,11 @@ printStr(CLIST color, const char *str)
 	int len = strlen(str);
 	printEscapeColor(color);
 	if (len && str[len - 1] == '\n') {
-		printf("%.*s", len - 1, str);
+		escapePrintf(str, len-1);
 		printEscapeColor(reset);
 		printf("\n");
 	} else {
-		printf("%s", str);
+		escapePrintf(str, len);
 		printEscapeColor(reset);
 	}
 }
@@ -1165,7 +1192,7 @@ printUnique(struct FNAME p, const char *dummy, struct ALIST cfg)
 	// --------------------------------------------------------------------------------
 	// あれば uniquebegin までを表示
 	if (p.uniquebegin > 0) {
-		printf("%.*s", p.uniquebegin, p.name);
+		escapePrintf(p.name, p.uniquebegin);
 	}
 
 	// --------------------------------------------------------------------------------
@@ -1207,7 +1234,7 @@ printUnique(struct FNAME p, const char *dummy, struct ALIST cfg)
 	printEscapeColor(base);
 	printf("%s", cfg.textend);
 	// あれば uniqueend 後を表示
-	printf("%s", p.name + p.uniqueend + 1);
+	escapePrintf(p.name + p.uniqueend + 1, strlen(p.name + p.uniqueend + 1));
 	printEscapeColor(reset);
 
 	// dummy
@@ -1277,12 +1304,12 @@ printMatchedString(struct FNAME dummy, const char *str, struct ALIST cfg)
 
 	while ((match = strstr(ptr, paintString)) != NULL) {
 		// 該当前の部分
-		printf("%.*s", (int)(match - ptr), orig_ptr);
+		escapePrintf(orig_ptr, (match - ptr));
 
 		// 該当部分
 		printf("%s", cfg.textbegin);
 		printEscapeColor(paint);
-		printf("%.*s", paintStringLen, orig_ptr + (match - ptr));			// マッチした文字列を、元のままで表示
+		escapePrintf(orig_ptr + (match - ptr), paintStringLen);			// マッチした文字列を、元のままで表示
 		printEscapeColor(reset);
 		printEscapeColor(base);
 		printf("%s", cfg.textend);
@@ -1293,8 +1320,7 @@ printMatchedString(struct FNAME dummy, const char *str, struct ALIST cfg)
 	}
 
 	// 該当後の部分
-	printf("%s", orig_ptr);
-
+	escapePrintf(orig_ptr, strlen(orig_ptr));
 	printEscapeColor(reset);
 
 	// dummy
@@ -1794,6 +1820,14 @@ wcStrlen(char *name)
 		int width = wcwidth(wstr[i]);
 		if (width > 0) {
 			total += width;
+		}
+	}
+
+	// エスケープ用に、\t, \n を確認
+	int len = strlen(name);
+	for (int i=0; i<len; i++) {
+		if (name[i] == '\t' || name[i] == '\n') {
+			total += 2;
 		}
 	}
 
@@ -2785,16 +2819,16 @@ showUsage(char **argv)
 	printStr(label, "Additional options:\n");
 	printf(" -i: with -l, human-readable sIze. (affects count, size, hardlinks in -f)\n");
 	printf(" "); printStr(label,  "-r"); printf(": show aggregate Results.\n");
+	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the "); printStr(paint,  "paint"); printf(" color. (-Rnumber)\n");
 	printf(" "); printStr(normal, "-8"); printf(": output n:name and p:path fields in OSC 8 format. (Short/Long listing)\n");
 	printf("      -8:        execute default application.\n");
 	printf("      -8appname: execute appname application.\n");
-	printf(" "); printStr(normal, "-R"); printf(": color the corresponding length of the aggregate Results with the "); printStr(paint,  "paint"); printf(" color. (-Rnumber)\n");
-	printf("     -i = -r = -R = -8\n");
+	printf(" "); printStr(normal,"--"); printf(": read list and calc unique word from stdin. (default: -fmogcdPNKLE)\n");
+	printf("      --0: change stdin DELIMITER is \\0. (default: \\n)\n");
+	printf("     -i = -r = -R = -8 = --\n");
 
 	printf("\n");
 	printStr(label, "Other options:\n");
-	printf(" "); printStr(normal,"--"); printf(":            read list and calc unique word from stdin. (default: -fmogcdPNKLE)\n");
-
 	printf(" -h, "); printStr(normal, "--help"); printf(":    show this message.");
 	printf(" (OSC8 Info: ");
 	printOSC8Str("https://github.com/zunyon/rls", argv[0]);
@@ -3003,7 +3037,7 @@ calcFnameLength(struct FNAME *p)
 	p->kindl     = p->kind[0]     == '\0' ? 0: strlen(p->kind);	// 固定長
 	p->pathl     = p->path[0]     == '\0' ? 0: wcStrlen(p->path);
 	p->uniquel   = p->unique[0]   == '\0' ? 0: strlen(p->unique);
-	p->linknamel = p->linkname[0] == '\0' ? 0: strlen(p->linkname);
+	p->linknamel = p->linkname[0] == '\0' ? 0: wcStrlen(p->linkname);
 	p->errnostrl = p->errnostr[0] == '\0' ? 0: strlen(p->errnostr);
 	p->jotl      = p->jot[0]      == '\0' ? 0: strlen(p->jot);
 }
@@ -3069,11 +3103,14 @@ initAlist(int argc, char *argv[], struct ALIST *cfg, int argverr[])
 			continue;
 		}
 
-		if (strcmp(argv[i], "--") == 0) {
+		if (strcmp(argv[i], "--") == 0 || strcmp(argv[i], "--0") == 0) {
 			cfg->from_stdin++;
 			// デフォルトの表示項目 + ソートを設定
 			strcpy(cfg->formatListString, "mogcdPNKLE");
 			strcpy(cfg->formatSortString, "ppnn");
+			if (strcmp(argv[i], "--0") == 0) {
+				STDIN_DELIMITER = '\0';
+			}
 			continue;
 		}
 
@@ -3843,8 +3880,8 @@ scandirStdin(struct dirent ***namelist, char ***pathlist)
 		return -1;
 	}
 
-	// 2 次元配列に詰め込む
-	while ((nread = getline(&line, &dummy, stdin)) != -1) {
+	// 2 次元配列に詰め込む、ファイル名/ディレクトリ名の \t, \n 対応
+	while ((nread = getdelim(&line, &dummy, STDIN_DELIMITER, stdin)) != -1) {
 		// 空行
 		if (line[0] == '\n' || line[0] == '\0') {
 			continue;
@@ -5081,6 +5118,8 @@ main(int argc, char *argv[])
 				continue;
 			}
 
+			// rls, -pa は ok
+			fnamelist[j].namel = wcStrlen(fnamelist[j].name);
 			// 何文字エスケープされるか、printLength: の計算値、printUnique() と合わせる
 			// !! printMatchedString() とも合わせる必用あり
 			int count = 0;
@@ -5091,9 +5130,13 @@ main(int argc, char *argv[])
 						count++;
 					}
 				}
-				count += countMatchedString(fnamelist[j].name, fnamelist[j].length) * cfg.tlen;
+				count += countMatchedString(fnamelist[j].name, fnamelist[j].length);
+				if (cfg.paint_string != 0) {
+					fnamelist[j].namel += count * cfg.tlen;
+				} else {
+					fnamelist[j].namel += count + cfg.tlen;
+				}
 			}
-			fnamelist[j].namel = wcStrlen(fnamelist[j].name) + count;
 		}
 
 		// --------------------------------------------------------------------------------
